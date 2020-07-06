@@ -167,16 +167,16 @@ class AnimatedImage():
         variableNames = []
         if reader.hasDataRemaining():
             reader.seek(2,1)
-            self.variables = {}
+            output.variables = {}
 
             for indexData in range(16):
                 name = reader.readPaddedString(16, ENCODING_DEFAULT_STRING)
                 variableNames.append(name)
-                self.variables[name] = [0,0,0,0,0,0,0,0]
+                output.variables[name] = [0,0,0,0,0,0,0,0]
 
             for indexData in range(8):
                 for indexVariable in range(16):
-                    self.variables[variableNames[indexVariable]][indexData] = reader.readS16()
+                    output.variables[variableNames[indexVariable]][indexData] = reader.readS16()
             
             offsetSubAnimationData = reader.tell()
             if callable(functionGetFileByName):
@@ -192,8 +192,8 @@ class AnimatedImage():
                         for indexOffset in range(countAnims):
                             tempOffset[indexDimension].append(reader.readS16())
                     for indexAnim in range(countAnims):
-                        self.animations.subAnimationOffset = (tempOffset[0][indexAnim], tempOffset[1][indexAnim])
-                        self.animations.subAnimationIndex = reader.readUInt(1)
+                        output.animations.subAnimationOffset = (tempOffset[0][indexAnim], tempOffset[1][indexAnim])
+                        output.animations.subAnimationIndex = reader.readUInt(1)
 
                 except:
                     pass
