@@ -1,6 +1,12 @@
 from ...madhatter.hat_io.asset_sav import Layton2SaveSlot
 from ...madhatter.hat_io.asset_dlz.ev_inf2 import EventInfoList
-from ..const import LANGUAGES, EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_EV_INF2
+from ...madhatter.hat_io.asset_placeflag import PlaceFlag
+from ...madhatter.hat_io.asset_storyflag import StoryFlag
+from ...madhatter.hat_io.asset_autoevent import AutoEvent
+from ...madhatter.hat_io.asset_dlz.goal_inf import GoalInfo
+from ...madhatter.hat_io.asset import LaytonPack, File
+from ..const import LANGUAGES, EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_EV_INF2, PATH_PROGRESSION_DB, PATH_DB_RC_ROOT, PATH_DB_GOAL_INF
+from ..exceptions import FileInvalidCritical
 from ..file import FileInterface
 from .enum_mode import GAMEMODES
 
@@ -25,10 +31,21 @@ class Layton2GameState():
 
         self.isFirstTouchEnabled = True
 
+        self.dbPlaceFlag        = PlaceFlag()
+        self.dbStoryFlag        = StoryFlag()
+        self.dbAutoEvent        = AutoEvent()
+
         # Safe to assume always loaded
-        self.dbPlaceFlag        = None
-        self.dbStoryFlag        = None
-        self.dbAutoEvent        = None
+        try:
+            packedProgressionDbs = LaytonPack()
+            packedProgressionDbs.load(FileInterface.getData(PATH_PROGRESSION_DB))
+
+            self.dbPlaceFlag.load(packedProgressionDbs.getFile("placeflag.dat"))
+            self.dbStoryFlag.load(packedProgressionDbs.getFile("storyflag2.dat"))
+            self.dbAutoEvent.load(packedProgressionDbs.getFile("autoevent2.dat"))
+
+        except:
+            raise FileInvalidCritical()
 
         # Loaded and unloaded where required
         # TODO - Do this by gamemode
@@ -148,3 +165,24 @@ class Layton2GameState():
     def setPuzzleId(self, idPuzzle):
         # Load nz info entry, set id
         pass
+
+    def getGoalInfEntry(self):
+        if self._dbGoalInfo == None:
+             # TODO : Load goal info
+            print("Bad: Goal Info should have been loaded sooner!")
+            self._dbGoalInfo = GoalInfo()
+
+            # Temporary workaround
+            tempFile = File(data=FileInterface.getData(PATH_DB_RC_ROOT % PATH_DB_GOAL_INF))
+            tempFile.decompressLz10()
+
+            self._dbGoalInfo.load(tempFile.data)
+
+        # TODO - Add madhatter search for goal_inf (why was this missing??)
+        for indexEntry in range(self._dbGoalInfo.getCountEntries()):
+            entry = self._dbGoalInfo.getEntry(indexEntry)
+
+            # TODO - Does this use calculated ID?
+            if entry.idEvent == self._idEvent:
+                return entry
+        return None

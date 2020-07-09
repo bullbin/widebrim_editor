@@ -6,6 +6,8 @@ EVENT_ID_START_PUZZLE   = 20000
 EVENT_ID_START_TEA      = 30000
 
 PATH_DB_EV_INF2 = "/data_lt2/rc/%s/ev_inf2.dlz"
+PATH_DB_GOAL_INF = "goal_inf.dlz"
+PATH_DB_RC_ROOT = "/data_lt2/rc/%s"
 
 PATH_EVENT_SCRIPT   = "/data_lt2/event/ev_d%i.plz"
 PATH_EVENT_SCRIPT_A = "/data_lt2/event/ev_d%ia.plz"
@@ -19,6 +21,8 @@ PATH_EVENT_TALK_C   = "/data_lt2/event/%s/ev_t%ic.plz"
 PATH_PACK_EVENT_DAT = "d%i_%.3i.dat"
 PATH_PACK_EVENT_SCR = "e%i_%.3i.gds"
 PATH_PACK_TALK      = "t%i_%.3i_%i.gds"
+
+PATH_PROGRESSION_DB = "/data_lt2/place/data.plz"
 
 class LANGUAGES(Enum):
     French      = "fr"

@@ -4,6 +4,7 @@ from ..engine.state.enum_mode import GAMEMODES, STRING_TO_GAMEMODE_VALUE
 from ..engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C, PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, PATH_PACK_TALK
 from ..madhatter.hat_io.asset import LaytonPack
 from ..madhatter.hat_io.asset_script import GdScript
+from ..madhatter.hat_io.asset_sav import FlagsAsArray
 from ..madhatter.typewriter.stringsLt2 import OPCODES_LT2
 
 class EventPlayer(ScreenLayerNonBlocking):
@@ -63,10 +64,18 @@ class EventPlayer(ScreenLayerNonBlocking):
                 print("Failed to fetch required data for event!")
                 self._canBeKilled = True
         
-        if not(self._canBeKilled):
-            pass
+        goalInfoEntry = self.laytonState.getGoalInfEntry()
+        # TODO - Goal versus objective?
+        if goalInfoEntry != None:
+            # print("Updated objective to", goalInfoEntry.goal)
+            self.laytonState.saveSlot.chapter = goalInfoEntry.goal
+            self.laytonState.saveSlot.goal = goalInfoEntry.goal
 
-        print("Loaded event", self.laytonState.getEventId())
+        if not(self._canBeKilled):
+            if self.laytonState.entryEvInfo.indexEventViewedFlag != None:
+                self.laytonState.saveSlot.eventViewed.setSlot(True, self.laytonState.entryEvInfo.indexEventViewedFlag)
+
+        print("Loaded event", spawnId)
 
     def update(self, gameClockDelta):
         if not(self._canBeKilled):
@@ -75,7 +84,6 @@ class EventPlayer(ScreenLayerNonBlocking):
                 command = self.script.getInstruction(self.scriptCurrentCommandIndex)
                 opcode = int.from_bytes(command.opcode, byteorder = 'little')
                 
-
                 if opcode == OPCODES_LT2.SetGameMode.value:
                     try:
                         self.laytonState.setGameMode(GAMEMODES(STRING_TO_GAMEMODE_VALUE[command.operands[0].value[:-1]]))
@@ -96,9 +104,50 @@ class EventPlayer(ScreenLayerNonBlocking):
                 elif opcode == OPCODES_LT2.SetPuzzleNum.value:
                     self.laytonState.setPuzzleId(command.operands[0].value)
                 
+                elif opcode == OPCODES_LT2.ReleaseItem.value:
+                    self.laytonState.saveSlot.storyItemFlag.setSlot(False, command.operands[0].value)
+                
+                elif opcode == OPCODES_LT2.SetPlace.value:
+                    self.laytonState.saveSlot.roomIndex = command.operands[0].value
+                
+                elif opcode == OPCODES_LT2.SetEventCounter.value:
+                    indexCounter = command.operands[0].value
+                    valueCounter = command.operands[1].value
+
+                    if 0 <= indexCounter < 128:
+                        tempEventCounter = bytearray(self.laytonState.saveSlot.eventCounter.toBytes(outLength=128))
+                        tempEventCounter[indexCounter] = valueCounter
+                        self.laytonState.saveSlot.eventCounter = FlagsAsArray.fromBytes(tempEventCounter)
+                
+                elif opcode == OPCODES_LT2.AddEventCounter.value:
+                    indexCounter = command.operands[0].value
+                    valueCounter = command.operands[1].value
+
+                    if 0 <= indexCounter < 128:
+                        tempEventCounter = bytearray(self.laytonState.saveSlot.eventCounter.toBytes(outLength=128))
+                        tempEventCounter[indexCounter] = tempEventCounter[indexCounter] + valueCounter
+                        self.laytonState.saveSlot.eventCounter = FlagsAsArray.fromBytes(tempEventCounter)
+
+                elif opcode == OPCODES_LT2.OrEventCounter.value:
+                    indexCounter = command.operands[0].value
+                    valueCounter = command.operands[1].value
+
+                    if 0 <= indexCounter < 128:
+                        tempEventCounter = bytearray(self.laytonState.saveSlot.eventCounter.toBytes(outLength=128))
+                        tempEventCounter[indexCounter] = tempEventCounter[indexCounter] | valueCounter
+                        self.laytonState.saveSlot.eventCounter = FlagsAsArray.fromBytes(tempEventCounter)
+
+                elif opcode == OPCODES_LT2.AddMemo.value:
+                    self.laytonState.saveSlot.memoFlag.flagEnabled.setSlot(True, command.operands[0].value)
+                    self.laytonState.saveSlot.memoFlag.flagNew.setSlot(True, command.operands[0].value)
+
+                elif opcode == OPCODES_LT2.SetMovieNum.value:
+                    # TODO - Getters and setters
+                    self.laytonState.idMovieNum = command.operands[0].value
+
                 else:
-                    print("\tSkipped command!")
-                    #print("Unimplemented", OPCODES_LT2(opcode).name)
+                    #print("\tSkipped command!")
+                    print("Unimplemented", OPCODES_LT2(opcode).name)
 
                 self.scriptCurrentCommandIndex += 1
             

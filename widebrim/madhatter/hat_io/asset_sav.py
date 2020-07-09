@@ -484,7 +484,7 @@ class Layton2SaveSlot():
         self.picarats               = 0
         
         self.roomIndex              = 1
-        self.roomSubIndex           = 1
+        self.roomSubIndex           = 0
         self.timeElapsed            = 0
         self.chapter                = 0
         self.minigameTeaState       = HandlerTeaState()
