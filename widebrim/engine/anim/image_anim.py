@@ -59,12 +59,15 @@ class AnimatedImageObject():
 
         # TODO - Add alpha
         # TODO - Don't use composed frame since that preblends alpha which causes every surface to require alpha drawing instead of alpha mask
+        # TODO - Support multiple animations running simultaneously (used in LAYTON3)
 
     @staticmethod
     def fromMadhatter(assetData):
 
+        # TODO - Break dependencies on original file so it can be reused (or implement multi-animation support)
+
         def convertPilRgbaToPygame(imageIn):
-            return pygame.image.fromstring(imageIn.tobytes("raw", "RGBA"), imageIn.size, "RGBA").convert()
+            return pygame.image.fromstring(imageIn.tobytes("raw", "RGBA"), imageIn.size, "RGBA").convert_alpha()
 
         output = AnimatedImageObject()
         for frame in assetData.frames:

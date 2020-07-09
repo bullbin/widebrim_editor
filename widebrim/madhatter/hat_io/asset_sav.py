@@ -103,7 +103,7 @@ class FlagsAsArray():
             self.flags.append(defaultState)
     
     def setSlot(self, state, slotIndex):
-        if slotIndex > 0 and slotIndex < len(self.flags):
+        if slotIndex >= 0 and slotIndex < len(self.flags):
             self.flags[slotIndex] = state
     
     def getSlot(self, slotIndex):

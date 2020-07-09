@@ -1,14 +1,17 @@
+# TODO : Switch this around...
+# Layers will need a blocking system to ensure certain events do not happen during a fading operation.
+# For example, a script needs to stop execution during fading to prevent things from happening too soon
+# This means also exposing a method to reveal if fading is occuring.
+# Additionally at some point it would be good to support dirty rendering
+
 class ScreenLayer():
     def __init__(self):
-        self.canBeKilled        = False
+        self._canBeKilled = False
     
     def getContextState(self):
-        return self.canBeKilled
+        return self._canBeKilled
     
     def draw(self, gameDisplay):
-        pass
-
-    def update(self, gameClockDelta):
         pass
     
     def handleKeyboardEvent(self, event):
@@ -17,6 +20,23 @@ class ScreenLayer():
 
     def handleTouchEvent(self, event):
         # Return True if the event was absorbed
+        return False
+
+class ScreenLayerBlocking(ScreenLayer):
+    def __init__(self):
+        ScreenLayer.__init__(self)
+    
+    def updateBlocked(self, gameClockDelta):
+        pass
+
+    def updateNonBlocked(self, gameClockDelta):
+        pass
+
+class ScreenLayerNonBlocking(ScreenLayer):
+    def __init__(self):
+        ScreenLayer.__init__(self)
+    
+    def update(self, gameClockDelta):
         pass
 
 class ScreenCollection():
@@ -46,9 +66,33 @@ class ScreenCollection():
     def handleKeyboardEvent(self, event):
         for indexLayer in range(len(self._layers) - 1, -1, -1):
             if self._layers[indexLayer].handleKeyboardEvent(event):
-                break
+                return True
+        return False
     
     def handleTouchEvent(self, event):
         for indexLayer in range(len(self._layers) - 1, -1, -1):
             if self._layers[indexLayer].handleTouchEvent(event):
-                break
+                return True
+        return False
+
+class ScreenCollectionBlocking(ScreenCollection):
+    def __init__(self):
+        ScreenCollection.__init__(self)
+    
+    def isUpdateBlocked(self):
+        return False
+    
+    def update(self, gameClockDelta):
+
+        if self.isUpdateBlocked():
+            def updateLayer(inLayer):
+                inLayer.updateBlocked(gameClockDelta)
+        else:
+            def updateLayer(inLayer):
+                inLayer.updateNonBlocked(gameClockDelta)
+
+        for indexLayer in range(len(self._layers) - 1, -1, -1):
+            layer = self._layers[indexLayer]
+            updateLayer(layer)
+            if layer.getContextState():
+                self.removeFromCollection(indexLayer)

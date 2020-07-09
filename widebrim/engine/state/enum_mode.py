@@ -1,5 +1,10 @@
 from enum import Enum
 
+STRING_TO_GAMEMODE_VALUE = {"drama event":3,
+                            "room":1,
+                            "movie":6,
+                            "narration":13}
+
 class GAMEMODES(Enum):
     INVALID     = 0
     Room        = 1

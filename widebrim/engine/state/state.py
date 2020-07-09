@@ -1,6 +1,8 @@
 from ...madhatter.hat_io.asset_sav import Layton2SaveSlot
+from ...madhatter.hat_io.asset_dlz.ev_inf2 import EventInfoList
+from ..const import LANGUAGES, EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_EV_INF2
+from ..file import FileInterface
 from .enum_mode import GAMEMODES
-from ..const import LANGUAGES
 
 class Layton2GameState():
     def __init__(self, language=LANGUAGES.Japanese):
@@ -10,10 +12,13 @@ class Layton2GameState():
 
         self.language       = language
 
-        self.gameMode       = GAMEMODES.INVALID
-        self.gameModeNext   = GAMEMODES.INVALID
+        # TODO - Don't make these public so dbs can be dynamically loaded
+        self._gameMode       = GAMEMODES.INVALID
+        self._gameModeNext   = GAMEMODES.INVALID
 
-        self.idEvent        = -1
+        self.gameModeRestartRequired = False
+
+        self._idEvent       = -1
         self.idMovieNum     = -1
         
         self.namePlace      = ""
@@ -26,6 +31,7 @@ class Layton2GameState():
         self.dbAutoEvent        = None
 
         # Loaded and unloaded where required
+        # TODO - Do this by gamemode
         self._dbChapterInfo      = None
         self._dbSubmapInfo       = None
         self._dbGoalInfo         = None
@@ -42,10 +48,26 @@ class Layton2GameState():
         self.entryEvInfo    = None
         self.entryNzList    = None
     
+    def setGameMode(self, newGameMode):
+        if newGameMode == self._gameMode:
+            self.gameModeRestartRequired = True
+        self._gameMode = newGameMode
+    
+    def getGameMode(self):
+        return self._gameMode
+    
+    def setGameModeNext(self, newGameMode):
+        self._gameModeNext = newGameMode
+    
+    def getGameModeNext(self):
+        return self._gameModeNext
+
     def getEventInfoEntry(self, idEvent):
         if self._dbEventInfo == None:
             # TODO : Load event info
-            pass
+            print("Bad: Event Info should have been loaded sooner!")
+            self._dbEventInfo = EventInfoList()
+            self._dbEventInfo.load(FileInterface.getData(PATH_DB_EV_INF2 % self.language.value))
         
         indexEntry = self._dbEventInfo.searchForEntry(idEvent)
         if indexEntry != None:
@@ -54,12 +76,75 @@ class Layton2GameState():
         return None
 
     def setEventId(self, idEvent):
+        if idEvent == -1:
+            self.clearEventId()
+            return True
+
         entry = self.getEventInfoEntry(idEvent)
         if entry != None:
-            self.idEvent = idEvent
+            self._idEvent = idEvent
             self.entryEvInfo = entry
             return True
         return False
     
+    def getEventId(self):
+
+        def getOffsetIdWasViewed():
+            if self.entryEvInfo.indexEventViewedFlag != None:
+                if self.saveSlot.eventViewed.getSlot(self.entryEvInfo.indexEventViewedFlag):
+                    return self._idEvent + 1
+            return self._idEvent
+
+        def getOffsetIdPuzzle():
+            # Initial solved and quit not included as these seem to be the result of the puzzle handler
+            # These will not be modified however
+            if self.entryEvInfo.dataPuzzle != None:
+                entryPuzzle = self.saveSlot.puzzleData.getPuzzleData(self.entryEvInfo.dataPuzzle)
+                if entryPuzzle.wasSolved:
+                    return self._idEvent + 3
+                elif entryPuzzle.wasEncountered:
+                    return self._idEvent + 1
+                else:
+                    return getOffsetIdWasViewed()
+            return self._idEvent
+        
+        def getOffsetIdLimit():
+            countSolved, countEncountered = self.saveSlot.getSolvedAndEncounteredPuzzleCount()
+            if countSolved >= self.entryEvInfo.dataPuzzle:
+                return self._idEvent + 2
+            return getOffsetIdWasViewed()
+
+        if self.entryEvInfo == None:
+            return self._idEvent
+
+        if self.entryEvInfo.indexStoryFlag != None:
+            self.saveSlot.storyFlag.setSlot(True, self.entryEvInfo.indexStoryFlag)
+        
+        if self._idEvent >= EVENT_ID_START_TEA:
+            # Tea Event
+            # TODO - Figure out progression on these
+            return self._idEvent
+        
+        elif self._idEvent >= EVENT_ID_START_PUZZLE:
+            # Puzzle Event (designated IDs)
+            return getOffsetIdPuzzle()
+
+        else:
+            # Drama Event
+            if self.entryEvInfo.typeEvent == 5:
+                return getOffsetIdLimit()
+            elif self.entryEvInfo.typeEvent == 3: # Seems to be autoevents, which do not have any branching available
+                if getOffsetIdWasViewed() != self._idEvent:
+                    self.clearEventId()
+                return self._idEvent
+            else:
+                # TODO - Research remaining types 0,1,2,3,4
+                return getOffsetIdWasViewed()
+    
     def clearEventId(self):
-        self.eventId = -1
+        self._idEvent = -1
+        self.entryEvInfo = None
+    
+    def setPuzzleId(self, idPuzzle):
+        # Load nz info entry, set id
+        pass
