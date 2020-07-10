@@ -102,10 +102,17 @@ class FaderLayer(ScreenLayerNonBlocking):
 
         self._faderMain = Fader(0, initialActiveState=False)
         self._faderSub = Fader(0, initialActiveState=False)
+        self.isViewObscured = False
 
     def update(self, gameClockDelta):
         self._faderMain.update(gameClockDelta)
         self._faderSub.update(gameClockDelta)
+
+        if self._faderMain.getStrength() == 1 and self._faderSub.getStrength() == 1:
+            self.isViewObscured = True
+        else:
+            self.isViewObscured = False
+
         self._faderSurfMain.set_alpha(round(self._faderMain.getStrength() * 255))
         self._faderSurfSub.set_alpha(round(self._faderSub.getStrength() * 255))
     
@@ -147,6 +154,9 @@ class ScreenController():
 
     def getFadingStatus(self):
         return self._faderLayer.getFaderStatus()
+    
+    def getFaderIsViewObscured(self):
+        return self._faderLayer.isViewObscured
 
     def fadeInMain(self, duration=FaderLayer.DEFAULT_FADE_TIME):
         self._faderLayer.fadeInMain(duration=duration)
@@ -271,3 +281,9 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
             layer.update(gameClockDelta)
             if layer.getContextState() and layer != self._currentActiveGameModeObject:
                 self.removeFromCollection(indexLayer)
+    
+    def draw(self, gameDisplay):
+        if not(self.screenControllerObject.getFaderIsViewObscured()):
+            # Saves CPU, although this leaves a faint trail
+            return super().draw(gameDisplay)
+        return None

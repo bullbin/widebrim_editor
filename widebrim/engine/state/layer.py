@@ -39,8 +39,9 @@ class ScreenLayerNonBlocking(ScreenLayer):
     def update(self, gameClockDelta):
         pass
 
-class ScreenCollection():
+class ScreenCollection(ScreenLayer):
     def __init__(self):
+        ScreenLayer.__init__(self)
         self._layers = []
 
     def addToCollection(self, screenObject):

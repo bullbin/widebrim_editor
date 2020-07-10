@@ -1,13 +1,28 @@
-from ..engine.state.layer import ScreenLayerNonBlocking
+from ..engine.state.layer import ScreenLayerBlocking, ScreenCollectionBlocking
 from ..engine.file import FileInterface
 from ..engine.state.enum_mode import GAMEMODES, STRING_TO_GAMEMODE_VALUE
-from ..engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C, PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, PATH_PACK_TALK
+from ..engine.const import TIME_FRAMECOUNT_TO_MILLISECONDS, PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C, PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, PATH_PACK_TALK
 from ..madhatter.hat_io.asset import LaytonPack
 from ..madhatter.hat_io.asset_script import GdScript
 from ..madhatter.hat_io.asset_sav import FlagsAsArray
 from ..madhatter.typewriter.stringsLt2 import OPCODES_LT2
 
-class EventPlayer(ScreenLayerNonBlocking):
+class EventPlayer(ScreenCollectionBlocking):
+    def __init__(self, laytonState, screenController):
+        ScreenCollectionBlocking.__init__(self)
+        self.screenController = screenController
+        self.addToCollection(EventHandler(laytonState, screenController))
+    
+    def isUpdateBlocked(self):
+        return self.screenController.getFadingStatus()
+
+    def update(self, gameClockDelta):
+        if len(self._layers) == 0:
+            self._canBeKilled = True
+        else:
+            super().update(gameClockDelta)
+
+class EventHandler(ScreenLayerBlocking):
     def __init__(self, laytonState, screenController):
 
         def substituteEventPath(inPath, inPathA, inPathB, inPathC):
@@ -35,7 +50,7 @@ class EventPlayer(ScreenLayerNonBlocking):
 
         # print("Tried to add drama layer...")
 
-        ScreenLayerNonBlocking.__init__(self)
+        ScreenLayerBlocking.__init__(self)
         self.screenController = screenController
         self.laytonState = laytonState
         self.laytonState.setGameModeNext(GAMEMODES.Room)
@@ -75,13 +90,13 @@ class EventPlayer(ScreenLayerNonBlocking):
             if self.laytonState.entryEvInfo.indexEventViewedFlag != None:
                 self.laytonState.saveSlot.eventViewed.setSlot(True, self.laytonState.entryEvInfo.indexEventViewedFlag)
 
-        self.screenController.fadeIn()
+        self.hasFadedOut = False
 
         print("Loaded event", spawnId)
 
-    def update(self, gameClockDelta):
+    def updateNonBlocked(self, gameClockDelta):
         if not(self._canBeKilled):
-            while self.scriptCurrentCommandIndex < self.script.getInstructionCount():
+            while self.scriptCurrentCommandIndex < self.script.getInstructionCount() and not(self.screenController.getFadingStatus()):
                 
                 command = self.script.getInstruction(self.scriptCurrentCommandIndex)
                 opcode = int.from_bytes(command.opcode, byteorder = 'little')
@@ -159,6 +174,47 @@ class EventPlayer(ScreenLayerNonBlocking):
                 elif opcode == OPCODES_LT2.ModifySubBGPal.value:
                     self.screenController.modifyPaletteSub(command.operands[3].value)
 
+                elif opcode == OPCODES_LT2.FadeIn.value:
+                    self.screenController.fadeIn()
+                
+                elif opcode == OPCODES_LT2.FadeOut.value:
+                    self.screenController.fadeOut()
+
+                elif opcode == OPCODES_LT2.FadeInFrame.value:
+                    self.screenController.fadeIn(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
+                
+                elif opcode == OPCODES_LT2.FadeOutFrame.value:
+                    self.screenController.fadeOut(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
+                
+
+
+                elif opcode == OPCODES_LT2.FadeInOnlyMain.value:
+                    self.screenController.fadeInMain()
+                
+                elif opcode == OPCODES_LT2.FadeOutOnlyMain.value:
+                    self.screenController.fadeOutMain()
+
+                elif opcode == OPCODES_LT2.FadeInFrameMain.value:
+                    self.screenController.fadeInMain(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
+                
+                elif opcode == OPCODES_LT2.FadeOutFrameMain.value:
+                    self.screenController.fadeOutMain(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
+                
+
+
+                elif opcode == OPCODES_LT2.FadeInFrameSub.value:
+                    self.screenController.fadeInSub(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
+                
+                elif opcode == OPCODES_LT2.FadeOutFrameSub.value:
+                    self.screenController.fadeOutSub(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
+
+
+
+                elif opcode == OPCODES_LT2.DoHukamaruAddScreen.value:
+                    # TODO - Not accurate, but required to get fading looking correct
+                    self.screenController.fadeOut()
+
+
                 else:
                     #print("\tSkipped command!")
                     print("Unimplemented", OPCODES_LT2(opcode).name)
@@ -166,4 +222,11 @@ class EventPlayer(ScreenLayerNonBlocking):
                 self.scriptCurrentCommandIndex += 1
             
             # TODO - REENABLE THIS BEFORE PUSH!!
-            self._canBeKilled = True
+            if not(self.screenController.getFadingStatus()) and self.scriptCurrentCommandIndex >= self.script.getInstructionCount():
+                if self.hasFadedOut or self.screenController.getFaderIsViewObscured():
+                    self._canBeKilled = True
+                else:
+                    print("Trigger fade out!")
+                    # TODO - Only fade out on required screens
+                    self.screenController.fadeOut()
+                    self.hasFadedOut = True
