@@ -37,7 +37,7 @@ class FileInterface():
             #debugPrint("RomGrab", resolveFilepath(filepath))
             return testFile.data
         #debugErrorPrint("RomGrabFailed", resolveFilepath(filepath))
-        return b''
+        return None
 
     @staticmethod
     def doesFileExist(filepath):

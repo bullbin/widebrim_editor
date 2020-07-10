@@ -2,7 +2,7 @@ from ..engine.state.layer import ScreenLayerNonBlocking
 from ..engine.state.enum_mode import GAMEMODES
 
 class RoomPlayer(ScreenLayerNonBlocking):
-    def __init__(self, laytonState):
+    def __init__(self, laytonState, screenController):
         ScreenLayerNonBlocking.__init__(self)
 
         self.laytonState = laytonState
@@ -11,10 +11,10 @@ class RoomPlayer(ScreenLayerNonBlocking):
         if self._executeAutoEvent():
             self.laytonState.setGameModeNext(GAMEMODES.DramaEvent)
             self._canBeKilled = True
-
+            
         print("Attempted to load room", self.laytonState.saveSlot.roomIndex, self.laytonState.saveSlot.roomSubIndex)
-        
-        self._canBeKilled = True
+
+        # self._canBeKilled = True
 
     def _executeAutoEvent(self):
 

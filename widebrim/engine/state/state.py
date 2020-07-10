@@ -25,7 +25,7 @@ class Layton2GameState():
         self.gameModeRestartRequired = False
 
         self._idEvent       = -1
-        self.idMovieNum     = -1
+        self._idMovieNum    = -1
         
         self.namePlace      = ""
 
@@ -65,6 +65,9 @@ class Layton2GameState():
         self.entryEvInfo    = None
         self.entryNzList    = None
     
+    def setMovieNum(self, movieNum):
+        self._idMovieNum = movieNum
+
     def setGameMode(self, newGameMode):
         if newGameMode == self._gameMode:
             self.gameModeRestartRequired = True

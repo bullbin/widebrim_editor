@@ -1,6 +1,6 @@
 from ..engine.state.layer import ScreenLayerNonBlocking
 
 class NarrationPlayer(ScreenLayerNonBlocking):
-    def __init__(self, laytonState):
+    def __init__(self, laytonState, screenController):
         ScreenLayerNonBlocking.__init__(self)
         self._canBeKilled = True

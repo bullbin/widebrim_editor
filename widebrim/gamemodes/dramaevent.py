@@ -8,7 +8,7 @@ from ..madhatter.hat_io.asset_sav import FlagsAsArray
 from ..madhatter.typewriter.stringsLt2 import OPCODES_LT2
 
 class EventPlayer(ScreenLayerNonBlocking):
-    def __init__(self, laytonState):
+    def __init__(self, laytonState, screenController):
 
         def substituteEventPath(inPath, inPathA, inPathB, inPathC):
 
@@ -36,6 +36,7 @@ class EventPlayer(ScreenLayerNonBlocking):
         # print("Tried to add drama layer...")
 
         ScreenLayerNonBlocking.__init__(self)
+        self.screenController = screenController
         self.laytonState = laytonState
         self.laytonState.setGameModeNext(GAMEMODES.Room)
         self.packEventTalk = LaytonPack()
@@ -67,13 +68,14 @@ class EventPlayer(ScreenLayerNonBlocking):
         goalInfoEntry = self.laytonState.getGoalInfEntry()
         # TODO - Goal versus objective?
         if goalInfoEntry != None:
-            # print("Updated objective to", goalInfoEntry.goal)
             self.laytonState.saveSlot.chapter = goalInfoEntry.goal
             self.laytonState.saveSlot.goal = goalInfoEntry.goal
 
         if not(self._canBeKilled):
             if self.laytonState.entryEvInfo.indexEventViewedFlag != None:
                 self.laytonState.saveSlot.eventViewed.setSlot(True, self.laytonState.entryEvInfo.indexEventViewedFlag)
+
+        self.screenController.fadeIn()
 
         print("Loaded event", spawnId)
 
@@ -141,9 +143,21 @@ class EventPlayer(ScreenLayerNonBlocking):
                     self.laytonState.saveSlot.memoFlag.flagEnabled.setSlot(True, command.operands[0].value)
                     self.laytonState.saveSlot.memoFlag.flagNew.setSlot(True, command.operands[0].value)
 
+                elif opcode == OPCODES_LT2.LoadBG.value:
+                    self.screenController.setBgMain(command.operands[0].value)
+
+                elif opcode == OPCODES_LT2.LoadSubBG.value:
+                    self.screenController.setBgSub(command.operands[0].value)
+
                 elif opcode == OPCODES_LT2.SetMovieNum.value:
-                    # TODO - Getters and setters
-                    self.laytonState.idMovieNum = command.operands[0].value
+                    self.laytonState.setMovieNum(command.operands[0].value)
+
+                elif opcode == OPCODES_LT2.ModifyBGPal.value:
+                    # TODO - 3 unknowns in this command
+                    self.screenController.modifyPaletteMain(command.operands[3].value)
+
+                elif opcode == OPCODES_LT2.ModifySubBGPal.value:
+                    self.screenController.modifyPaletteSub(command.operands[3].value)
 
                 else:
                     #print("\tSkipped command!")
@@ -151,4 +165,5 @@ class EventPlayer(ScreenLayerNonBlocking):
 
                 self.scriptCurrentCommandIndex += 1
             
+            # TODO - REENABLE THIS BEFORE PUSH!!
             self._canBeKilled = True

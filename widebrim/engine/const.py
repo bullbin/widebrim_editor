@@ -1,13 +1,17 @@
 from enum import Enum
 
+RESOLUTION_NINTENDO_DS          = (256,192)
+
 TIME_FRAMECOUNT_TO_MILLISECONDS = 1000/60
 
-EVENT_ID_START_PUZZLE   = 20000
-EVENT_ID_START_TEA      = 30000
+EVENT_ID_START_PUZZLE           = 20000
+EVENT_ID_START_TEA              = 30000
 
-PATH_DB_EV_INF2 = "/data_lt2/rc/%s/ev_inf2.dlz"
-PATH_DB_GOAL_INF = "goal_inf.dlz"
-PATH_DB_RC_ROOT = "/data_lt2/rc/%s"
+PATH_DB_EV_INF2     = "/data_lt2/rc/%s/ev_inf2.dlz"
+PATH_DB_GOAL_INF    = "goal_inf.dlz"
+PATH_DB_RC_ROOT     = "/data_lt2/rc/%s"
+
+PATH_BG_ROOT        = "/data_lt2/bg/%s"
 
 PATH_EVENT_SCRIPT   = "/data_lt2/event/ev_d%i.plz"
 PATH_EVENT_SCRIPT_A = "/data_lt2/event/ev_d%ia.plz"
