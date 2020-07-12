@@ -12,6 +12,10 @@ PATH_DB_GOAL_INF    = "goal_inf.dlz"
 PATH_DB_RC_ROOT     = "/data_lt2/rc/%s"
 
 PATH_BG_ROOT        = "/data_lt2/bg/%s"
+PATH_CHAP_ROOT      = "chapter/?/chapter%i.arc"
+
+PATH_FACE_ROOT      = "/data_lt2/ani/sub/%s"
+PATH_BODY_ROOT      = "/data_lt2/ani/eventchr/chr%i.arc"
 
 PATH_EVENT_SCRIPT   = "/data_lt2/event/ev_d%i.plz"
 PATH_EVENT_SCRIPT_A = "/data_lt2/event/ev_d%ia.plz"

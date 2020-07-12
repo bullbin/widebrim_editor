@@ -20,14 +20,14 @@ class AnimationSequence(Animation):
         self._elapsedFrame = 0
     
     def getActiveKeyframe(self):
-        if self.isActive:
+        if self.isActive and self._indexFrame < len(self.keyframes):
             return self.keyframes[self._indexFrame].indexFrame
         return None
 
     def updateCurrentFrame(self, gameClockDelta):
         if self.isActive:
             self._elapsedFrame += gameClockDelta
-            while self.keyframes[self._indexFrame].duration <= self._elapsedFrame and self.isActive:
+            while self._indexFrame < len(self.keyframes) and self.keyframes[self._indexFrame].duration <= self._elapsedFrame and self.isActive:
                 nextFrameIndex = (self._indexFrame + 1) % len(self.keyframes)
                 if nextFrameIndex < self._indexFrame and not(self.isLooping):
                     self.isActive = False
@@ -57,9 +57,13 @@ class AnimatedImageObject():
         self._pos = (0,0)
         self._offset = (0,0)
 
+        # Not guarenteed reliable, workaround for alignment techniques since measuring the surface would be annoying
+        self._dimensions = (0,0)
+
         # TODO - Add alpha
         # TODO - Don't use composed frame since that preblends alpha which causes every surface to require alpha drawing instead of alpha mask
         # TODO - Support multiple animations running simultaneously (used in LAYTON3)
+        # TODO - Add alignment options, primarily for characters
 
     @staticmethod
     def fromMadhatter(assetData):
@@ -70,8 +74,14 @@ class AnimatedImageObject():
             return pygame.image.fromstring(imageIn.tobytes("raw", "RGBA"), imageIn.size, "RGBA").convert_alpha()
 
         output = AnimatedImageObject()
+        tempDimensions = (0,0)
         for frame in assetData.frames:
-            output._frames.append(convertPilRgbaToPygame(frame.getComposedFrame()))
+            tempPygameFrame = convertPilRgbaToPygame(frame.getComposedFrame())
+            output._frames.append(tempPygameFrame)
+            tempDimensions = (max(tempPygameFrame.get_width(), tempDimensions[0]),
+                              max(tempPygameFrame.get_height(), tempDimensions[1]))
+
+        output.setDimensions(tempDimensions)
 
         for anim in assetData.animations:
             output._addAnimation(AnimationSequence.fromMadhatter(anim))
@@ -103,6 +113,12 @@ class AnimatedImageObject():
             self.animActive = None
         self._setAnimationFromActive()
     
+    def setDimensions(self, dimensions):
+        self._dimensions = dimensions
+    
+    def getDimensions(self):
+        return self._dimensions
+
     def setAnimationFromIndex(self, index):
         if index in self._indexToAnimationMap:
             self.animActive = self._indexToAnimationMap[index]

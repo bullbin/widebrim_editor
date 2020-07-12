@@ -1,8 +1,10 @@
 def log(*args, **kwargs):
-    print(*args, **kwargs)
+    pass
+    #print(*args, **kwargs)
         
 def logSevere(*args, **kwargs):
-    print(*args, **kwargs)
+    pass
+    #print(*args, **kwargs)
 
 class Rect():
     def __init__(self,x,y,width,height):

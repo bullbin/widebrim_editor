@@ -9,7 +9,7 @@ from ..gamemodes import EventPlayer, RoomPlayer, NarrationPlayer
 from ..madhatter.hat_io.asset_image import StaticImage
 
 from pygame.event import post, Event
-from pygame import Surface, image, QUIT
+from pygame import Surface, image, QUIT, MOUSEBUTTONUP
 
 class BgLayer(ScreenLayerNonBlocking):
 
@@ -32,8 +32,10 @@ class BgLayer(ScreenLayerNonBlocking):
 
         def fetchBgxImage(path):
             # TODO - Fix unwanted behaviour with reading null-terminated strings, where a null character is left at the end
-            if path[-4:-1] == "bgx":
-                path = path[:-4] + "arc"
+            if "bgx" in path:
+                tempPath = path.split(".")
+                path = ".".join(tempPath[:-1]) + ".arc"
+
             imageFile = FileInterface.getData(PATH_BG_ROOT % path)
             if imageFile != None:
                 try:
@@ -100,13 +102,16 @@ class FaderLayer(ScreenLayerNonBlocking):
         self._faderSurfMain  = Surface(RESOLUTION_NINTENDO_DS)
         self._faderSurfSub   = Surface(RESOLUTION_NINTENDO_DS)
 
-        self._faderMain = Fader(0, initialActiveState=False)
-        self._faderSub = Fader(0, initialActiveState=False)
+        self._faderMain     = Fader(0, initialActiveState=False)
+        self._faderSub      = Fader(0, initialActiveState=False)
+        self._faderWait         = Fader(0, initialActiveState=False)
+        self._waitCanBeSkipped  = False
         self.isViewObscured = False
 
     def update(self, gameClockDelta):
         self._faderMain.update(gameClockDelta)
         self._faderSub.update(gameClockDelta)
+        self._faderWait.update(gameClockDelta)
 
         if self._faderMain.getStrength() == 1 and self._faderSub.getStrength() == 1:
             self.isViewObscured = True
@@ -139,22 +144,34 @@ class FaderLayer(ScreenLayerNonBlocking):
     def fadeOut(self, duration=DEFAULT_FADE_TIME):
         self.fadeOutMain(duration=duration)
         self.fadeOutSub(duration=duration)
-    
+
+    def setWaitDuration(self, duration, canBeSkipped=False):
+        self._faderWait.setDuration(duration)
+        self._waitCanBeSkipped = canBeSkipped
+
     def getFaderStatus(self):
-        return self._faderSub.getActiveState() or self._faderMain.getActiveState()
+        return self._faderSub.getActiveState() or self._faderMain.getActiveState() or self._faderWait.getActiveState()
 
     def draw(self, gameDisplay):
         gameDisplay.blit(self._faderSurfSub, (0,0))
         gameDisplay.blit(self._faderSurfMain, (0,RESOLUTION_NINTENDO_DS[1]))
 
+    def handleTouchEvent(self, event):
+        if self._waitCanBeSkipped and event.type == MOUSEBUTTONUP:
+            self._faderWait.setActiveState(False)
+            self._waitCanBeSkipped = False
+        return super().handleTouchEvent(event)
+
 class ScreenController():
     def __init__(self, faderLayer, bgLayer):
         self._faderLayer = faderLayer
         self._bgLayer = bgLayer
+        self._waitFader = Fader(0, initialActiveState=False)
+        self._waitingForTap = False
 
     def getFadingStatus(self):
         return self._faderLayer.getFaderStatus()
-    
+
     def getFaderIsViewObscured(self):
         return self._faderLayer.isViewObscured
 
@@ -176,9 +193,12 @@ class ScreenController():
     def fadeOut(self, duration=FaderLayer.DEFAULT_FADE_TIME):
         self._faderLayer.fadeOut(duration=duration)
 
+    def setWaitDuration(self, duration, canBeSkipped=False):
+        self._faderLayer.setWaitDuration(duration, canBeSkipped=canBeSkipped)
+
     def setBgMain(self, path):
         self._bgLayer.setBgMain(path)
-    
+
     def setBgSub(self, path):
         self._bgLayer.setBgSub(path)
 
@@ -240,7 +260,6 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
         post(Event(QUIT))
     
     def _switchToNextGameMode(self):
-        # print("Switching to next gamemode...", self.laytonState.getGameModeNext().name)
         self.laytonState.setGameMode(self.laytonState.getGameModeNext())
         self.laytonState.setGameModeNext(GAMEMODES.INVALID)
 
@@ -252,7 +271,6 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
 
             if self._currentActiveGameModeObject != None:
                 self.removeFromCollection(self._layers.index(self._currentActiveGameModeObject))
-                print("Killed active gamemode!")
             
             self._loadGameMode(self.laytonState.getGameMode().value)
             self.laytonState.gameModeRestartRequired = False

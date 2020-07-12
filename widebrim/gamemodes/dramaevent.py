@@ -1,11 +1,21 @@
 from ..engine.state.layer import ScreenLayerBlocking, ScreenCollectionBlocking
-from ..engine.file import FileInterface
 from ..engine.state.enum_mode import GAMEMODES, STRING_TO_GAMEMODE_VALUE
-from ..engine.const import TIME_FRAMECOUNT_TO_MILLISECONDS, PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C, PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, PATH_PACK_TALK
+from ..engine.anim.image_anim import AnimatedImageObject
+from ..engine.exceptions import FileInvalidCritical
+from ..engine.file import FileInterface
+
+from ..engine.const import PATH_CHAP_ROOT, RESOLUTION_NINTENDO_DS, PATH_FACE_ROOT, PATH_BODY_ROOT, TIME_FRAMECOUNT_TO_MILLISECONDS
+from ..engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C
+from ..engine.const import PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, PATH_PACK_TALK
+
 from ..madhatter.hat_io.asset import LaytonPack
 from ..madhatter.hat_io.asset_script import GdScript
 from ..madhatter.hat_io.asset_sav import FlagsAsArray
+from ..madhatter.hat_io.asset_image import AnimatedImage
 from ..madhatter.typewriter.stringsLt2 import OPCODES_LT2
+
+# TODO - Remove workaround by properly creating library
+from ..madhatter.hat_io.binary import BinaryReader
 
 class EventPlayer(ScreenCollectionBlocking):
     def __init__(self, laytonState, screenController):
@@ -21,6 +31,51 @@ class EventPlayer(ScreenCollectionBlocking):
             self._canBeKilled = True
         else:
             super().update(gameClockDelta)
+
+class CharacterController():
+    def __init__(self, characterIndex, characterInitialAnimIndex=0, characterVisible=False, characterSlot=0):
+
+        dataCharacter = FileInterface.getData(PATH_BODY_ROOT % characterIndex)
+        if dataCharacter != None:
+            madhatterImage = AnimatedImage.fromBytesArc(dataCharacter, functionGetFileByName=self._functionGetAnimationFromName)
+            self.imageCharacter = AnimatedImageObject.fromMadhatter(madhatterImage)
+            self.imageCharacter.setAnimationFromIndex(characterInitialAnimIndex)
+        else:
+            self.imageCharacter = None
+
+        self._visibility = characterVisible
+        self.setCharacterSlot(characterSlot)
+
+    def update(self, gameClockDelta):
+        if self.imageCharacter != None:
+            self.imageCharacter.update(gameClockDelta)
+
+    def draw(self, gameDisplay):
+        if self._visibility and self.imageCharacter != None:
+            self.imageCharacter.draw(gameDisplay)
+
+    def _functionGetAnimationFromName(self, name):
+        name = name.split(".")[0] + ".arc"
+        resolvedPath = PATH_FACE_ROOT % name
+        return FileInterface.getData(resolvedPath)
+
+    def setVisibility(self, isVisible):
+        self._visibility = isVisible
+    
+    def setCharacterSlot(self, slot):
+        self._slot = slot
+        if self.imageCharacter != None:
+            posNoSlotOffset = (0, RESOLUTION_NINTENDO_DS[1] * 2 - self.imageCharacter.getDimensions()[1])
+            self.imageCharacter.setPos(posNoSlotOffset)
+
+    def setCharacterAnimationFromName(self, animName):
+        animName = animName.split("\x00")[0]
+        if self.imageCharacter != None:
+            self.imageCharacter.setAnimationFromName(animName)
+    
+    def setCharacterAnimationFromIndex(self, animIndex):
+        if self.imageCharacter != None:
+            self.imageCharacter.setAnimationFromIndex(animIndex)
 
 class EventHandler(ScreenLayerBlocking):
     def __init__(self, laytonState, screenController):
@@ -64,6 +119,9 @@ class EventHandler(ScreenLayerBlocking):
         self.eventId = spawnId // 1000
         self.eventSubId = spawnId % 1000
 
+        self.characters = []
+        self.characterSpawnIdToCharacterMap = {}
+
         if spawnId == -1:
             self._canBeKilled = True
         else:
@@ -76,7 +134,36 @@ class EventHandler(ScreenLayerBlocking):
                 self.script.load(packEventScript.getFile(PATH_PACK_EVENT_SCR % (self.eventId, self.eventSubId)))
                 self.eventData = packEventScript.getFile(PATH_PACK_EVENT_DAT % (self.eventId, self.eventSubId))
 
-            except:
+                # TODO - Rewrite event info module
+
+                if self.eventData == None:
+                    raise FileInvalidCritical()
+            
+                self.eventData = BinaryReader(data=self.eventData)
+                # TODO - Set BG
+                self.eventData.seek(6)
+                for charIndex in range(8):
+                    character = self.eventData.readUInt(1)
+                    if character != 0:
+                        self.characters.append(CharacterController(character))
+                        self.characterSpawnIdToCharacterMap[character] = self.characters[-1]
+
+                for charIndex in range(8):
+                    slot = self.eventData.readUInt(1)
+                    if charIndex < len(self.characters):
+                        self.characters[charIndex].setCharacterSlot(slot)
+
+                for charIndex in range(8):
+                    visibility = self.eventData.readUInt(1) == 1
+                    if charIndex < len(self.characters):
+                        self.characters[charIndex].setVisibility(visibility)
+                
+                for charIndex in range(8):
+                    animIndex = self.eventData.readUInt(1)
+                    if charIndex < len(self.characters):
+                        self.characters[charIndex].setCharacterAnimationFromIndex(animIndex)
+
+            except FileInvalidCritical:
                 print("Failed to fetch required data for event!")
                 self._canBeKilled = True
         
@@ -94,6 +181,10 @@ class EventHandler(ScreenLayerBlocking):
 
         print("Loaded event", spawnId)
 
+    def draw(self, gameDisplay):
+        for controller in self.characters:
+            controller.draw(gameDisplay)
+
     def updateNonBlocked(self, gameClockDelta):
         if not(self._canBeKilled):
             while self.scriptCurrentCommandIndex < self.script.getInstructionCount() and not(self.screenController.getFadingStatus()):
@@ -104,14 +195,12 @@ class EventHandler(ScreenLayerBlocking):
                 if opcode == OPCODES_LT2.SetGameMode.value:
                     try:
                         self.laytonState.setGameMode(GAMEMODES(STRING_TO_GAMEMODE_VALUE[command.operands[0].value[:-1]]))
-                        print("Set current context to", self.laytonState.getGameMode().name)
                     except:
                         print("SetGameMode Handler", command.operands[0].value, "unimplemented!")
                 
                 elif opcode == OPCODES_LT2.SetEndGameMode.value:
                     try:
                         self.laytonState.setGameModeNext(GAMEMODES(STRING_TO_GAMEMODE_VALUE[command.operands[0].value[:-1]]))
-                        print("Set next context to", self.laytonState.getGameModeNext().name)
                     except:
                         print("SetEndGameMode Handler", command.operands[0].value, "unimplemented!")
 
@@ -167,12 +256,23 @@ class EventHandler(ScreenLayerBlocking):
                 elif opcode == OPCODES_LT2.SetMovieNum.value:
                     self.laytonState.setMovieNum(command.operands[0].value)
 
+
+
                 elif opcode == OPCODES_LT2.ModifyBGPal.value:
                     # TODO - 3 unknowns in this command
                     self.screenController.modifyPaletteMain(command.operands[3].value)
 
                 elif opcode == OPCODES_LT2.ModifySubBGPal.value:
                     self.screenController.modifyPaletteSub(command.operands[3].value)
+
+
+
+                elif opcode == OPCODES_LT2.DrawChapter.value:
+                    self.screenController.fadeIn()
+                    self.screenController.setBgMain(PATH_CHAP_ROOT % command.operands[0].value)
+                    # TODO - Global way for waiting until touch
+
+
 
                 elif opcode == OPCODES_LT2.FadeIn.value:
                     self.screenController.fadeIn()
@@ -186,8 +286,6 @@ class EventHandler(ScreenLayerBlocking):
                 elif opcode == OPCODES_LT2.FadeOutFrame.value:
                     self.screenController.fadeOut(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
                 
-
-
                 elif opcode == OPCODES_LT2.FadeInOnlyMain.value:
                     self.screenController.fadeInMain()
                 
@@ -200,20 +298,41 @@ class EventHandler(ScreenLayerBlocking):
                 elif opcode == OPCODES_LT2.FadeOutFrameMain.value:
                     self.screenController.fadeOutMain(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
                 
-
-
                 elif opcode == OPCODES_LT2.FadeInFrameSub.value:
                     self.screenController.fadeInSub(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
                 
                 elif opcode == OPCODES_LT2.FadeOutFrameSub.value:
                     self.screenController.fadeOutSub(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
 
-
-
                 elif opcode == OPCODES_LT2.DoHukamaruAddScreen.value:
                     # TODO - Not accurate, but required to get fading looking correct
                     self.screenController.fadeOut()
 
+
+
+                elif opcode == OPCODES_LT2.WaitFrame.value:
+                    self.screenController.setWaitDuration(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
+
+                elif opcode == OPCODES_LT2.WaitVSyncOrPenTouch.value:
+                    self.screenController.setWaitDuration(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS, canBeSkipped=True)
+
+                elif opcode == OPCODES_LT2.WaitFrame2.value:
+                    # TODO - What is this?
+                    self.screenController.setWaitDuration(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
+
+
+
+                elif opcode == OPCODES_LT2.SpriteOn.value:
+                    if 0 <= command.operands[0].value < len(self.characters):
+                        self.characters[command.operands[0].value].setVisibility(True)
+
+                elif opcode == OPCODES_LT2.SpriteOff.value:
+                    if 0 <= command.operands[0].value < len(self.characters):
+                        self.characters[command.operands[0].value].setVisibility(False)
+
+                elif opcode == OPCODES_LT2.SetSpriteAnimation.value:
+                    if command.operands[0].value in self.characterSpawnIdToCharacterMap:
+                        self.characterSpawnIdToCharacterMap[command.operands[0].value].setCharacterAnimationFromName(command.operands[1].value)
 
                 else:
                     #print("\tSkipped command!")
@@ -230,3 +349,6 @@ class EventHandler(ScreenLayerBlocking):
                     # TODO - Only fade out on required screens
                     self.screenController.fadeOut()
                     self.hasFadedOut = True
+        
+        for controller in self.characters:
+            controller.update(gameClockDelta)
