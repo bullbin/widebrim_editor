@@ -4,9 +4,10 @@ from ..engine.const import RESOLUTION_NINTENDO_DS, PATH_BG_ROOT
 from ..engine.file import FileInterface
 from ..engine.anim.fader import Fader
 
-from ..gamemodes import EventPlayer, RoomPlayer, NarrationPlayer
+from ..gamemodes import EventPlayer, RoomPlayer, NarrationPlayer, PuzzlePlayer
 
 from ..madhatter.hat_io.asset_image import StaticImage
+from ..engine.custom_events import ENGINE_SKIP_CLOCK
 
 from pygame.event import post, Event
 from pygame import Surface, image, QUIT, MOUSEBUTTONUP
@@ -120,28 +121,34 @@ class FaderLayer(ScreenLayerNonBlocking):
 
         self._faderSurfMain.set_alpha(round(self._faderMain.getStrength() * 255))
         self._faderSurfSub.set_alpha(round(self._faderSub.getStrength() * 255))
-    
+
     def fadeInMain(self, duration=DEFAULT_FADE_TIME):
+        post(Event(ENGINE_SKIP_CLOCK))
         self._faderMain.setDuration(duration)
         self._faderMain.setInvertedState(True)
     
     def fadeOutMain(self, duration=DEFAULT_FADE_TIME):
+        post(Event(ENGINE_SKIP_CLOCK))
         self._faderMain.setDuration(duration)
         self._faderMain.setInvertedState(False)
     
     def fadeInSub(self, duration=DEFAULT_FADE_TIME):
+        post(Event(ENGINE_SKIP_CLOCK))
         self._faderSub.setDuration(duration)
         self._faderSub.setInvertedState(True)
     
     def fadeOutSub(self, duration=DEFAULT_FADE_TIME):
+        post(Event(ENGINE_SKIP_CLOCK))
         self._faderSub.setDuration(duration)
         self._faderSub.setInvertedState(False)
     
     def fadeIn(self, duration=DEFAULT_FADE_TIME):
+        post(Event(ENGINE_SKIP_CLOCK))
         self.fadeInMain(duration=duration)
         self.fadeInSub(duration=duration)
         
     def fadeOut(self, duration=DEFAULT_FADE_TIME):
+        post(Event(ENGINE_SKIP_CLOCK))
         self.fadeOutMain(duration=duration)
         self.fadeOutSub(duration=duration)
 
@@ -151,6 +158,15 @@ class FaderLayer(ScreenLayerNonBlocking):
 
     def getFaderStatus(self):
         return self._faderSub.getActiveState() or self._faderMain.getActiveState() or self._faderWait.getActiveState()
+
+    def debugGetFaderStatus(self):
+        return (self._faderSub.getActiveState(), self._faderMain.getActiveState())
+    
+    def obscureViewLayer(self):
+        if self._faderMain.getStrength() != 1:
+            self.fadeOutMain()
+        if self._faderSub.getStrength() != 1:
+            self.fadeOutSub()
 
     def draw(self, gameDisplay):
         gameDisplay.blit(self._faderSurfSub, (0,0))
@@ -174,6 +190,13 @@ class ScreenController():
 
     def getFaderIsViewObscured(self):
         return self._faderLayer.isViewObscured
+
+    def obscureViewLayer(self):
+        if not(self.getFaderIsViewObscured()):
+            self._faderLayer.obscureViewLayer()
+    
+    def debugGetFaderStatus(self):
+        return self._faderLayer.debugGetFaderStatus()
 
     def fadeInMain(self, duration=FaderLayer.DEFAULT_FADE_TIME):
         self._faderLayer.fadeInMain(duration=duration)
@@ -234,6 +257,8 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
             self.addToCollection(RoomPlayer(self.laytonState, self.screenControllerObject))
         elif indexGameMode == GAMEMODES.Narration.value:
             self.addToCollection(NarrationPlayer(self.laytonState, self.screenControllerObject))
+        elif indexGameMode == GAMEMODES.Puzzle.value:
+            self.addToCollection(PuzzlePlayer(self.laytonState, self.screenControllerObject))
             
         else:
             if indexGameMode == GAMEMODES.INVALID.value:

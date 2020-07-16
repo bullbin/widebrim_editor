@@ -17,6 +17,9 @@ from ..madhatter.typewriter.stringsLt2 import OPCODES_LT2
 # TODO - Remove workaround by properly creating library
 from ..madhatter.hat_io.binary import BinaryReader
 
+from pygame import Surface
+from pygame.transform import flip
+
 class EventPlayer(ScreenCollectionBlocking):
     def __init__(self, laytonState, screenController):
         ScreenCollectionBlocking.__init__(self)
@@ -33,6 +36,16 @@ class EventPlayer(ScreenCollectionBlocking):
             super().update(gameClockDelta)
 
 class CharacterController():
+
+    SLOT_OFFSET = {0:0,     1:0,
+                   2:0,     3:0,
+                   4:52,    5:52,
+                   6:0}
+    SLOT_LEFT  = [0,3,4]    # Verified against game binary
+    # Left side characters need flipping
+
+    SLOT_RIGHT = [2,5,6]
+
     def __init__(self, characterIndex, characterInitialAnimIndex=0, characterVisible=False, characterSlot=0):
 
         dataCharacter = FileInterface.getData(PATH_BODY_ROOT % characterIndex)
@@ -44,15 +57,27 @@ class CharacterController():
             self.imageCharacter = None
 
         self._visibility = characterVisible
+        self._drawLocation = (0,0)
+
+        self._characterIsFlipped = False
+        self._characterFlippedSurface = Surface(self.imageCharacter.getDimensions()).convert_alpha()
+        self._characterFlippedSurfaceNeedsUpdate = False
+
         self.setCharacterSlot(characterSlot)
 
     def update(self, gameClockDelta):
         if self.imageCharacter != None:
-            self.imageCharacter.update(gameClockDelta)
+            if self._characterIsFlipped and (self.imageCharacter.update(gameClockDelta) or self._characterFlippedSurfaceNeedsUpdate):
+                self._characterFlippedSurface.fill((0,0,0,0))
+                self.imageCharacter.draw(self._characterFlippedSurface)
+                self._characterFlippedSurface = flip(self._characterFlippedSurface, True, False)
 
     def draw(self, gameDisplay):
         if self._visibility and self.imageCharacter != None:
-            self.imageCharacter.draw(gameDisplay)
+            if self._characterIsFlipped:
+                gameDisplay.blit(self._characterFlippedSurface, self._drawLocation)
+            else:
+                self.imageCharacter.draw(gameDisplay)
 
     def _functionGetAnimationFromName(self, name):
         name = name.split(".")[0] + ".arc"
@@ -63,10 +88,32 @@ class CharacterController():
         self._visibility = isVisible
     
     def setCharacterSlot(self, slot):
-        self._slot = slot
-        if self.imageCharacter != None:
-            posNoSlotOffset = (0, RESOLUTION_NINTENDO_DS[1] * 2 - self.imageCharacter.getDimensions()[1])
-            self.imageCharacter.setPos(posNoSlotOffset)
+
+        def getImageOffset():
+            offset = self.imageCharacter.getVariable("drawoff")
+            if offset != None:
+                return (abs(offset[0]), abs(offset[1]))
+            else:
+                return (0,0)
+
+        if slot in CharacterController.SLOT_OFFSET:
+            self._slot = slot
+
+            if self.imageCharacter != None:
+                offset = CharacterController.SLOT_OFFSET[self._slot]
+                variableOffset = getImageOffset()
+
+                if slot in CharacterController.SLOT_LEFT:
+                    self._characterIsFlipped = True
+                    self._characterFlippedSurfaceNeedsUpdate = True
+                    self.imageCharacter.setPos((0,0))
+                    self._drawLocation = (offset + variableOffset[0], RESOLUTION_NINTENDO_DS[1] * 2 - variableOffset[1] - self.imageCharacter.getDimensions()[1])
+                else:
+                    self._characterIsFlipped = False
+                    self._drawLocation = (RESOLUTION_NINTENDO_DS[0] - self.imageCharacter.getDimensions()[0] - offset - variableOffset[0],
+                                          RESOLUTION_NINTENDO_DS[1] * 2 - self.imageCharacter.getDimensions()[1] - variableOffset[1])
+
+                    self.imageCharacter.setPos(self._drawLocation)
 
     def setCharacterAnimationFromName(self, animName):
         animName = animName.split("\x00")[0]
@@ -104,6 +151,8 @@ class EventHandler(ScreenLayerBlocking):
             return substituteEventPath(PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C)
 
         # print("Tried to add drama layer...")
+
+        # TODO - Search for language image as well as non-language image
 
         ScreenLayerBlocking.__init__(self)
         self.screenController = screenController
@@ -169,9 +218,17 @@ class EventHandler(ScreenLayerBlocking):
         
         goalInfoEntry = self.laytonState.getGoalInfEntry()
         # TODO - Goal versus objective?
+        # Maybe if unk is 1, also update chapter.
         if goalInfoEntry != None:
-            self.laytonState.saveSlot.chapter = goalInfoEntry.goal
+            
+            if goalInfoEntry.type == 1:
+                print("\tUpdated goal and chapter to", goalInfoEntry.goal)
+                self.laytonState.saveSlot.chapter = goalInfoEntry.goal
+            else:
+                print("\tUpdated goal to", goalInfoEntry.goal)
             self.laytonState.saveSlot.goal = goalInfoEntry.goal
+        else:
+            print("\tNothing to update objective to!")
 
         if not(self._canBeKilled):
             if self.laytonState.entryEvInfo.indexEventViewedFlag != None:
@@ -249,9 +306,11 @@ class EventHandler(ScreenLayerBlocking):
 
                 elif opcode == OPCODES_LT2.LoadBG.value:
                     self.screenController.setBgMain(command.operands[0].value)
-
+                    self.screenController.modifyPaletteMain(0)
+        
                 elif opcode == OPCODES_LT2.LoadSubBG.value:
                     self.screenController.setBgSub(command.operands[0].value)
+                    self.screenController.modifyPaletteSub(0)
 
                 elif opcode == OPCODES_LT2.SetMovieNum.value:
                     self.laytonState.setMovieNum(command.operands[0].value)
@@ -308,6 +367,10 @@ class EventHandler(ScreenLayerBlocking):
                     # TODO - Not accurate, but required to get fading looking correct
                     self.screenController.fadeOut()
 
+                    # TODO - How best to handle this?
+                    for character in self.characters:
+                        character.setVisibility(False)
+
 
 
                 elif opcode == OPCODES_LT2.WaitFrame.value:
@@ -340,14 +403,12 @@ class EventHandler(ScreenLayerBlocking):
 
                 self.scriptCurrentCommandIndex += 1
             
-            # TODO - REENABLE THIS BEFORE PUSH!!
             if not(self.screenController.getFadingStatus()) and self.scriptCurrentCommandIndex >= self.script.getInstructionCount():
-                if self.hasFadedOut or self.screenController.getFaderIsViewObscured():
-                    self._canBeKilled = True
+                if self.hasFadedOut:
+                    if self.screenController.getFaderIsViewObscured():
+                        self._canBeKilled = True
                 else:
-                    print("Trigger fade out!")
-                    # TODO - Only fade out on required screens
-                    self.screenController.fadeOut()
+                    self.screenController.obscureViewLayer()
                     self.hasFadedOut = True
         
         for controller in self.characters:

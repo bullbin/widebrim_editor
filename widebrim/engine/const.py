@@ -11,6 +11,11 @@ PATH_DB_EV_INF2     = "/data_lt2/rc/%s/ev_inf2.dlz"
 PATH_DB_GOAL_INF    = "goal_inf.dlz"
 PATH_DB_RC_ROOT     = "/data_lt2/rc/%s"
 
+PATH_ANI            = "/data_lt2/ani/%s"
+PATH_EXT_BGANI      = "bgani/%s"
+PATH_EXT_EXIT       = "map/exit_%i.arc"
+PATH_EXT_EVENT      = "eventobj/obj_%i.arc"
+
 PATH_BG_ROOT        = "/data_lt2/bg/%s"
 PATH_CHAP_ROOT      = "chapter/?/chapter%i.arc"
 
@@ -31,6 +36,14 @@ PATH_PACK_EVENT_SCR = "e%i_%.3i.gds"
 PATH_PACK_TALK      = "t%i_%.3i_%i.gds"
 
 PATH_PROGRESSION_DB = "/data_lt2/place/data.plz"
+
+PATH_PLACE_A = "/data_lt2/place/plc_data1.plz"
+PATH_PLACE_B = "/data_lt2/place/plc_data2.plz"
+
+PATH_PACK_PLACE = "n_place%i_%i.dat"
+
+PATH_PLACE_BG = "map/main%i.bgx"
+PATH_PLACE_MAP = "map/map%i.bgx"
 
 class LANGUAGES(Enum):
     French      = "fr"

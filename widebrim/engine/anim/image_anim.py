@@ -27,6 +27,7 @@ class AnimationSequence(Animation):
     def updateCurrentFrame(self, gameClockDelta):
         if self.isActive:
             self._elapsedFrame += gameClockDelta
+            previousFrame = self._indexFrame
             while self._indexFrame < len(self.keyframes) and self.keyframes[self._indexFrame].duration <= self._elapsedFrame and self.isActive:
                 nextFrameIndex = (self._indexFrame + 1) % len(self.keyframes)
                 if nextFrameIndex < self._indexFrame and not(self.isLooping):
@@ -34,6 +35,8 @@ class AnimationSequence(Animation):
                 else:
                     self._elapsedFrame -= self.keyframes[self._indexFrame].duration
                     self._indexFrame = nextFrameIndex
+            return previousFrame != self._indexFrame
+        return False
 
     @staticmethod
     def fromMadhatter(inAnim):
@@ -48,6 +51,7 @@ class AnimationSequence(Animation):
 
 class AnimatedImageObject():
     def __init__(self):
+        self._variables = {}
         self._frames = []
         self._animations = {}
         self._indexToAnimationMap = {}
@@ -74,6 +78,7 @@ class AnimatedImageObject():
             return pygame.image.fromstring(imageIn.tobytes("raw", "RGBA"), imageIn.size, "RGBA").convert_alpha()
 
         output = AnimatedImageObject()
+        output.setVariables(assetData.variables)
         tempDimensions = (0,0)
         for frame in assetData.frames:
             tempPygameFrame = convertPilRgbaToPygame(frame.getComposedFrame())
@@ -90,6 +95,15 @@ class AnimatedImageObject():
             output.subAnimation = AnimatedImageObject.fromMadhatter(assetData.subAnimation)
         
         return output
+
+    def setVariables(self, variableDict):
+        if len(variableDict) == 16:
+            self._variables = variableDict
+
+    def getVariable(self, name):
+        if name in self._variables:
+            return self._variables[name]
+        return None
 
     def _addAnimation(self, animation):
         self._indexToAnimationMap[len(self._animations)] = animation
@@ -131,23 +145,32 @@ class AnimatedImageObject():
         if self.subAnimation != None:
             self.subAnimation.setPos(pos)
 
-    def _getActiveFrame(self):
+    def getActiveFrame(self):
         if self.animActive != None:
             activeFrame = self.animActive.getActiveKeyframe()
             if activeFrame != None:
                 if 0 <= activeFrame < len(self._frames):
                     return self._frames[activeFrame]
         return None
+    
+    def wasPressed(self, cursorPos):
+        if self._pos[0] <= cursorPos[0] and self._pos[1] <= cursorPos[1]:
+            if (self._pos[0] + self._dimensions[0]) >= cursorPos[0] and (self._pos[1] + self._dimensions[1]) >= cursorPos[1]:
+                return True
+        return False
 
     def update(self, gameClockDelta):
+        hasMainFrameChanged = False
+        hasSubFrameChanged = False
         if self.animActive != None:
-            self.animActive.updateCurrentFrame(gameClockDelta)
+            hasMainFrameChanged = self.animActive.updateCurrentFrame(gameClockDelta)
         if self.subAnimation != None:
-            self.subAnimation.update(gameClockDelta)
+            hasSubFrameChanged = self.subAnimation.update(gameClockDelta)
+        return hasMainFrameChanged or hasSubFrameChanged
 
     def draw(self, gameDisplay):
         
-        surface = self._getActiveFrame()
+        surface = self.getActiveFrame()
         if surface != None:
             offset = (self._pos[0] + self._offset[0], self._pos[1] + self._offset[1])
             gameDisplay.blit(surface, offset)
