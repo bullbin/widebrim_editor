@@ -5,7 +5,7 @@ from ..engine.anim.image_anim import AnimatedImageObject
 from ..engine.exceptions import FileInvalidCritical
 from ..engine.const import PATH_PLACE_A, PATH_PLACE_B, PATH_PACK_PLACE, PATH_PLACE_BG, PATH_PLACE_MAP, PATH_ANI, PATH_EXT_BGANI, RESOLUTION_NINTENDO_DS, PATH_EXT_EXIT, PATH_EXT_EVENT
 
-from pygame import MOUSEBUTTONUP
+from pygame import MOUSEBUTTONUP, MOUSEBUTTONDOWN, MOUSEMOTION
 
 from ..madhatter.hat_io.asset import LaytonPack
 from ..madhatter.hat_io.asset_image import AnimatedImage
@@ -23,23 +23,28 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
     # TODO - Speed up loading. Stutter exceeds 500ms which causes faders to look very strange
 
-    EXIT_IMAGES_OFF = []
-    EXIT_IMAGES_ON  = []
+    IMAGE_EXIT_OFF = []
+    IMAGE_EXIT_ON  = []
 
+    IMAGE_EXCLAMATION = None
+
+    # TODO - Button anim type
+
+    # Shh, pylint
+    indexExitImage  = 0
+    exitAssetData   = None
+    exitAsset       = None
     for indexExitImage in range(8):
-        tempExitAsset = FileInterface.getData(PATH_ANI % (PATH_EXT_EXIT % indexExitImage))
-
-        # TODO - Button anim type
-
-        if tempExitAsset != None:
-            exitAsset = AnimatedImageObject.fromMadhatter(AnimatedImage.fromBytesArc(tempExitAsset))
+        exitAssetData = FileInterface.getData(PATH_ANI % (PATH_EXT_EXIT % indexExitImage))
+        if exitAssetData != None:
+            exitAsset = AnimatedImageObject.fromMadhatter(AnimatedImage.fromBytesArc(exitAssetData))
             exitAsset.setAnimationFromName("gfx")
-            EXIT_IMAGES_OFF.append(exitAsset.getActiveFrame())
+            IMAGE_EXIT_OFF.append(exitAsset.getActiveFrame())
             exitAsset.setAnimationFromName("gfx2")
-            EXIT_IMAGES_ON.append(exitAsset.getActiveFrame())
+            IMAGE_EXIT_ON.append(exitAsset.getActiveFrame())
         else:
-            EXIT_IMAGES_OFF.append(None)
-            EXIT_IMAGES_ON.append(None)
+            IMAGE_EXIT_OFF.append(None)
+            IMAGE_EXIT_ON.append(None)
 
     def __init__(self, laytonState, screenController):
         ScreenLayerNonBlocking.__init__(self)
@@ -69,10 +74,8 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
         self.animMoveMode = AnimatedImageObject()
         self.isInMoveMode = False
+        self.indexMoveModePressed = None
         self.isTerminating = False
-
-        self.screenController.modifyPaletteMain(0)
-        self.screenController.modifyPaletteSub(0)
 
         self.bgAni = []
         self.objEvent = []
@@ -88,9 +91,8 @@ class RoomPlayer(ScreenLayerNonBlocking):
             self.laytonState.setGameModeNext(GAMEMODES.DramaEvent)
             self._canBeKilled = True
         else:
-            print("Attempted to load room", self.laytonState.saveSlot.roomIndex, self.laytonState.saveSlot.roomSubIndex)
+            print("Loaded room", self.laytonState.saveSlot.roomIndex, self.laytonState.saveSlot.roomSubIndex)
             placeDataBytes = getPlaceData()
-
             if placeDataBytes == None:
                 raise FileInvalidCritical()
 
@@ -99,10 +101,9 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
             self.screenController.setBgMain(PATH_PLACE_BG % self.placeData.bgMainId)
             self.screenController.setBgSub(PATH_PLACE_MAP % self.placeData.bgMapId)
-            self.indexExitHighlighted = None
+            
 
             fullLoadTime = time()
-
 
             for indexBgAni in range(self.placeData.getCountObjBgEvent()):
                 bgAni = self.placeData.getObjBgEvent(indexBgAni)
@@ -123,7 +124,8 @@ class RoomPlayer(ScreenLayerNonBlocking):
             for indexObjEvent in range(self.placeData.getCountObjEvents()):
                 objEvent = self.placeData.getObjEvent(indexObjEvent)
 
-                # masking to everything below 256
+                # TODO - What is the second byte of spawnData used for?
+                # Strange behaviour at end of carriage, tiny sprite clipped at bottom
 
                 if objEvent.idImage != 0:
                     tempMaskedId = objEvent.idImage % 0xff
@@ -136,7 +138,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
                         self.objEvent.append(eventAsset)
                     else:
                         self.objEvent.append(None)
-                        print("FAILED TO GET OBJ EVENT!!", PATH_ANI % (PATH_EXT_EVENT % tempMaskedId))
+                        print("Failed to load", PATH_ANI % (PATH_EXT_EVENT % tempMaskedId))
                 else:
                     self.objEvent.append(None)
 
@@ -147,9 +149,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
             self.screenController.fadeIn()
 
-
-
-            print("Total load time", time() - fullLoadTime)
+            print("Total load time", round((time() - fullLoadTime) * 1000, 2))
 
     def update(self, gameClockDelta):
         if self.isTerminating:
@@ -168,6 +168,23 @@ class RoomPlayer(ScreenLayerNonBlocking):
         return super().update(gameClockDelta)
     
     def draw(self, gameDisplay):
+
+        def drawAllExits():
+
+            def drawFromEntry(entry, imageSource):
+                tempOffsetPos = (entry.bounding.x, entry.bounding.y + RESOLUTION_NINTENDO_DS[1])
+                if imageSource[entry.idImage] != None:
+                    gameDisplay.blit(imageSource[entry.idImage], tempOffsetPos)
+
+            if self.indexMoveModePressed != None:
+                if self.isTerminating:
+                    drawFromEntry(self.placeData.getExit(self.indexMoveModePressed), RoomPlayer.IMAGE_EXIT_OFF)
+                else:
+                    drawFromEntry(self.placeData.getExit(self.indexMoveModePressed), RoomPlayer.IMAGE_EXIT_ON)
+            else:
+                for indexExit in range(self.placeData.getCountExits()):
+                    drawFromEntry(self.placeData.getExit(indexExit), RoomPlayer.IMAGE_EXIT_OFF)
+
         for anim in self.bgAni:
             anim.draw(gameDisplay)
         
@@ -176,12 +193,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
                 anim.draw(gameDisplay)
         
         if self.isInMoveMode:
-            for indexExit in range(self.placeData.getCountExits()):
-                exitEntry = self.placeData.getExit(indexExit)
-                
-                tempOffsetPos = (exitEntry.bounding.x, exitEntry.bounding.y + RESOLUTION_NINTENDO_DS[1])
-                if RoomPlayer.EXIT_IMAGES_OFF[exitEntry.idImage] != None:
-                    gameDisplay.blit(RoomPlayer.EXIT_IMAGES_OFF[exitEntry.idImage], tempOffsetPos)
+            drawAllExits()
         else:
             self.animMoveMode.draw(gameDisplay)
 
@@ -190,43 +202,51 @@ class RoomPlayer(ScreenLayerNonBlocking):
         self.isTerminating = True
 
     def handleTouchEvent(self, event):
-
-        def evaluateExit(exitEntry):
-            boundaryTestPos = (event.pos[0], event.pos[1] - RESOLUTION_NINTENDO_DS[1])
-            if wasBoundingCollided(exitEntry.bounding, boundaryTestPos):
-                if exitEntry.canSpawnEvent():
-                    self.laytonState.setGameModeNext(GAMEMODES.DramaEvent)
-                    self.laytonState.setEventId(exitEntry.spawnData)
-                else:
-                    # TODO - Replicate in-game behaviour. Currently just terminating
-                    self.laytonState.setGameModeNext(GAMEMODES.Room)
-                    self.laytonState.saveSlot.roomIndex = exitEntry.spawnData
-                self.startTermination()
-                return True
-            return False
+        
+        def doExit(exitEntry):
+            if exitEntry.canSpawnEvent():
+                self.laytonState.setGameModeNext(GAMEMODES.DramaEvent)
+                self.laytonState.setEventId(exitEntry.spawnData)
+            else:
+                # TODO - Replicate in-game behaviour. Currently just terminating
+                self.laytonState.setGameModeNext(GAMEMODES.Room)
+                self.laytonState.saveSlot.roomIndex = exitEntry.spawnData
+            self.startTermination()
 
         # TODO - Stop interaction on blocking event
         if not(self.isTerminating):
-            if event.type == MOUSEBUTTONUP:
-                if self.animMoveMode.wasPressed(event.pos):
-                    self.isInMoveMode = not(self.isInMoveMode)
-                    return super().handleTouchEvent(event)
 
-                if self.isInMoveMode:
+            boundaryTestPos = (event.pos[0], event.pos[1] - RESOLUTION_NINTENDO_DS[1])
+            if self.isInMoveMode:
+                # If an exit was pressed, set the highlight variable to its index
+                if event.type == MOUSEBUTTONDOWN:
+                    self.indexMoveModePressed = None
                     for indexExit in range(self.placeData.getCountExits()):
-                        exitEntry = self.placeData.getExit(indexExit)
-                        if evaluateExit(exitEntry):
-                            return super().handleTouchEvent(event)
-                    self.isInMoveMode = False
-                            
-                else:
-                    for indexExit in range(self.placeData.getCountExits()):
-                        exitEntry = self.placeData.getExit(indexExit)
-                        if exitEntry.canBePressedImmediately():
-                            if evaluateExit(exitEntry):
-                                return super().handleTouchEvent(event)
+                        if wasBoundingCollided(self.placeData.getExit(indexExit).bounding, boundaryTestPos):
+                            self.indexMoveModePressed = indexExit
+                            break
+                
+                # If an exit is being held down but the cursor moves off it, reset the highlight variable
+                elif event.type == MOUSEMOTION and self.indexMoveModePressed != None:
+                    if not(wasBoundingCollided(self.placeData.getExit(self.indexMoveModePressed).bounding, boundaryTestPos)):
+                        self.indexMoveModePressed = None
+                        # TODO - Reset animation fader here, as this would mean that the mouse has moved off the initial clicked target
+                
+                # If the exit has made it through the above and the user lifts their cursor on it, execute the exit
+                elif event.type == MOUSEBUTTONUP:
+                    if self.indexMoveModePressed != None and wasBoundingCollided(self.placeData.getExit(self.indexMoveModePressed).bounding, boundaryTestPos):
+                        doExit(self.placeData.getExit(self.indexMoveModePressed))
+                    else:
+                        self.isInMoveMode = False
+                        self.indexMoveModePressed = None
+            
+            else:
+                if event.type == MOUSEBUTTONUP:
+                    # TODO - Change to button, as this must have also been pressed initially for it to do anything
+                    if self.animMoveMode.wasPressed(event.pos):
+                        self.isInMoveMode = not(self.isInMoveMode)
+                        return super().handleTouchEvent(event)
 
-                    boundaryTestPos = (event.pos[0], event.pos[1] - RESOLUTION_NINTENDO_DS[1])
                     for indexEvent in range(self.placeData.getCountObjEvents()):
                         objEvent = self.placeData.getObjEvent(indexEvent)
                         if wasBoundingCollided(objEvent.bounding, boundaryTestPos):

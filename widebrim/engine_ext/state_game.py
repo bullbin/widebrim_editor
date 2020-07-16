@@ -221,9 +221,11 @@ class ScreenController():
 
     def setBgMain(self, path):
         self._bgLayer.setBgMain(path)
+        self.modifyPaletteMain(0)
 
     def setBgSub(self, path):
         self._bgLayer.setBgSub(path)
+        self.modifyPaletteSub(0)
 
     def modifyPaletteMain(self, darkness):
         self._bgLayer.modifyPaletteMain(darkness)

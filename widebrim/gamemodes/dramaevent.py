@@ -306,11 +306,9 @@ class EventHandler(ScreenLayerBlocking):
 
                 elif opcode == OPCODES_LT2.LoadBG.value:
                     self.screenController.setBgMain(command.operands[0].value)
-                    self.screenController.modifyPaletteMain(0)
         
                 elif opcode == OPCODES_LT2.LoadSubBG.value:
                     self.screenController.setBgSub(command.operands[0].value)
-                    self.screenController.modifyPaletteSub(0)
 
                 elif opcode == OPCODES_LT2.SetMovieNum.value:
                     self.laytonState.setMovieNum(command.operands[0].value)
