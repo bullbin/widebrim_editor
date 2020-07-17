@@ -45,6 +45,12 @@ PATH_PACK_PLACE = "n_place%i_%i.dat"
 PATH_PLACE_BG = "map/main%i.bgx"
 PATH_PLACE_MAP = "map/map%i.bgx"
 
+PATH_PACK_PLACE_NAME = "/data_lt2/nazo/%s/jiten.plz"
+PATH_PACK_TXT2 = "/data_lt2/txt/%s/txt2.plz"
+
+PATH_TEXT_GOAL = "goal_%i.txt"
+PATH_TEXT_PLACE_NAME = "p_%i.txt"
+
 class LANGUAGES(Enum):
     French      = "fr"
     English     = "en"

@@ -4,12 +4,16 @@ from ..engine.file import FileInterface
 from ..engine.anim.image_anim import AnimatedImageObject
 from ..engine.exceptions import FileInvalidCritical
 from ..engine.const import PATH_PLACE_A, PATH_PLACE_B, PATH_PACK_PLACE, PATH_PLACE_BG, PATH_PLACE_MAP, PATH_ANI, PATH_EXT_BGANI, RESOLUTION_NINTENDO_DS, PATH_EXT_EXIT, PATH_EXT_EVENT
+from ..engine.const import PATH_PACK_PLACE_NAME, PATH_TEXT_PLACE_NAME, PATH_PACK_TXT2, PATH_TEXT_GOAL
 
 from pygame import MOUSEBUTTONUP, MOUSEBUTTONDOWN, MOUSEMOTION
 
 from ..madhatter.hat_io.asset import LaytonPack
 from ..madhatter.hat_io.asset_image import AnimatedImage
 from ..madhatter.hat_io.asset_dat.place import PlaceData
+
+from ..engine.anim.font.static import generateImageFromString
+from pygame import Surface, BLEND_RGB_SUB
 
 from time import time
 
@@ -27,6 +31,9 @@ class RoomPlayer(ScreenLayerNonBlocking):
     IMAGE_EXIT_ON  = []
 
     IMAGE_EXCLAMATION = None
+
+    POS_CENTER_TEXT_ROOM_TITLE  = (170,7)
+    POS_CENTER_TEXT_OBJECTIVE   = (128,172)
 
     # TODO - Button anim type
 
@@ -80,6 +87,11 @@ class RoomPlayer(ScreenLayerNonBlocking):
         self.bgAni = []
         self.objEvent = []
 
+        self.textObjective = None
+        self.textRoomTitle = None
+        self.posObjective = (0,0)
+        self.posRoomTitle = (0,0)
+
         # Note:
         # If movement co-ordinates are given, the screen is not faded out
         # Instead, a transition occurs and the game then loads the next room and renders it
@@ -102,7 +114,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
             self.screenController.setBgMain(PATH_PLACE_BG % self.placeData.bgMainId)
             self.screenController.setBgSub(PATH_PLACE_MAP % self.placeData.bgMapId)
             
-
+            
             fullLoadTime = time()
 
             for indexBgAni in range(self.placeData.getCountObjBgEvent()):
@@ -147,6 +159,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
             self.animMoveMode.setAnimationFromName("off")
             self.animMoveMode.setPos((230,350))
 
+            self._updateUpperScreenText()
             self.screenController.fadeIn()
 
             print("Total load time", round((time() - fullLoadTime) * 1000, 2))
@@ -192,6 +205,11 @@ class RoomPlayer(ScreenLayerNonBlocking):
             if anim != None:
                 anim.draw(gameDisplay)
         
+        if self.textObjective != None:
+            gameDisplay.blit(self.textObjective, self.posObjective, special_flags=BLEND_RGB_SUB)
+        if self.textRoomTitle != None:
+            gameDisplay.blit(self.textRoomTitle, self.posRoomTitle, special_flags=BLEND_RGB_SUB)
+
         if self.isInMoveMode:
             drawAllExits()
         else:
@@ -247,6 +265,12 @@ class RoomPlayer(ScreenLayerNonBlocking):
                         self.isInMoveMode = not(self.isInMoveMode)
                         return super().handleTouchEvent(event)
 
+                    for indexExit in range(self.placeData.getCountExits()):
+                        exitEntry = self.placeData.getExit(indexExit)
+                        if exitEntry.canBePressedImmediately() and wasBoundingCollided(exitEntry.bounding, boundaryTestPos):
+                            doExit(self.placeData.getExit(indexExit))
+                            return super().handleTouchEvent(event)
+
                     for indexEvent in range(self.placeData.getCountObjEvents()):
                         objEvent = self.placeData.getObjEvent(indexEvent)
                         if wasBoundingCollided(objEvent.bounding, boundaryTestPos):
@@ -272,6 +296,23 @@ class RoomPlayer(ScreenLayerNonBlocking):
                                     return super().handleTouchEvent(event)
         
         return super().handleTouchEvent(event)
+
+    def _updateUpperScreenText(self):
+        # What happens if control characters are used in this text?
+        try:
+            tempPack = LaytonPack()
+            tempPack.load(FileInterface.getData(PATH_PACK_TXT2 % self.laytonState.language.value))
+            self.textObjective = generateImageFromString(self.laytonState.fontEvent, tempPack.getFile(PATH_TEXT_GOAL % self.laytonState.saveSlot.goal).decode('ascii'))
+            tempPack = LaytonPack()
+            tempPack.load(FileInterface.getData(PATH_PACK_PLACE_NAME % self.laytonState.language.value))
+            self.textRoomTitle = generateImageFromString(self.laytonState.fontEvent, tempPack.getFile(PATH_TEXT_PLACE_NAME % self.laytonState.saveSlot.roomIndex).decode('ascii'))
+
+            self.posObjective = (RoomPlayer.POS_CENTER_TEXT_OBJECTIVE[0] - self.textObjective.get_width() // 2, RoomPlayer.POS_CENTER_TEXT_OBJECTIVE[1])
+            self.posRoomTitle = (RoomPlayer.POS_CENTER_TEXT_ROOM_TITLE[0] - self.textRoomTitle.get_width() // 2, RoomPlayer.POS_CENTER_TEXT_ROOM_TITLE[1])
+        except:
+            self.textObjective = None
+            self.textRoomTitle = None
+            print("Failed to load room text!")
 
     def _executeAutoEvent(self):
 

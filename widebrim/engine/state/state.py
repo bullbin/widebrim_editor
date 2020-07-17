@@ -8,6 +8,9 @@ from ...madhatter.hat_io.asset import LaytonPack, File
 from ..const import LANGUAGES, EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_EV_INF2, PATH_PROGRESSION_DB, PATH_DB_RC_ROOT, PATH_DB_GOAL_INF
 from ..exceptions import FileInvalidCritical
 from ..file import FileInterface
+
+from ...engine.anim.font.nftr_decode import NftrTiles
+
 from .enum_mode import GAMEMODES
 
 class Layton2GameState():
@@ -61,6 +64,15 @@ class Layton2GameState():
         self._dbTeaRecipe        = None
         self._dbTeaEventInfo     = None
         self._dbTeaTalk          = None
+
+        # TODO - Add to const
+        try:
+            self.font18             = NftrTiles(FileInterface.getData("/data_lt2/font/font18.NFTR"))
+            self.fontEvent          = NftrTiles(FileInterface.getData("/data_lt2/font/fontevent.NFTR"))
+            self.fontQ              = NftrTiles(FileInterface.getData("/data_lt2/font/fontq.NFTR"))
+
+        except:
+            raise FileInvalidCritical()
 
         self.entryEvInfo    = None
         self.entryNzList    = None

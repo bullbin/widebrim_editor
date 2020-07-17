@@ -1,5 +1,8 @@
-from ...madhatter.hat_io.binary import BinaryReader
-from PIL import Image
+from ....madhatter.hat_io.binary import BinaryReader
+from ....engine.const import RESOLUTION_NINTENDO_DS
+
+from pygame import display, Surface
+display.set_mode((RESOLUTION_NINTENDO_DS[0], RESOLUTION_NINTENDO_DS[1] * 2))
 
 # TODO - Restructure to load CWDH first
 
@@ -13,12 +16,13 @@ class Glyph():
     
     def getWidth(self):
         if self.charDisableAddedOffset:
-            return self.image.size[0]
-        return self.image.size[0] + CHAR_BIAS
+            return self.image.get_width()
+        return self.image.get_width() + CHAR_BIAS
 
     def applyCharacterWidth(self, start, width, length):
-        output = Image.new("1", (length, self.image.size[1]), color=1)
-        output.paste(self.image, (start,0))
+        output = Surface((length, self.image.get_height())).convert()
+        output.set_colorkey((0,0,0))
+        output.blit(self.image, (start,0))
         if width != 0:
             if start != 0 and width != start:
                 self.charDisableAddedOffset = True
@@ -70,7 +74,7 @@ class NftrTiles():
             countPixels = tileDimensions[0] * tileDimensions[1]
 
             for indexTile in range(countTiles):
-                tile = Image.new("1", tileDimensions)
+                tile = Surface(tileDimensions).convert()
 
                 indexPixel = 0
                 for indexData in range(lengthTile):
@@ -78,7 +82,8 @@ class NftrTiles():
                     for indexBit in range(8):
                         bitEnabled = (data & (2 ** (7 - indexBit))) != 0
                         if indexPixel < countPixels:
-                            tile.putpixel((indexPixel % tileDimensions[0], indexPixel // tileDimensions[0]), not(bitEnabled))
+                            strength = int(bitEnabled * 255)
+                            tile.set_at((indexPixel % tileDimensions[0], indexPixel // tileDimensions[0]), (strength, strength, strength))
                         indexPixel += 1
                 
                 self.glyphs.append(Glyph(tile))
