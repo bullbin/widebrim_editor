@@ -6,14 +6,13 @@ from ..engine.exceptions import FileInvalidCritical
 from ..engine.const import PATH_PLACE_A, PATH_PLACE_B, PATH_PACK_PLACE, PATH_PLACE_BG, PATH_PLACE_MAP, PATH_ANI, PATH_EXT_BGANI, RESOLUTION_NINTENDO_DS, PATH_EXT_EXIT, PATH_EXT_EVENT
 from ..engine.const import PATH_PACK_PLACE_NAME, PATH_TEXT_PLACE_NAME, PATH_PACK_TXT2, PATH_TEXT_GOAL
 
-from pygame import MOUSEBUTTONUP, MOUSEBUTTONDOWN, MOUSEMOTION
+from pygame import MOUSEBUTTONUP, MOUSEBUTTONDOWN, MOUSEMOTION, BLEND_RGB_SUB
 
 from ..madhatter.hat_io.asset import LaytonPack
 from ..madhatter.hat_io.asset_image import AnimatedImage
 from ..madhatter.hat_io.asset_dat.place import PlaceData
 
 from ..engine.anim.font.static import generateImageFromString
-from pygame import Surface, BLEND_RGB_SUB
 
 from time import time
 
@@ -26,6 +25,9 @@ def wasBoundingCollided(bounding, pos):
 class RoomPlayer(ScreenLayerNonBlocking):
 
     # TODO - Speed up loading. Stutter exceeds 500ms which causes faders to look very strange
+
+    ANIM_MOVE_MODE = AnimatedImageObject.fromMadhatter(AnimatedImage.fromBytesArc(FileInterface.getData(PATH_ANI % "map/movemode.arc")))
+    ANIM_MOVE_MODE.setPos((230,350))
 
     IMAGE_EXIT_OFF = []
     IMAGE_EXIT_ON  = []
@@ -79,7 +81,6 @@ class RoomPlayer(ScreenLayerNonBlocking):
         self._calculateChapter()
         self._calculateRoom()
 
-        self.animMoveMode = AnimatedImageObject()
         self.isInMoveMode = False
         self.indexMoveModePressed = None
         self.isTerminating = False
@@ -113,7 +114,6 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
             self.screenController.setBgMain(PATH_PLACE_BG % self.placeData.bgMainId)
             self.screenController.setBgSub(PATH_PLACE_MAP % self.placeData.bgMapId)
-            
             
             fullLoadTime = time()
 
@@ -154,10 +154,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
                 else:
                     self.objEvent.append(None)
 
-            # TODO - This is all bad lmao
-            self.animMoveMode = AnimatedImageObject.fromMadhatter(AnimatedImage.fromBytesArc(FileInterface.getData(PATH_ANI % "map/movemode.arc")))
-            self.animMoveMode.setAnimationFromName("off")
-            self.animMoveMode.setPos((230,350))
+            RoomPlayer.ANIM_MOVE_MODE.setAnimationFromName("off")
 
             self._updateUpperScreenText()
             self.screenController.fadeIn()
@@ -176,7 +173,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
             if anim != None:
                 anim.update(gameClockDelta)
         
-        self.animMoveMode.update(gameClockDelta)
+        RoomPlayer.ANIM_MOVE_MODE.update(gameClockDelta)
 
         return super().update(gameClockDelta)
     
@@ -213,7 +210,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
         if self.isInMoveMode:
             drawAllExits()
         else:
-            self.animMoveMode.draw(gameDisplay)
+            RoomPlayer.ANIM_MOVE_MODE.draw(gameDisplay)
 
     def startTermination(self):
         self.screenController.obscureViewLayer()
@@ -261,7 +258,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
             else:
                 if event.type == MOUSEBUTTONUP:
                     # TODO - Change to button, as this must have also been pressed initially for it to do anything
-                    if self.animMoveMode.wasPressed(event.pos):
+                    if RoomPlayer.ANIM_MOVE_MODE.wasPressed(event.pos):
                         self.isInMoveMode = not(self.isInMoveMode)
                         return super().handleTouchEvent(event)
 

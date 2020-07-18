@@ -12,9 +12,13 @@ class Fader():
         if self._isActive:
             self._timeElapsed += gameClockDelta
             if self._timeElapsed > self._duration:
-                self._timeElapsed = self._duration
-                self._isActive = False
+                self.skip()
     
+    def skip(self):
+        if self.getActiveState():
+            self._timeElapsed = self._duration
+            self._isActive = False
+
     def setDuration(self, duration):
 
         # Change the duration of the fader. Will also reset the timer.
