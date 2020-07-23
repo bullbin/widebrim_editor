@@ -249,6 +249,8 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
         self._currentActiveGameMode = 0
         self._currentActiveGameModeObject = None
 
+        self.waitingForFadeOut = False
+
     def _loadGameMode(self, indexGameMode):
 
         layerFader = self._layers.pop()
@@ -292,33 +294,46 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
 
     def update(self, gameClockDelta):
 
-        if self._currentActiveGameMode != self.laytonState.getGameMode().value or self.laytonState.gameModeRestartRequired:
-            # Active gamemode is outdated, so kill the current instance and load the new one.
-            # TODO - Only allow spawning when fader has faded all the way out
+        def startObscuration():
+            self.screenControllerObject.obscureViewLayer()
+            self.waitingForFadeOut = True
 
-            if self._currentActiveGameModeObject != None:
-                self.removeFromCollection(self._layers.index(self._currentActiveGameModeObject))
-            
-            self._loadGameMode(self.laytonState.getGameMode().value)
-            self.laytonState.gameModeRestartRequired = False
+        if not(self.waitingForFadeOut):
+            if self._currentActiveGameMode != self.laytonState.getGameMode().value or self.laytonState.gameModeRestartRequired:
+                # Active gamemode is outdated, so kill the current instance and load the new one.
+                # TODO - Only allow spawning when fader has faded all the way out
+                if self.screenControllerObject.getFaderIsViewObscured():
+                    if self._currentActiveGameModeObject != None:
+                        self.removeFromCollection(self._layers.index(self._currentActiveGameModeObject))
+                    
+                    self._loadGameMode(self.laytonState.getGameMode().value)
+                    self.laytonState.gameModeRestartRequired = False
+                else:
+                    startObscuration()
 
-        elif self._currentActiveGameMode == GAMEMODES.INVALID.value:
-            # Execution hit the invalid state, meaning that it's time to end
-            self._triggerQuit()
+            elif self._currentActiveGameMode == GAMEMODES.INVALID.value:
+                # Execution hit the invalid state, meaning that it's time to end
+                self._triggerQuit()
 
-        elif self._currentActiveGameModeObject == None or self._currentActiveGameModeObject.getContextState():
-            # The current layer is finished, so the next one can now be loaded
+            elif self._currentActiveGameModeObject == None or self._currentActiveGameModeObject.getContextState():
+                # The current layer is finished, so the next one can now be loaded
 
-            # If there was a layer running (not virtual), remove it from the collection
-            # TODO - Force fade out on kill before next spawn
-            if self._currentActiveGameModeObject != None:
-                self.removeFromCollection(self._layers.index(self._currentActiveGameModeObject))
+                # If there was a layer running (not virtual), remove it from the collection
+                # TODO - Force fade out on kill before next spawn
+                if self.screenControllerObject.getFaderIsViewObscured():
+                    if self._currentActiveGameModeObject != None:
+                        self.removeFromCollection(self._layers.index(self._currentActiveGameModeObject))
 
-            # As there is nothing associated with the running handler anymore, void the current instance
-            self._voidGameMode()
+                    # As there is nothing associated with the running handler anymore, void the current instance
+                    self._voidGameMode()
 
-            # Load next game mode for for next update to grab
-            self._switchToNextGameMode()
+                    # Load next game mode for for next update to grab
+                    self._switchToNextGameMode()
+                else:
+                    startObscuration()
+
+        elif self.screenControllerObject.getFaderIsViewObscured():
+            self.waitingForFadeOut = False
 
         # Override original update to ensure game mode object cannot be deleted, as logic above does that properly
         for indexLayer in range(len(self._layers) - 1, -1, -1):
