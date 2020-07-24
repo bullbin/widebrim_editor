@@ -5,9 +5,6 @@ class PuzzlePlayer(ScreenLayerNonBlocking):
     def __init__(self, laytonState, screenController):
         ScreenLayerNonBlocking.__init__(self)
         laytonState.setGameModeNext(GAMEMODES.Room)
-        
-        screenController.modifyPaletteMain(0)
-        screenController.modifyPaletteSub(0)
 
         baseEventId = laytonState.entryEvInfo
         if baseEventId != None:

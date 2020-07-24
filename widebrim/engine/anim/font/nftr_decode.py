@@ -88,6 +88,8 @@ class NftrTiles():
                 
                 self.glyphs.append(Glyph(tile))
             
+            self.dimensions = tileDimensions
+
             # Read character width data
             reader.seek(offsetHdwc + 8)
             charFirstIndex = reader.readU16()
@@ -132,6 +134,7 @@ class NftrTiles():
                 strippedString = glyph.char.replace("\x00", "")
                 self.glyphMap[strippedString.encode('utf-8').decode('utf-8')] = glyph
 
+        self.dimensions = (0,0)
         self.glyphs = []
         self.glyphMap = {}
         

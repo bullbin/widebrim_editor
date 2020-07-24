@@ -7,7 +7,7 @@ from ..engine.file import FileInterface
 
 from ..engine.const import PATH_CHAP_ROOT, RESOLUTION_NINTENDO_DS, PATH_FACE_ROOT, PATH_BODY_ROOT, TIME_FRAMECOUNT_TO_MILLISECONDS
 from ..engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C
-from ..engine.const import PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, PATH_PACK_TALK, PATH_EVENT_BG, PATH_PLACE_BG
+from ..engine.const import PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, PATH_PACK_TALK, PATH_EVENT_BG, PATH_PLACE_BG, PATH_EVENT_ROOT, PATH_ANI
 
 from ..madhatter.hat_io.asset import LaytonPack
 from ..madhatter.hat_io.asset_script import GdScript
@@ -20,6 +20,11 @@ from ..madhatter.hat_io.binary import BinaryReader
 
 from pygame import Surface, MOUSEBUTTONUP
 from pygame.transform import flip
+
+def functionGetAnimationFromName(name):
+    name = name.split(".")[0] + ".arc"
+    resolvedPath = PATH_FACE_ROOT % name
+    return FileInterface.getData(resolvedPath)
 
 class Popup():
 
@@ -35,26 +40,78 @@ class Popup():
         self.surface.set_alpha(0)
         self.canBeTerminated = False
     
+    def doWhileActive(self, gameClockDelta):
+        self.fader.update(gameClockDelta)
+        self.surface.set_alpha(round(self.fader.getStrength() * 255))
+
+        if self.fader.getStrength() == 0:
+            self.canBeTerminated = True
+
     def update(self, gameClockDelta):
         if not(self.canBeTerminated):
-            self.fader.update(gameClockDelta)
-            self.surface.set_alpha(round(self.fader.getStrength() * 255))
-
-            if self.fader.getStrength() == 0:
-                self.canBeTerminated = True
+            self.doWhileActive(gameClockDelta)
 
     def draw(self, gameDisplay):
         gameDisplay.blit(self.surface, (0,0))
 
     def isPopupDone(self):
         return True
+    
+    def handleTouchEventForPopup(self, event):
+        pass
 
     def handleTouchEvent(self, event):
         # If the popup is currently fading, skip it.
         if event.type == MOUSEBUTTONUP:
-            if not(self.fader.getActiveState()) and self.isPopupDone() and self.fader.getStrength() == 1:
-                self.fader.setInvertedState(True)
-                self.fader.reset()
+            if self.isPopupDone():
+                if not(self.fader.getActiveState()) and self.fader.getStrength() == 1:
+                    self.fader.setInvertedState(True)
+                    self.fader.reset()
+            else:
+                self.handleTouchEventForPopup(event)
+
+class TextWindow(Popup):
+
+    # TODO - Improve redundancy, although these are all critical assets
+    dataWindow = FileInterface.getData(PATH_ANI % (PATH_EVENT_ROOT % "twindow.arc"))
+    madhatterImage = AnimatedImage.fromBytesArc(dataWindow, functionGetFileByName=functionGetAnimationFromName)
+    SPRITE_WINDOW = AnimatedImageObject.fromMadhatter(madhatterImage)
+    SPRITE_WINDOW.setPos((0, SPRITE_WINDOW.getVariable("pos")[1] + RESOLUTION_NINTENDO_DS[1]))
+
+    DICT_SLOTS = {0:"LEFT",
+                  2:"RIGHT",
+                  3:"LEFT_L",
+                  4:"LEFT_R",
+                  5:"RIGHT_L",
+                  6:"RIGHT_R"}
+
+    def __init__(self, characterSpawnIdToCharacterMap, scriptTextWindow):
+        Popup.__init__(self)
+        if scriptTextWindow.getInstruction(0).operands[0].value in characterSpawnIdToCharacterMap:
+            self.characterController = characterSpawnIdToCharacterMap[scriptTextWindow.getInstruction(0).operands[0].value]
+        else:
+            self.characterController = None
+        if self.characterController != None and self.characterController.slot in TextWindow.DICT_SLOTS:
+            self.isArrowActive = True
+            TextWindow.SPRITE_WINDOW.setAnimationFromName(TextWindow.DICT_SLOTS[self.characterController.slot])
+            TextWindow.SPRITE_WINDOW.subAnimation.getActiveFrame().set_alpha(0)
+        else:
+            self.isArrowActive = False
+            TextWindow.SPRITE_WINDOW.setAnimationFromName("gfx")
+
+        TextWindow.SPRITE_WINDOW.getActiveFrame().set_alpha(0)
+    
+    def doWhileActive(self, gameClockDelta):
+        self.fader.update(gameClockDelta)
+        TextWindow.SPRITE_WINDOW.getActiveFrame().set_alpha(round(self.fader.getStrength() * 255))
+        if self.isArrowActive:
+            TextWindow.SPRITE_WINDOW.subAnimation.getActiveFrame().set_alpha(round(self.fader.getStrength() * 255))
+
+        if self.fader.getStrength() == 0:
+            self.canBeTerminated = True
+    
+    def draw(self, gameDisplay):
+        TextWindow.SPRITE_WINDOW.draw(gameDisplay)
 
 class CharacterController():
 
@@ -71,7 +128,7 @@ class CharacterController():
 
         dataCharacter = FileInterface.getData(PATH_BODY_ROOT % characterIndex)
         if dataCharacter != None:
-            madhatterImage = AnimatedImage.fromBytesArc(dataCharacter, functionGetFileByName=self._functionGetAnimationFromName)
+            madhatterImage = AnimatedImage.fromBytesArc(dataCharacter, functionGetFileByName=functionGetAnimationFromName)
             self.imageCharacter = AnimatedImageObject.fromMadhatter(madhatterImage)
             self.imageCharacter.setAnimationFromIndex(characterInitialAnimIndex)
         else:
@@ -83,7 +140,8 @@ class CharacterController():
         self._characterIsFlipped = False
         self._characterFlippedSurface = Surface(self.imageCharacter.getDimensions()).convert_alpha()
         self._characterFlippedSurfaceNeedsUpdate = True
-
+        
+        self.slot = 0
         self.setCharacterSlot(characterSlot)
 
     def update(self, gameClockDelta):
@@ -99,11 +157,6 @@ class CharacterController():
         if self._visibility and self.imageCharacter != None:
             gameDisplay.blit(self._characterFlippedSurface, self._drawLocation)
 
-    def _functionGetAnimationFromName(self, name):
-        name = name.split(".")[0] + ".arc"
-        resolvedPath = PATH_FACE_ROOT % name
-        return FileInterface.getData(resolvedPath)
-
     def setVisibility(self, isVisible):
         self._visibility = isVisible
     
@@ -117,10 +170,10 @@ class CharacterController():
                 return (0,0)
 
         if slot in CharacterController.SLOT_OFFSET:
-            self._slot = slot
+            self.slot = slot
 
             if self.imageCharacter != None:
-                offset = CharacterController.SLOT_OFFSET[self._slot]
+                offset = CharacterController.SLOT_OFFSET[self.slot]
                 variableOffset = getImageOffset()
                 self._drawLocation = (offset - (self.imageCharacter.getDimensions()[0] // 2) + abs(variableOffset[0]),
                                       RESOLUTION_NINTENDO_DS[1] * 2 - variableOffset[1] - self.imageCharacter.getDimensions()[1])
@@ -179,6 +232,7 @@ class EventPlayer(ScreenLayerNonBlocking):
 
         self.scriptCurrentCommandIndex = 0
         self.script = GdScript()
+        self.talkScript = GdScript()
         self.eventData = None
 
         spawnId = self.laytonState.getEventId()
@@ -186,6 +240,7 @@ class EventPlayer(ScreenLayerNonBlocking):
         self.eventSubId = spawnId % 1000
 
         self.characters = []
+        self.nameCharacters = []
         self.characterSpawnIdToCharacterMap = {}
 
         print("Loaded event", spawnId)
@@ -298,7 +353,11 @@ class EventPlayer(ScreenLayerNonBlocking):
                     opcode = int.from_bytes(command.opcode, byteorder = 'little')
                     
                     if opcode == OPCODES_LT2.TextWindow.value:
-                        triggerPopup(Popup())
+
+                        self.talkScript = GdScript()
+                        self.talkScript.load(self.packEventTalk.getFile(PATH_PACK_TALK % (self.eventId, self.eventSubId, command.operands[0].value)), isTalkscript=True)
+                        print(self.talkScript.commands[0])
+                        triggerPopup(TextWindow(self.characterSpawnIdToCharacterMap, self.talkScript))
                         break
 
                     elif opcode == OPCODES_LT2.SetGameMode.value:

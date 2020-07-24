@@ -131,10 +131,14 @@ class GdScript(Script):
     def __init__(self):
         Script.__init__(self)
     
-    def load(self, data):
+    def load(self, data, isTalkscript=False):
         
         reader = binary.BinaryReader(data=data)
         length = reader.readU32()
+        if isTalkscript:
+            # Seek backwards to allow command to read as 0
+            # Not based on binary, but game doesn't care when reading talkscripts as it only wants the operands
+            reader.seek(2)
         command = None
         while reader.tell() < length + 4:
             lastType = reader.readU16()
@@ -142,7 +146,10 @@ class GdScript(Script):
                 if command != None:
                     self.commands.append(command)
                 command = Instruction()
-                command.opcode = reader.read(2)
+                if isTalkscript:
+                    command.opcode = lastType.to_bytes(2, byteorder = 'little')
+                else:
+                    command.opcode = reader.read(2)
             elif lastType == 1: # Signed int
                 command.operands.append(Operand(lastType, reader.readS32()))
             elif lastType == 2: # Float
