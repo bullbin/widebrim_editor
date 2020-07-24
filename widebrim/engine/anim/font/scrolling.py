@@ -4,7 +4,7 @@ from ...const import RESOLUTION_NINTENDO_DS
 from .const import BLEND_MAP
 
 display.init()
-display.set_mode(RESOLUTION_NINTENDO_DS)
+display.set_mode((RESOLUTION_NINTENDO_DS[0], RESOLUTION_NINTENDO_DS[1] * 2))
 
 class ScrollingFontHelper():
     def __init__(self, font, yBias = 4):
@@ -16,6 +16,7 @@ class ScrollingFontHelper():
         self._workingLineSurfaceIndex = 0
         self._workingLineXOffset = 0
 
+        self._pos = (0,0)
         self._color = (0,0,0)
         self._tintSurface = Surface(font.dimensions)
 
@@ -28,6 +29,9 @@ class ScrollingFontHelper():
         self._durationWaiting = 0
 
         self._isWaitingForTap = False
+
+    def setPos(self, pos):
+        self._pos = pos
 
     def setColor(self, triplet):
         self._color = triplet
@@ -114,7 +118,7 @@ class ScrollingFontHelper():
     def _updateTextChar(self):
         # Returns True if the character contributed graphically
         nextChar = self._getNextChar()
-        while nextChar != None and self._hasCharsRemaining and not(self._isWaiting()):
+        while nextChar != None and self._hasCharsRemaining and not(self.isWaiting()):
             if len(nextChar) == 1:
                 self._addCharacterToDrawBuffer(nextChar)
                 return True
@@ -122,7 +126,7 @@ class ScrollingFontHelper():
                 if nextChar[0] == "@":
                     # Control character
                     if nextChar[1] == "p":      # Wait until touch
-                        self._isWaiting = True
+                        self._isWaitingForTap = True
 
                     elif nextChar[1] == "w":    # Wait during text
                         self._durationCarried -= 500
@@ -148,22 +152,28 @@ class ScrollingFontHelper():
                 return False
             return False
 
-    def _isWaiting(self):
+    def isWaiting(self):
         return self._isWaitingForTap
     
+    def setTap(self):
+        self._isWaitingForTap = False
+    
+    def getActiveState(self):
+        return self._hasCharsRemaining
+    
     def skip(self):
-        while self._hasCharsRemaining and not(self._isWaiting()):
+        while self._hasCharsRemaining and not(self.isWaiting()):
             self._updateTextChar()
 
     def update(self, gameClockDelta):
-        if self._hasCharsRemaining:
+        if self._hasCharsRemaining and not(self.isWaiting()):
             self._durationCarried += gameClockDelta
-            while self._durationCarried >= self._durationPerChar and self._hasCharsRemaining and not(self._isWaiting()):
+            while self._durationCarried >= self._durationPerChar and self._hasCharsRemaining and not(self.isWaiting()):
                 if self._updateTextChar():
                     self._durationCarried -= self._durationPerChar
 
     def draw(self, gameDisplay):
-        yBias = 0
+        yBias = self._pos[1]
         for buffer in self._outputLineSurfaces[0:self._workingLineSurfaceIndex + 1]:
-            gameDisplay.blit(buffer, (0,yBias))
+            gameDisplay.blit(buffer, (self._pos[0], yBias))
             yBias += self._yBias

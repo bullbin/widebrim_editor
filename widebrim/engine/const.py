@@ -18,6 +18,7 @@ PATH_EXT_EVENT      = "eventobj/obj_%i.arc"
 
 PATH_BG_ROOT        = "/data_lt2/bg/%s"
 PATH_CHAP_ROOT      = "chapter/?/chapter%i.arc"
+PATH_NAME_ROOT      = "eventchr/%s/chr%i_n.arc"
 PATH_EVENT_ROOT     = "event/%s"
 
 PATH_FACE_ROOT      = "/data_lt2/ani/sub/%s"

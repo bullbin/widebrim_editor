@@ -2,12 +2,13 @@ from ..engine.state.layer import ScreenLayerNonBlocking
 from ..engine.state.enum_mode import GAMEMODES, STRING_TO_GAMEMODE_VALUE
 from ..engine.anim.image_anim import AnimatedImageObject
 from ..engine.anim.fader import Fader
+from ..engine.anim.font.scrolling import ScrollingFontHelper
 from ..engine.exceptions import FileInvalidCritical
 from ..engine.file import FileInterface
 
 from ..engine.const import PATH_CHAP_ROOT, RESOLUTION_NINTENDO_DS, PATH_FACE_ROOT, PATH_BODY_ROOT, TIME_FRAMECOUNT_TO_MILLISECONDS
 from ..engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C
-from ..engine.const import PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, PATH_PACK_TALK, PATH_EVENT_BG, PATH_PLACE_BG, PATH_EVENT_ROOT, PATH_ANI
+from ..engine.const import PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, PATH_PACK_TALK, PATH_EVENT_BG, PATH_PLACE_BG, PATH_EVENT_ROOT, PATH_ANI, PATH_NAME_ROOT
 
 from ..madhatter.hat_io.asset import LaytonPack
 from ..madhatter.hat_io.asset_script import GdScript
@@ -35,14 +36,10 @@ class Popup():
     def __init__(self):
         print("Spawned popup!")
         self.fader = Fader(Popup.DURATION_FADE)
-        self.surface = Surface((40,40))
-        self.surface.fill((255,0,0))
-        self.surface.set_alpha(0)
         self.canBeTerminated = False
     
     def doWhileActive(self, gameClockDelta):
         self.fader.update(gameClockDelta)
-        self.surface.set_alpha(round(self.fader.getStrength() * 255))
 
         if self.fader.getStrength() == 0:
             self.canBeTerminated = True
@@ -85,21 +82,30 @@ class TextWindow(Popup):
                   5:"RIGHT_L",
                   6:"RIGHT_R"}
 
-    def __init__(self, characterSpawnIdToCharacterMap, scriptTextWindow):
+    def __init__(self, laytonState, characterSpawnIdToCharacterMap, scriptTextWindow):
         Popup.__init__(self)
         if scriptTextWindow.getInstruction(0).operands[0].value in characterSpawnIdToCharacterMap:
             self.characterController = characterSpawnIdToCharacterMap[scriptTextWindow.getInstruction(0).operands[0].value]
         else:
             self.characterController = None
+
+        self.isNameActive = False
         if self.characterController != None and self.characterController.slot in TextWindow.DICT_SLOTS:
             self.isArrowActive = True
             TextWindow.SPRITE_WINDOW.setAnimationFromName(TextWindow.DICT_SLOTS[self.characterController.slot])
             TextWindow.SPRITE_WINDOW.subAnimation.getActiveFrame().set_alpha(0)
+            if self.characterController.imageName != None and self.characterController.imageName.getActiveFrame() != None:
+                self.characterController.imageName.getActiveFrame().set_alpha(0)
+                self.isNameActive = True
         else:
             self.isArrowActive = False
             TextWindow.SPRITE_WINDOW.setAnimationFromName("gfx")
 
         TextWindow.SPRITE_WINDOW.getActiveFrame().set_alpha(0)
+
+        self.textScroller = ScrollingFontHelper(laytonState.fontEvent)
+        self.textScroller.setText(scriptTextWindow.getInstruction(0).operands[4].value)
+        self.textScroller.setPos((8, RESOLUTION_NINTENDO_DS[1] + 142))
     
     def doWhileActive(self, gameClockDelta):
         self.fader.update(gameClockDelta)
@@ -107,24 +113,46 @@ class TextWindow(Popup):
         if self.isArrowActive:
             TextWindow.SPRITE_WINDOW.subAnimation.getActiveFrame().set_alpha(round(self.fader.getStrength() * 255))
 
+        if self.isNameActive:
+            self.characterController.imageName.getActiveFrame().set_alpha(round(self.fader.getStrength() * 255))
+
         if self.fader.getStrength() == 0:
             self.canBeTerminated = True
+        elif self.fader.getStrength() == 1:
+            self.textScroller.update(gameClockDelta)
     
+    def isPopupDone(self):
+        return not(self.textScroller.getActiveState())
+
+    def handleTouchEventForPopup(self, event):
+        if not(self.fader.getActiveState()):
+            if self.textScroller.getActiveState():
+                if not(self.textScroller.isWaiting()):
+                    self.textScroller.skip()
+                else:
+                    self.textScroller.setTap()
+
     def draw(self, gameDisplay):
         TextWindow.SPRITE_WINDOW.draw(gameDisplay)
+
+        if self.isNameActive:
+            self.characterController.imageName.draw(gameDisplay)
+        
+        if self.fader.getStrength() == 1:
+            self.textScroller.draw(gameDisplay)
 
 class CharacterController():
 
     SLOT_OFFSET = {0:48,     1:128,
-                   2:208,     3:37,
-                   4:54,    5:154,
+                   2:208,     3:31,
+                   4:90,    5:128,
                    6:0}
     SLOT_LEFT  = [0,3,4]    # Verified against game binary
     # Left side characters need flipping
 
     SLOT_RIGHT = [2,5,6]
 
-    def __init__(self, characterIndex, characterInitialAnimIndex=0, characterVisible=False, characterSlot=0):
+    def __init__(self, laytonState, characterIndex, characterInitialAnimIndex=0, characterVisible=False, characterSlot=0):
 
         dataCharacter = FileInterface.getData(PATH_BODY_ROOT % characterIndex)
         if dataCharacter != None:
@@ -133,6 +161,15 @@ class CharacterController():
             self.imageCharacter.setAnimationFromIndex(characterInitialAnimIndex)
         else:
             self.imageCharacter = None
+        
+        dataName = FileInterface.getData(PATH_ANI % (PATH_NAME_ROOT % (laytonState.language.value, characterIndex)))
+        if dataName != None:
+            dataName = AnimatedImage.fromBytesArc(dataName, functionGetFileByName=functionGetAnimationFromName)
+            self.imageName = AnimatedImageObject.fromMadhatter(dataName)
+            self.imageName.setAnimationFromName("gfx")
+            self.imageName.setPos((self.imageName.getVariable("pos")[0], RESOLUTION_NINTENDO_DS[1] + self.imageName.getVariable("pos")[1]))
+        else:
+            self.imageName = None
 
         self._visibility = characterVisible
         self._drawLocation = (0,0)
@@ -165,7 +202,7 @@ class CharacterController():
         def getImageOffset():
             offset = self.imageCharacter.getVariable("drawoff")
             if offset != None:
-                return (abs(offset[0]), abs(offset[1]))
+                return (offset[0], abs(offset[1]))
             else:
                 return (0,0)
 
@@ -175,13 +212,17 @@ class CharacterController():
             if self.imageCharacter != None:
                 offset = CharacterController.SLOT_OFFSET[self.slot]
                 variableOffset = getImageOffset()
-                self._drawLocation = (offset - (self.imageCharacter.getDimensions()[0] // 2) + abs(variableOffset[0]),
-                                      RESOLUTION_NINTENDO_DS[1] * 2 - variableOffset[1] - self.imageCharacter.getDimensions()[1])
+                #self._drawLocation = (offset - (self.imageCharacter.getDimensions()[0] // 2) + variableOffset[0],
+                #                      RESOLUTION_NINTENDO_DS[1] * 2 - variableOffset[1] - self.imageCharacter.getDimensions()[1])
 
                 if slot in CharacterController.SLOT_LEFT:
                     self._characterIsFlipped = True
+                    self._drawLocation = (offset - (self.imageCharacter.getDimensions()[0] // 2) - variableOffset[0],
+                                      RESOLUTION_NINTENDO_DS[1] * 2 - variableOffset[1] - self.imageCharacter.getDimensions()[1])
                 else:
                     self._characterIsFlipped = False
+                    self._drawLocation = (offset - (self.imageCharacter.getDimensions()[0] // 2) + variableOffset[0],
+                                      RESOLUTION_NINTENDO_DS[1] * 2 - variableOffset[1] - self.imageCharacter.getDimensions()[1])
                 
                 self._characterFlippedSurfaceNeedsUpdate = True
 
@@ -277,7 +318,7 @@ class EventPlayer(ScreenLayerNonBlocking):
                 for charIndex in range(8):
                     character = self.eventData.readUInt(1)
                     if character != 0:
-                        self.characters.append(CharacterController(character))
+                        self.characters.append(CharacterController(self.laytonState, character))
                         self.characterSpawnIdToCharacterMap[character] = self.characters[-1]
 
                 for charIndex in range(8):
@@ -357,7 +398,7 @@ class EventPlayer(ScreenLayerNonBlocking):
                         self.talkScript = GdScript()
                         self.talkScript.load(self.packEventTalk.getFile(PATH_PACK_TALK % (self.eventId, self.eventSubId, command.operands[0].value)), isTalkscript=True)
                         print(self.talkScript.commands[0])
-                        triggerPopup(TextWindow(self.characterSpawnIdToCharacterMap, self.talkScript))
+                        triggerPopup(TextWindow(self.laytonState, self.characterSpawnIdToCharacterMap, self.talkScript))
                         break
 
                     elif opcode == OPCODES_LT2.SetGameMode.value:
@@ -506,9 +547,13 @@ class EventPlayer(ScreenLayerNonBlocking):
                         if command.operands[0].value in self.characterSpawnIdToCharacterMap:
                             self.characterSpawnIdToCharacterMap[command.operands[0].value].setCharacterAnimationFromName(command.operands[1].value)
 
+                    elif opcode == OPCODES_LT2.DoSpriteFade.value:
+                        self.characters[command.operands[0].value].setVisibility(command.operands[1].value >= 0)
+
                     else:
                         #print("\tSkipped command!")
-                        print("Unimplemented", OPCODES_LT2(opcode).name)
+                        print("\nUnimplemented", OPCODES_LT2(opcode).name)
+                        print(command)
 
                     self.scriptCurrentCommandIndex += 1
                 
