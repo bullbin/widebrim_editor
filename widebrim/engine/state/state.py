@@ -4,8 +4,9 @@ from ...madhatter.hat_io.asset_placeflag import PlaceFlag
 from ...madhatter.hat_io.asset_storyflag import StoryFlag
 from ...madhatter.hat_io.asset_autoevent import AutoEvent
 from ...madhatter.hat_io.asset_dlz.goal_inf import GoalInfo
+from ...madhatter.hat_io.asset_dlz.nz_lst import NazoList
 from ...madhatter.hat_io.asset import LaytonPack, File
-from ..const import LANGUAGES, EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_EV_INF2, PATH_PROGRESSION_DB, PATH_DB_RC_ROOT, PATH_DB_GOAL_INF
+from ..const import LANGUAGES, EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_EV_INF2, PATH_PROGRESSION_DB, PATH_DB_RC_ROOT, PATH_DB_GOAL_INF, PATH_DB_NZ_LST, PATH_DB_RC_ROOT_LANG
 from ..exceptions import FileInvalidCritical
 from ..file import FileInterface
 
@@ -52,25 +53,27 @@ class Layton2GameState():
 
         # Loaded and unloaded where required
         # TODO - Do this by gamemode
-        self._dbChapterInfo      = None
-        self._dbSubmapInfo       = None
-        self._dbGoalInfo         = None
-        self._dbSoundSetList     = None
-        self._dbEventInfo        = None
-        self._dbEventBaseList    = None
-        self._dbPuzzleInfo       = None
-        self._dbSubPhoto         = None
-        self._dbTeaElement       = None
-        self._dbTeaRecipe        = None
-        self._dbTeaEventInfo     = None
-        self._dbTeaTalk          = None
+        self._dbChapterInfo     = None
+        self._dbSubmapInfo      = None
+        self._dbGoalInfo        = None
+        self._dbSoundSetList    = None
+        self._dbEventInfo       = None
+        self._dbEventBaseList   = None
+        self._dbPuzzleInfo      = None
+        self._dbSubPhoto        = None
+        self._dbTeaElement      = None
+        self._dbTeaRecipe       = None
+        self._dbTeaEventInfo    = None
+        self._dbTeaTalk         = None
+        self._dbNazoList        = None
 
         # TODO - Add to const
         try:
             self.font18             = NftrTiles(FileInterface.getData("/data_lt2/font/font18.NFTR"))
             self.fontEvent          = NftrTiles(FileInterface.getData("/data_lt2/font/fontevent.NFTR"))
             self.fontQ              = NftrTiles(FileInterface.getData("/data_lt2/font/fontq.NFTR"))
-
+            self._dbNazoList        = NazoList()
+            self._dbNazoList.load(FileInterface.getData(PATH_DB_RC_ROOT_LANG % (self.language.value, PATH_DB_NZ_LST)))
         except:
             raise FileInvalidCritical()
 
@@ -177,9 +180,17 @@ class Layton2GameState():
         self._idEvent = -1
         self.entryEvInfo = None
     
-    def setPuzzleId(self, idPuzzle):
+    def setPuzzleId(self, idInternal):
         # Load nz info entry, set id
-        pass
+        self.entryNzList = self.getNazoListEntry(idInternal)
+        if self.entryNzList == None:
+            print("Failed to update entry!")
+
+    def getNazoListEntry(self, idInternal):
+        idEntry = self._dbNazoList.searchForEntry(idInternal)
+        if idEntry != None:
+            return self._dbNazoList.getEntry(idEntry)
+        return None
 
     def getGoalInfEntry(self):
         if self._dbGoalInfo == None:

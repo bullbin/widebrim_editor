@@ -34,7 +34,6 @@ class Popup():
     DURATION_FADE = 500
 
     def __init__(self):
-        print("Spawned popup!")
         self.fader = Fader(Popup.DURATION_FADE)
         self.canBeTerminated = False
     
@@ -49,7 +48,7 @@ class Popup():
             self.doWhileActive(gameClockDelta)
 
     def draw(self, gameDisplay):
-        gameDisplay.blit(self.surface, (0,0))
+        pass
 
     def isPopupDone(self):
         return True
@@ -66,6 +65,25 @@ class Popup():
                     self.fader.reset()
             else:
                 self.handleTouchEventForPopup(event)
+
+class PlaceholderPopup(Popup):
+
+    def __init__(self):
+        Popup.__init__(self)
+        self.surface = Surface((40,40))
+        self.surface.set_alpha(0)
+    
+    def doWhileActive(self, gameClockDelta):
+        self.fader.update(gameClockDelta)
+        self.surface.set_alpha(round(self.fader.getStrength() * 255))
+
+        if self.fader.getStrength() == 0:
+            self.canBeTerminated = True
+
+    def draw(self, gameDisplay):
+        gameDisplay.blit(self.surface, (0,0))
+
+# TODO - Centralise a popup with background and cursor fade in, used in TextWindow and all other event windows (eg reward popup, stock screen)
 
 class TextWindow(Popup):
 
@@ -90,7 +108,7 @@ class TextWindow(Popup):
             self.characterController = None
 
         self.isNameActive = False
-        if self.characterController != None and self.characterController.slot in TextWindow.DICT_SLOTS:
+        if self.characterController != None and self.characterController.getVisibility() and self.characterController.slot in TextWindow.DICT_SLOTS:
             self.isArrowActive = True
             TextWindow.SPRITE_WINDOW.setAnimationFromName(TextWindow.DICT_SLOTS[self.characterController.slot])
             TextWindow.SPRITE_WINDOW.subAnimation.getActiveFrame().set_alpha(0)
@@ -105,7 +123,7 @@ class TextWindow(Popup):
 
         self.textScroller = ScrollingFontHelper(laytonState.fontEvent)
         self.textScroller.setText(scriptTextWindow.getInstruction(0).operands[4].value)
-        self.textScroller.setPos((8, RESOLUTION_NINTENDO_DS[1] + 142))
+        self.textScroller.setPos((8, RESOLUTION_NINTENDO_DS[1] + 141))
     
     def doWhileActive(self, gameClockDelta):
         self.fader.update(gameClockDelta)
@@ -197,6 +215,9 @@ class CharacterController():
     def setVisibility(self, isVisible):
         self._visibility = isVisible
     
+    def getVisibility(self):
+        return self._visibility
+    
     def setCharacterSlot(self, slot):
 
         def getImageOffset():
@@ -212,8 +233,6 @@ class CharacterController():
             if self.imageCharacter != None:
                 offset = CharacterController.SLOT_OFFSET[self.slot]
                 variableOffset = getImageOffset()
-                #self._drawLocation = (offset - (self.imageCharacter.getDimensions()[0] // 2) + variableOffset[0],
-                #                      RESOLUTION_NINTENDO_DS[1] * 2 - variableOffset[1] - self.imageCharacter.getDimensions()[1])
 
                 if slot in CharacterController.SLOT_LEFT:
                     self._characterIsFlipped = True
@@ -261,8 +280,6 @@ class EventPlayer(ScreenLayerNonBlocking):
         def getEventScriptPath():
             return substituteEventPath(PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C)
 
-        # print("Tried to add drama layer...")
-
         # TODO - Search for language image as well as non-language image
 
         ScreenLayerNonBlocking.__init__(self)
@@ -272,9 +289,9 @@ class EventPlayer(ScreenLayerNonBlocking):
         self.packEventTalk = LaytonPack()
 
         self.scriptCurrentCommandIndex = 0
-        self.script = GdScript()
-        self.talkScript = GdScript()
-        self.eventData = None
+        self.script         = GdScript()
+        self.talkScript     = GdScript()
+        self.eventData      = None
 
         spawnId = self.laytonState.getEventId()
         self.eventId = spawnId // 1000
@@ -344,7 +361,7 @@ class EventPlayer(ScreenLayerNonBlocking):
         # TODO - Goal versus objective?
         # Maybe if unk is 1, also update chapter.
         if goalInfoEntry != None:
-            
+            # Does the unk cause the window to pop up?
             if goalInfoEntry.type == 1:
                 print("\tUpdated goal and chapter to", goalInfoEntry.goal)
                 self.laytonState.saveSlot.chapter = goalInfoEntry.goal
@@ -372,6 +389,7 @@ class EventPlayer(ScreenLayerNonBlocking):
         return super().handleTouchEvent(event)
 
     def update(self, gameClockDelta):
+        # TODO - Maybe also detect if popup active
         if self.screenController.getFadingStatus():
             return self.updateBlocked(gameClockDelta)
         return self.updateNonBlocked(gameClockDelta)
@@ -397,8 +415,22 @@ class EventPlayer(ScreenLayerNonBlocking):
 
                         self.talkScript = GdScript()
                         self.talkScript.load(self.packEventTalk.getFile(PATH_PACK_TALK % (self.eventId, self.eventSubId, command.operands[0].value)), isTalkscript=True)
-                        print(self.talkScript.commands[0])
                         triggerPopup(TextWindow(self.laytonState, self.characterSpawnIdToCharacterMap, self.talkScript))
+                        break
+
+                    elif opcode == OPCODES_LT2.DoStockScreen.value:
+                        triggerPopup(PlaceholderPopup())
+                        break
+
+                    elif opcode == OPCODES_LT2.DoSubItemAddScreen.value:
+                        # TODO - Only trigger on popups which mean something
+                        if self.laytonState.entryNzList != None and self.laytonState.entryNzList.idReward != -1:
+                            triggerPopup(PlaceholderPopup())
+                            break
+                    
+                    elif opcode == OPCODES_LT2.DoItemAddScreen.value:
+                        self.laytonState.saveSlot.storyItemFlag.setSlot(True, command.operands[0].value)
+                        triggerPopup(PlaceholderPopup())
                         break
 
                     elif opcode == OPCODES_LT2.SetGameMode.value:
@@ -515,23 +547,17 @@ class EventPlayer(ScreenLayerNonBlocking):
 
                     elif opcode == OPCODES_LT2.DoHukamaruAddScreen.value:
                         # TODO - Not accurate, but required to get fading looking correct
-                        self.screenController.fadeOut()
+                        self.screenController.obscureView()
 
                         # TODO - How best to handle this?
                         for character in self.characters:
                             character.setVisibility(False)
-
-
 
                     elif opcode == OPCODES_LT2.WaitFrame.value:
                         self.screenController.setWaitDuration(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
 
                     elif opcode == OPCODES_LT2.WaitVSyncOrPenTouch.value:
                         self.screenController.setWaitDuration(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS, canBeSkipped=True)
-
-                    elif opcode == OPCODES_LT2.WaitFrame2.value:
-                        # TODO - What is this?
-                        self.screenController.setWaitDuration(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
 
 
 
@@ -546,6 +572,10 @@ class EventPlayer(ScreenLayerNonBlocking):
                     elif opcode == OPCODES_LT2.SetSpriteAnimation.value:
                         if command.operands[0].value in self.characterSpawnIdToCharacterMap:
                             self.characterSpawnIdToCharacterMap[command.operands[0].value].setCharacterAnimationFromName(command.operands[1].value)
+
+                    elif opcode == OPCODES_LT2.SetSpritePos.value:
+                        if command.operands[0].value in self.characterSpawnIdToCharacterMap:
+                            self.characterSpawnIdToCharacterMap[command.operands[0].value].setCharacterSlot(command.operands[1].value)
 
                     elif opcode == OPCODES_LT2.DoSpriteFade.value:
                         self.characters[command.operands[0].value].setVisibility(command.operands[1].value >= 0)

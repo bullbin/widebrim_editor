@@ -9,7 +9,9 @@ EVENT_ID_START_TEA              = 30000
 
 PATH_DB_EV_INF2     = "/data_lt2/rc/%s/ev_inf2.dlz"
 PATH_DB_GOAL_INF    = "goal_inf.dlz"
+PATH_DB_NZ_LST      = "nz_lst.dlz"
 PATH_DB_RC_ROOT     = "/data_lt2/rc/%s"
+PATH_DB_RC_ROOT_LANG    = "/data_lt2/rc/%s/%s"
 
 PATH_ANI            = "/data_lt2/ani/%s"
 PATH_EXT_BGANI      = "bgani/%s"

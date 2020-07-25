@@ -9,8 +9,11 @@ class PuzzlePlayer(ScreenLayerNonBlocking):
         baseEventId = laytonState.entryEvInfo
         if baseEventId != None:
             # TODO - Has to be converted to external index, then subtracted 1.
-            laytonState.saveSlot.puzzleData.getPuzzleData(baseEventId.dataPuzzle).wasSolved = True
-            laytonState.saveSlot.puzzleData.getPuzzleData(baseEventId.dataPuzzle).wasEncountered = True
+
+            if laytonState.entryNzList != None:
+                laytonState.saveSlot.puzzleData.getPuzzleData(laytonState.entryNzList.idExternal - 1).wasSolved = True
+                laytonState.saveSlot.puzzleData.getPuzzleData(laytonState.entryNzList.idExternal - 1).wasEncountered = True
+
             baseEventId = baseEventId.idEvent + 3
             laytonState.setEventId(baseEventId)
             laytonState.setGameModeNext(GAMEMODES.DramaEvent)

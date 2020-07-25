@@ -350,7 +350,9 @@ class RoomPlayer(ScreenLayerNonBlocking):
             for indexSubFlag in range(8):
                 subFlag = storyFlagEntry.getFlag(indexSubFlag)
                 if subFlag.type == 2:
-                    if not(saveSlot.puzzleData.getPuzzleData(subFlag.param).wasSolved):
+
+                    nzLstEntry = self.laytonState.getNazoListEntry(subFlag.param)
+                    if nzLstEntry != None and not(saveSlot.puzzleData.getPuzzleData(nzLstEntry.idExternal - 1).wasSolved):
                         saveSlot.chapter = storyFlag.getGroupAtIndex(indexStoryFlag).getChapter()
                         return
 
