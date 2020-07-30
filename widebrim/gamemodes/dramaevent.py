@@ -28,12 +28,13 @@ def functionGetAnimationFromName(name):
     return FileInterface.getData(resolvedPath)
 
 # TODO - Bugfix, Layton anim b2 normal has an extra space that for some reason is not counted. Present in RAM dumps as well so being loaded with that space.
+# TODO - During fading, the main screen doesn't actually seem to be updated.
 
 class Popup():
 
     # Note - Inaccurate, as characters share the same alpha as this layer. Colours should bleed over characters as alpha channel is used for fading, not separate surface.
 
-    DURATION_FADE = 500
+    DURATION_FADE = 300
 
     def __init__(self):
         self.fader = Fader(Popup.DURATION_FADE)
@@ -415,7 +416,7 @@ class EventPlayer(ScreenLayerNonBlocking):
             self.laytonState.saveSlot.goal = goalInfoEntry.goal
 
         if not(self._canBeKilled):
-            if self.laytonState.entryEvInfo.indexEventViewedFlag != None:
+            if self.laytonState.entryEvInfo != None and self.laytonState.entryEvInfo.indexEventViewedFlag != None:
                 self.laytonState.saveSlot.eventViewed.setSlot(True, self.laytonState.entryEvInfo.indexEventViewedFlag)
 
         self.popup = None
@@ -491,6 +492,7 @@ class EventPlayer(ScreenLayerNonBlocking):
                             print("SetEndGameMode Handler", command.operands[0].value, "unimplemented!")
 
                     elif opcode == OPCODES_LT2.SetDramaEventNum.value:
+                        print(command.operands[0].value)
                         self.laytonState.setEventId(command.operands[0].value)
 
                     elif opcode == OPCODES_LT2.SetPuzzleNum.value:
@@ -612,6 +614,13 @@ class EventPlayer(ScreenLayerNonBlocking):
                         # TODO - How best to handle this?
                         for character in self.characters:
                             character.setVisibility(False)
+                    
+                    elif opcode == OPCODES_LT2.DoSaveScreen.value:
+                        # TODO - Not accurate, but required to not softlock. Research required
+                        self.screenController.obscureViewLayer()
+                        if command.operands[0].value != -1 and False:
+                            self.laytonState.setGameModeNext(GAMEMODES.DramaEvent)
+                            self.laytonState.setEventId(command.operands[0].value)
 
                     elif opcode == OPCODES_LT2.WaitFrame.value:
                         self.screenController.setWaitDuration(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)

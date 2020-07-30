@@ -109,18 +109,16 @@ class Layton2GameState():
             return self._dbEventInfo.getEntry(indexEntry)
 
         return None
-
+    
     def setEventId(self, idEvent):
-        if idEvent == -1:
-            self.clearEventId()
-            return True
-
+        # As evidenced by event 15000, the game will accept events which are not inside
+        # any event database and simply void out its own cached entry in RAM.
+        # Without this behaviour implemented, 14510 will loop as it tries to connect to
+        # 15000.
         entry = self.getEventInfoEntry(idEvent)
-        if entry != None:
-            self._idEvent = idEvent
-            self.entryEvInfo = entry
-            return True
-        return False
+        self._idEvent = idEvent
+        self.entryEvInfo = entry
+        return True
     
     def getEventId(self):
 

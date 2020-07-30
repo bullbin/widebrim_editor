@@ -96,7 +96,7 @@ class BgLayer(ScreenLayerNonBlocking):
 
 class FaderLayer(ScreenLayerNonBlocking):
 
-    DEFAULT_FADE_TIME = 500
+    DEFAULT_FADE_TIME = 250
 
     def __init__(self):
         ScreenLayerNonBlocking.__init__(self)
