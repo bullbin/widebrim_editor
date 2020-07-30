@@ -134,13 +134,14 @@ class Layton2GameState():
             # Initial solved and quit not included as these seem to be the result of the puzzle handler
             # These will not be modified however
             if self.entryEvInfo.dataPuzzle != None:
-                entryPuzzle = self.saveSlot.puzzleData.getPuzzleData(self.entryEvInfo.dataPuzzle)
-                if entryPuzzle.wasSolved:
-                    return self._idEvent + 3
-                elif entryPuzzle.wasEncountered:
-                    return self._idEvent + 1
-                else:
-                    return getOffsetIdWasViewed()
+                nazoListEntry = self.getNazoListEntry(self.entryEvInfo.dataPuzzle)
+                if nazoListEntry != None:
+                    entryPuzzle = self.saveSlot.puzzleData.getPuzzleData(nazoListEntry.idExternal - 1)
+                    if entryPuzzle.wasSolved:
+                        return self._idEvent + 2
+                    elif entryPuzzle.wasEncountered:
+                        return self._idEvent + 1
+                return getOffsetIdWasViewed()
             return self._idEvent
         
         def getOffsetIdLimit():

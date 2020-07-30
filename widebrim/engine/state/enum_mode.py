@@ -19,6 +19,9 @@ class GAMEMODES(Enum):
     Menu        = 17
     Staff       = 21
     Challenge   = 24
+
+    UnkTeaMode  = 25
+
     Name        = 37
     Passcode    = 40
     Diary       = 43

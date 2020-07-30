@@ -564,7 +564,7 @@ class Layton2SaveSlot():
 
         reader.seek(4,1)
 
-        self.goal                   = reader.readU32()
+        self.goal                   = reader.readU16()
 
         if self.roomIndex != self.headerRoomIndex:
             self.isTampered = True

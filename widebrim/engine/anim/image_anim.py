@@ -126,6 +126,7 @@ class AnimatedImageObject():
         else:
             self.animActive = None
         self._setAnimationFromActive()
+        return not(self.animActive == None)
     
     def setDimensions(self, dimensions):
         self._dimensions = dimensions
@@ -139,6 +140,7 @@ class AnimatedImageObject():
         else:
             self.animActive = None
         self._setAnimationFromActive()
+        return not(self.animActive == None)
 
     def setPos(self, pos):
         self._pos = pos

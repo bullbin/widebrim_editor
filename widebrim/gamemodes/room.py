@@ -22,6 +22,8 @@ def wasBoundingCollided(bounding, pos):
             return True
     return False
 
+# TODO - Hardcoded position for cursor: 207,105
+
 class RoomPlayer(ScreenLayerNonBlocking):
 
     # TODO - Speed up loading. Stutter exceeds 500ms which causes faders to look very strange
@@ -140,7 +142,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
                 # Strange behaviour at end of carriage, tiny sprite clipped at bottom
 
                 if objEvent.idImage != 0:
-                    tempMaskedId = objEvent.idImage % 0xff
+                    tempMaskedId = objEvent.idImage & 0xff
                     tempEventAsset = FileInterface.getData(PATH_ANI % (PATH_EXT_EVENT % tempMaskedId))
 
                     if tempEventAsset != None:

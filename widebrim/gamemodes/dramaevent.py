@@ -27,6 +27,8 @@ def functionGetAnimationFromName(name):
     resolvedPath = PATH_FACE_ROOT % name
     return FileInterface.getData(resolvedPath)
 
+# TODO - Bugfix, Layton anim b2 normal has an extra space that for some reason is not counted. Present in RAM dumps as well so being loaded with that space.
+
 class Popup():
 
     # Note - Inaccurate, as characters share the same alpha as this layer. Colours should bleed over characters as alpha channel is used for fading, not separate surface.
@@ -42,6 +44,9 @@ class Popup():
 
         if self.fader.getStrength() == 0:
             self.canBeTerminated = True
+
+    def doOnExit(self):
+        pass
 
     def update(self, gameClockDelta):
         if not(self.canBeTerminated):
@@ -63,6 +68,7 @@ class Popup():
                 if not(self.fader.getActiveState()) and self.fader.getStrength() == 1:
                     self.fader.setInvertedState(True)
                     self.fader.reset()
+                    self.doOnExit()
             else:
                 self.handleTouchEventForPopup(event)
 
@@ -71,6 +77,7 @@ class PlaceholderPopup(Popup):
     def __init__(self):
         Popup.__init__(self)
         self.surface = Surface((40,40))
+        self.surface.fill((255,0,0))
         self.surface.set_alpha(0)
     
     def doWhileActive(self, gameClockDelta):
@@ -102,8 +109,15 @@ class TextWindow(Popup):
 
     def __init__(self, laytonState, characterSpawnIdToCharacterMap, scriptTextWindow):
         Popup.__init__(self)
+        self.animNameOnExit = None
         if scriptTextWindow.getInstruction(0).operands[0].value in characterSpawnIdToCharacterMap:
             self.characterController = characterSpawnIdToCharacterMap[scriptTextWindow.getInstruction(0).operands[0].value]
+
+            # TODO - Make const
+            if scriptTextWindow.getInstruction(0).operands[1].value != "NONE\x00":
+                self.characterController.setCharacterAnimationFromName(scriptTextWindow.getInstruction(0).operands[1].value[:-1])
+            if scriptTextWindow.getInstruction(0).operands[2].value != "NONE\x00":
+                self.animNameOnExit = scriptTextWindow.getInstruction(0).operands[2].value[:-1]
         else:
             self.characterController = None
 
@@ -116,6 +130,7 @@ class TextWindow(Popup):
                 self.characterController.imageName.getActiveFrame().set_alpha(0)
                 self.isNameActive = True
         else:
+            # TODO - This is more a workaround, initial train event and 14180 demonstrate that this does not hold true
             self.isArrowActive = False
             TextWindow.SPRITE_WINDOW.setAnimationFromName("gfx")
 
@@ -134,11 +149,24 @@ class TextWindow(Popup):
         if self.isNameActive:
             self.characterController.imageName.getActiveFrame().set_alpha(round(self.fader.getStrength() * 255))
 
+        if self.characterController != None:
+            if self.textScroller.isWaiting() or not(self.textScroller.getActiveState()):
+                self.characterController.setCharacterTalkingState(False)
+            else:
+                self.characterController.setCharacterTalkingState(True)
+
         if self.fader.getStrength() == 0:
             self.canBeTerminated = True
         elif self.fader.getStrength() == 1:
             self.textScroller.update(gameClockDelta)
     
+    def doOnExit(self):
+        if self.characterController != None:
+            self.characterController.setCharacterTalkingState(False)
+            if self.animNameOnExit != None:
+                print(self.animNameOnExit)
+                self.characterController.setCharacterAnimationFromName(self.animNameOnExit)
+
     def isPopupDone(self):
         return not(self.textScroller.getActiveState())
 
@@ -172,11 +200,14 @@ class CharacterController():
 
     def __init__(self, laytonState, characterIndex, characterInitialAnimIndex=0, characterVisible=False, characterSlot=0):
 
+        self._baseAnimName = "Create an Animation"
+        self._isCharacterTalking = False
+
         dataCharacter = FileInterface.getData(PATH_BODY_ROOT % characterIndex)
         if dataCharacter != None:
             madhatterImage = AnimatedImage.fromBytesArc(dataCharacter, functionGetFileByName=functionGetAnimationFromName)
             self.imageCharacter = AnimatedImageObject.fromMadhatter(madhatterImage)
-            self.imageCharacter.setAnimationFromIndex(characterInitialAnimIndex)
+            self.setCharacterAnimationFromIndex(characterInitialAnimIndex)
         else:
             self.imageCharacter = None
         
@@ -218,6 +249,18 @@ class CharacterController():
     def getVisibility(self):
         return self._visibility
     
+    def setCharacterTalkingState(self, isTalking):
+        if isTalking != self._isCharacterTalking:
+            if self.imageCharacter != None:
+                if isTalking:
+                    if not(self.imageCharacter.setAnimationFromName("*" + self._baseAnimName)):
+                        # TODO - Does the game even set the animation if its not found? Is the fallback just continuing past animation?
+                        self.imageCharacter.setAnimationFromName(self._baseAnimName)
+                else:
+                    self.imageCharacter.setAnimationFromName(self._baseAnimName)
+
+            self._isCharacterTalking = isTalking
+
     def setCharacterSlot(self, slot):
 
         def getImageOffset():
@@ -248,11 +291,13 @@ class CharacterController():
     def setCharacterAnimationFromName(self, animName):
         animName = animName.split("\x00")[0]
         if self.imageCharacter != None:
-            self.imageCharacter.setAnimationFromName(animName)
+            if self.imageCharacter.setAnimationFromName(animName):
+                self._baseAnimName = self.imageCharacter.animActive.name
     
     def setCharacterAnimationFromIndex(self, animIndex):
         if self.imageCharacter != None:
-            self.imageCharacter.setAnimationFromIndex(animIndex)
+            if self.imageCharacter.setAnimationFromIndex(animIndex):
+                self._baseAnimName = self.imageCharacter.animActive.name
 
 class EventPlayer(ScreenLayerNonBlocking):
     def __init__(self, laytonState, screenController):
@@ -497,6 +542,21 @@ class EventPlayer(ScreenLayerNonBlocking):
                     elif opcode == OPCODES_LT2.SetMovieNum.value:
                         self.laytonState.setMovieNum(command.operands[0].value)
 
+                    elif opcode == OPCODES_LT2.SetEventTea.value:
+                        self.laytonState.setGameModeNext(GAMEMODES.UnkTeaMode)
+                        # TODO - 2 unks, maybe about the current tea mode?
+                        # Additionally, the tea screen uses the current state of the bottom screen, which needs to be captured.
+                        # This could be a problem with current pipeline as the fader writes over the screen
+                        # Maybe this could be recorded in the fader layer before the obstruction
+
+                    elif opcode == OPCODES_LT2.CheckCounterAutoEvent.value:
+                        if 0 <= command.operands[0].value < 128:
+                            # Type 0 of CheckEventCounter
+                            eventCounterEncoded = self.laytonState.saveSlot.eventCounter.toBytes(outLength=128)
+                            if eventCounterEncoded[command.operands[0].value] == command.operands[1].value:
+                                self.laytonState.setGameMode(GAMEMODES.DramaEvent)
+                                self.laytonState.setGameModeNext(GAMEMODES.DramaEvent)
+
 
 
                     elif opcode == OPCODES_LT2.ModifyBGPal.value:
@@ -547,7 +607,7 @@ class EventPlayer(ScreenLayerNonBlocking):
 
                     elif opcode == OPCODES_LT2.DoHukamaruAddScreen.value:
                         # TODO - Not accurate, but required to get fading looking correct
-                        self.screenController.obscureView()
+                        self.screenController.obscureViewLayer()
 
                         # TODO - How best to handle this?
                         for character in self.characters:
@@ -574,8 +634,8 @@ class EventPlayer(ScreenLayerNonBlocking):
                             self.characterSpawnIdToCharacterMap[command.operands[0].value].setCharacterAnimationFromName(command.operands[1].value)
 
                     elif opcode == OPCODES_LT2.SetSpritePos.value:
-                        if command.operands[0].value in self.characterSpawnIdToCharacterMap:
-                            self.characterSpawnIdToCharacterMap[command.operands[0].value].setCharacterSlot(command.operands[1].value)
+                        if command.operands[0].value < len(self.characters):
+                            self.characters[command.operands[0].value].setCharacterSlot(command.operands[1].value)
 
                     elif opcode == OPCODES_LT2.DoSpriteFade.value:
                         self.characters[command.operands[0].value].setVisibility(command.operands[1].value >= 0)
