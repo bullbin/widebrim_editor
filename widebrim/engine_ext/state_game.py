@@ -304,14 +304,18 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
             if self._currentActiveGameMode != self.laytonState.getGameMode().value or self.laytonState.gameModeRestartRequired:
                 # Active gamemode is outdated, so kill the current instance and load the new one.
                 # TODO - Only allow spawning when fader has faded all the way out
-                if self.screenControllerObject.getFaderIsViewObscured():
-                    if self._currentActiveGameModeObject != None:
-                        self.removeFromCollection(self._layers.index(self._currentActiveGameModeObject))
-                    
-                    self._loadGameMode(self.laytonState.getGameMode().value)
-                    self.laytonState.gameModeRestartRequired = False
+                if self.laytonState.gameModeRestartRequired and self._currentActiveGameModeObject != None and not(self._currentActiveGameModeObject.getContextState()):
+                    # Don't kill a layer that isn't actually finished, or this can cause a softlock
+                    pass
                 else:
-                    startObscuration()
+                    if self.screenControllerObject.getFaderIsViewObscured():
+                        if self._currentActiveGameModeObject != None:
+                            self.removeFromCollection(self._layers.index(self._currentActiveGameModeObject))
+                        
+                        self._loadGameMode(self.laytonState.getGameMode().value)
+                        self.laytonState.gameModeRestartRequired = False
+                    else:
+                        startObscuration()
 
             elif self._currentActiveGameMode == GAMEMODES.INVALID.value:
                 # Execution hit the invalid state, meaning that it's time to end

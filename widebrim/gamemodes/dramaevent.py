@@ -165,7 +165,6 @@ class TextWindow(Popup):
         if self.characterController != None:
             self.characterController.setCharacterTalkingState(False)
             if self.animNameOnExit != None:
-                print(self.animNameOnExit)
                 self.characterController.setCharacterAnimationFromName(self.animNameOnExit)
 
     def isPopupDone(self):
@@ -225,7 +224,10 @@ class CharacterController():
         self._drawLocation = (0,0)
 
         self._characterIsFlipped = False
-        self._characterFlippedSurface = Surface(self.imageCharacter.getDimensions()).convert_alpha()
+        if self.imageCharacter != None:
+            self._characterFlippedSurface = Surface(self.imageCharacter.getDimensions()).convert_alpha()
+        else:
+            self._characterFlippedSurface = Surface((0,0))
         self._characterFlippedSurfaceNeedsUpdate = True
         
         self.slot = 0
@@ -399,6 +401,9 @@ class EventPlayer(ScreenLayerNonBlocking):
                     if charIndex < len(self.characters):
                         self.characters[charIndex].setCharacterAnimationFromIndex(animIndex)
 
+            except TypeError:
+                print("Failed to catch script data for event!")
+                self._canBeKilled = True
             except FileInvalidCritical:
                 print("Failed to fetch required data for event!")
                 self._canBeKilled = True
@@ -406,6 +411,11 @@ class EventPlayer(ScreenLayerNonBlocking):
         goalInfoEntry = self.laytonState.getGoalInfEntry()
         # TODO - Goal versus objective?
         # Maybe if unk is 1, also update chapter.
+
+        # TODO - This is incorrect. Photo event sequence proves this
+        # After initial photo event which triggers popup, chapter and goal are different.
+        # FML
+
         if goalInfoEntry != None:
             # Does the unk cause the window to pop up?
             if goalInfoEntry.type == 1:
@@ -479,6 +489,22 @@ class EventPlayer(ScreenLayerNonBlocking):
                         triggerPopup(PlaceholderPopup())
                         break
 
+                    elif opcode == OPCODES_LT2.DoPhotoPieceAddScreen.value:
+                        self.laytonState.saveSlot.photoPieceFlag.setSlot(True, command.operands[0].value)
+
+                        photoPieceAddCounter = bytearray(self.laytonState.saveSlot.eventCounter.toBytes(outLength=128))
+                        photoPieceAddCounter[0x18] = photoPieceAddCounter[0x18] + 1
+                        if photoPieceAddCounter[0x18] == 0:
+                            # String in popup is 222
+                            pass
+                        else:
+                            # String in popup is 212
+                            pass
+                        self.laytonState.saveSlot.eventCounter = FlagsAsArray.fromBytes(photoPieceAddCounter)
+
+                        triggerPopup(PlaceholderPopup())
+                        break
+
                     elif opcode == OPCODES_LT2.SetGameMode.value:
                         try:
                             self.laytonState.setGameMode(GAMEMODES(STRING_TO_GAMEMODE_VALUE[command.operands[0].value[:-1]]))
@@ -492,7 +518,6 @@ class EventPlayer(ScreenLayerNonBlocking):
                             print("SetEndGameMode Handler", command.operands[0].value, "unimplemented!")
 
                     elif opcode == OPCODES_LT2.SetDramaEventNum.value:
-                        print(command.operands[0].value)
                         self.laytonState.setEventId(command.operands[0].value)
 
                     elif opcode == OPCODES_LT2.SetPuzzleNum.value:

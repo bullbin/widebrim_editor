@@ -80,7 +80,6 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
         self.laytonState = laytonState
         self.screenController = screenController
-        self._calculateChapter()
         self._calculateRoom()
 
         self.isInMoveMode = False
@@ -344,6 +343,10 @@ class RoomPlayer(ScreenLayerNonBlocking):
         saveSlot = self.laytonState.saveSlot
 
         indexStoryFlag = storyFlag.getIndexFromChapter(saveSlot.chapter)
+        if indexStoryFlag == -1:
+            # The game apparently does this too
+            # Setting chapter and goal to 510 after passing event 15250 causes the chapter to reset to 390, like the game.
+            indexStoryFlag = 0
 
         while indexStoryFlag < 256:
 
