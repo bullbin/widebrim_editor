@@ -340,7 +340,7 @@ class EventPlayer(ScreenLayerNonBlocking):
         # Looking at binary reveals that it actually sets the current mode to room..
         # If the immediate ID has been set, this is shifted to the drama event ID, voided
         # and the current game mode is set to event to force things to restart.
-        self.laytonState.setGameModeNext(GAMEMODES.Room)
+        self.laytonState.setGameMode(GAMEMODES.Room)
         self.packEventTalk = LaytonPack()
 
         self.scriptCurrentCommandIndex = 0
@@ -514,13 +514,13 @@ class EventPlayer(ScreenLayerNonBlocking):
 
                     elif opcode == OPCODES_LT2.SetGameMode.value:
                         try:
-                            self.laytonState.setGameMode(GAMEMODES(STRING_TO_GAMEMODE_VALUE[command.operands[0].value[:-1]]))
+                            self.laytonState.setGameMode(STRING_TO_GAMEMODE_VALUE[command.operands[0].value[:-1]])
                         except:
                             print("SetGameMode Handler", command.operands[0].value, "unimplemented!")
                     
                     elif opcode == OPCODES_LT2.SetEndGameMode.value:
                         try:
-                            self.laytonState.setGameModeNext(GAMEMODES(STRING_TO_GAMEMODE_VALUE[command.operands[0].value[:-1]]))
+                            self.laytonState.setGameModeNext(STRING_TO_GAMEMODE_VALUE[command.operands[0].value[:-1]])
                         except:
                             print("SetEndGameMode Handler", command.operands[0].value, "unimplemented!")
 
