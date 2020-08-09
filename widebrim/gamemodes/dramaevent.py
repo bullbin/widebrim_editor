@@ -30,6 +30,9 @@ def functionGetAnimationFromName(name):
 # TODO - Bugfix, Layton anim b2 normal has an extra space that for some reason is not counted. Present in RAM dumps as well so being loaded with that space.
 # TODO - During fading, the main screen doesn't actually seem to be updated.
 
+# TODO - Set up preparations for many hardcoded event IDs which are called for various tasks in binary
+#        aka nazoba hell, since there's so much back and forth to spawn the extra handler due to memory constraints on NDS
+
 class Popup():
 
     # Note - Inaccurate, as characters share the same alpha as this layer. Colours should bleed over characters as alpha channel is used for fading, not separate surface.
@@ -333,6 +336,10 @@ class EventPlayer(ScreenLayerNonBlocking):
         ScreenLayerNonBlocking.__init__(self)
         self.screenController = screenController
         self.laytonState = laytonState
+
+        # Looking at binary reveals that it actually sets the current mode to room..
+        # If the immediate ID has been set, this is shifted to the drama event ID, voided
+        # and the current game mode is set to event to force things to restart.
         self.laytonState.setGameModeNext(GAMEMODES.Room)
         self.packEventTalk = LaytonPack()
 
@@ -538,6 +545,8 @@ class EventPlayer(ScreenLayerNonBlocking):
                             tempEventCounter[indexCounter] = valueCounter
                             self.laytonState.saveSlot.eventCounter = FlagsAsArray.fromBytes(tempEventCounter)
                     
+                    # TODO - Auto event repeat
+
                     elif opcode == OPCODES_LT2.AddEventCounter.value:
                         indexCounter = command.operands[0].value
                         valueCounter = command.operands[1].value
@@ -570,7 +579,7 @@ class EventPlayer(ScreenLayerNonBlocking):
                         self.laytonState.setMovieNum(command.operands[0].value)
 
                     elif opcode == OPCODES_LT2.SetEventTea.value:
-                        self.laytonState.setGameModeNext(GAMEMODES.UnkTeaMode)
+                        self.laytonState.setGameModeNext(GAMEMODES.EventTea)
                         # TODO - 2 unks, maybe about the current tea mode?
                         # Additionally, the tea screen uses the current state of the bottom screen, which needs to be captured.
                         # This could be a problem with current pipeline as the fader writes over the screen

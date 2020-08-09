@@ -1,7 +1,7 @@
 from ..engine.state.layer import ScreenLayerNonBlocking
 from ..engine.state.enum_mode import GAMEMODES
 
-class UnkTeaPlayer(ScreenLayerNonBlocking):
+class EventTeaPlayer(ScreenLayerNonBlocking):
     def __init__(self, laytonState, screenController):
         ScreenLayerNonBlocking.__init__(self)
         laytonState.setGameModeNext(GAMEMODES.DramaEvent)

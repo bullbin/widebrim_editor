@@ -4,7 +4,7 @@ from ..engine.const import RESOLUTION_NINTENDO_DS, PATH_BG_ROOT
 from ..engine.file import FileInterface
 from ..engine.anim.fader import Fader
 
-from ..gamemodes import EventPlayer, RoomPlayer, NarrationPlayer, PuzzlePlayer, UnkTeaPlayer
+from ..gamemodes import EventPlayer, RoomPlayer, NarrationPlayer, PuzzlePlayer, EventTeaPlayer
 
 from ..madhatter.hat_io.asset_image import StaticImage
 from ..engine.custom_events import ENGINE_SKIP_CLOCK
@@ -263,8 +263,8 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
             self.addToCollection(NarrationPlayer(self.laytonState, self.screenControllerObject))
         elif indexGameMode == GAMEMODES.Puzzle.value:
             self.addToCollection(PuzzlePlayer(self.laytonState, self.screenControllerObject))
-        elif indexGameMode == GAMEMODES.UnkTeaMode.value:
-            self.addToCollection(UnkTeaPlayer(self.laytonState, self.screenControllerObject))
+        elif indexGameMode == GAMEMODES.EventTea.value:
+            self.addToCollection(EventTeaPlayer(self.laytonState, self.screenControllerObject))
             
         else:
             if indexGameMode == GAMEMODES.INVALID.value:
