@@ -22,7 +22,7 @@ class Layton2GameState():
 
         self.language       = language
 
-        # TODO - Don't make these public so dbs can be dynamically loaded
+        self._gameModeActive = GAMEMODES.INVALID    # Not accurate!
         self._gameMode       = GAMEMODES.INVALID
         self._gameModeNext   = GAMEMODES.INVALID
 
@@ -83,8 +83,11 @@ class Layton2GameState():
     def setMovieNum(self, movieNum):
         self._idMovieNum = movieNum
 
+    def setGameModeActive(self, activeGameMode):
+        self._gameModeActive = activeGameMode
+
     def setGameMode(self, newGameMode):
-        if newGameMode == self._gameMode:
+        if newGameMode == self._gameModeActive and self._gameModeActive != GAMEMODES.INVALID:
             self.gameModeRestartRequired = True
         self._gameMode = newGameMode
     

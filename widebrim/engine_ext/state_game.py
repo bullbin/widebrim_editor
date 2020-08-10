@@ -253,6 +253,10 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
 
     def _loadGameMode(self, indexGameMode):
 
+        def updateGameModeStateVariables():
+            self.laytonState.setGameModeActive(GAMEMODES(indexGameMode))
+            self._currentActiveGameMode = indexGameMode
+
         layerFader = self._layers.pop()
 
         if indexGameMode == GAMEMODES.DramaEvent.value:
@@ -271,13 +275,13 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
                 self._voidGameMode()
             else:
                 print("Missing connection for type", indexGameMode)
-                self._currentActiveGameMode = indexGameMode
+                updateGameModeStateVariables()
                 self._currentActiveGameModeObject = None
 
             self.addToCollection(layerFader)
             return False
         
-        self._currentActiveGameMode = indexGameMode
+        updateGameModeStateVariables()
         self._currentActiveGameModeObject = self._layers[-1]
 
         self.addToCollection(layerFader)
@@ -303,8 +307,7 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
         if not(self.waitingForFadeOut):
             if self._currentActiveGameMode != self.laytonState.getGameMode().value or self.laytonState.gameModeRestartRequired:
                 # Active gamemode is outdated, so kill the current instance and load the new one.
-                # TODO - Only allow spawning when fader has faded all the way out
-                if self.laytonState.gameModeRestartRequired and self._currentActiveGameModeObject != None and not(self._currentActiveGameModeObject.getContextState()):
+                if self._currentActiveGameModeObject != None and not(self._currentActiveGameModeObject.getContextState()):
                     # Don't kill a layer that isn't actually finished, or this can cause a softlock
                     pass
                 else:
@@ -325,7 +328,6 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
                 # The current layer is finished, so the next one can now be loaded
 
                 # If there was a layer running (not virtual), remove it from the collection
-                # TODO - Force fade out on kill before next spawn
                 if self.screenControllerObject.getFaderIsViewObscured():
                     if self._currentActiveGameModeObject != None:
                         self.removeFromCollection(self._layers.index(self._currentActiveGameModeObject))
