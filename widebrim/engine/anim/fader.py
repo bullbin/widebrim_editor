@@ -2,14 +2,16 @@ class Fader():
 
     # Transitions from 0 to 1 over time
 
-    def __init__(self, durationHighToLow, initialActiveState=True, invertOutput = False):
+    def __init__(self, durationHighToLow, initialActiveState=True, invertOutput = False, callbackOnDone=None, callbackClearOnDone=True):
         self._duration = durationHighToLow
         self._isActive = initialActiveState
         self._timeElapsed = 0
         self._inverted = invertOutput
+        self._callback = callbackOnDone
+        self._callbackClearOnDone = callbackClearOnDone
     
     def update(self, gameClockDelta):
-        if self._isActive:
+        if self.getActiveState():
             self._timeElapsed += gameClockDelta
             if self._timeElapsed > self._duration:
                 self.skip()
@@ -17,7 +19,8 @@ class Fader():
     def skip(self):
         if self.getActiveState():
             self._timeElapsed = self._duration
-            self._isActive = False
+            self.setActiveState(False)
+            self._doCallback()
 
     def setDuration(self, duration):
 
@@ -26,6 +29,15 @@ class Fader():
         self._duration = duration
         self.reset()
     
+    def setCallback(self, callback):
+        self._callback = callback
+
+    def _doCallback(self):
+        if callable(self._callback):
+            self._callback()
+            if self._callbackClearOnDone:
+                self.setCallback(None)
+
     def setInvertedState(self, isInverted):
         self._inverted = isInverted
 
@@ -37,7 +49,7 @@ class Fader():
 
     def reset(self):
         self._timeElapsed = 0
-        self._isActive = True
+        self.setActiveState(True)
     
     def _calcStrength(self):
         try:

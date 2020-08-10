@@ -4,7 +4,7 @@ from ..engine.const import RESOLUTION_NINTENDO_DS, PATH_BG_ROOT
 from ..engine.file import FileInterface
 from ..engine.anim.fader import Fader
 
-from ..gamemodes import EventPlayer, RoomPlayer, NarrationPlayer, PuzzlePlayer, EventTeaPlayer
+from ..gamemodes import EventPlayer, RoomPlayer, NarrationPlayer, PuzzlePlayer, EventTeaPlayer, TitlePlayer
 
 from ..madhatter.hat_io.asset_image import StaticImage
 from ..engine.custom_events import ENGINE_SKIP_CLOCK
@@ -122,34 +122,38 @@ class FaderLayer(ScreenLayerNonBlocking):
         self._faderSurfMain.set_alpha(round(self._faderMain.getStrength() * 255))
         self._faderSurfSub.set_alpha(round(self._faderSub.getStrength() * 255))
 
-    def fadeInMain(self, duration=DEFAULT_FADE_TIME):
+    def fadeInMain(self, duration=DEFAULT_FADE_TIME, callback=None):
         post(Event(ENGINE_SKIP_CLOCK))
         self._faderMain.setDuration(duration)
+        self._faderMain.setCallback(callback)
         self._faderMain.setInvertedState(True)
     
-    def fadeOutMain(self, duration=DEFAULT_FADE_TIME):
+    def fadeOutMain(self, duration=DEFAULT_FADE_TIME, callback=None):
         post(Event(ENGINE_SKIP_CLOCK))
         self._faderMain.setDuration(duration)
+        self._faderMain.setCallback(callback)
         self._faderMain.setInvertedState(False)
     
-    def fadeInSub(self, duration=DEFAULT_FADE_TIME):
+    def fadeInSub(self, duration=DEFAULT_FADE_TIME, callback=None):
         post(Event(ENGINE_SKIP_CLOCK))
         self._faderSub.setDuration(duration)
+        self._faderSub.setCallback(callback)
         self._faderSub.setInvertedState(True)
     
-    def fadeOutSub(self, duration=DEFAULT_FADE_TIME):
+    def fadeOutSub(self, duration=DEFAULT_FADE_TIME, callback=None):
         post(Event(ENGINE_SKIP_CLOCK))
         self._faderSub.setDuration(duration)
+        self._faderSub.setCallback(callback)
         self._faderSub.setInvertedState(False)
     
-    def fadeIn(self, duration=DEFAULT_FADE_TIME):
+    def fadeIn(self, duration=DEFAULT_FADE_TIME, callback=None):
         post(Event(ENGINE_SKIP_CLOCK))
-        self.fadeInMain(duration=duration)
+        self.fadeInMain(duration=duration, callback=callback)
         self.fadeInSub(duration=duration)
         
-    def fadeOut(self, duration=DEFAULT_FADE_TIME):
+    def fadeOut(self, duration=DEFAULT_FADE_TIME, callback=None):
         post(Event(ENGINE_SKIP_CLOCK))
-        self.fadeOutMain(duration=duration)
+        self.fadeOutMain(duration=duration, callback=callback)
         self.fadeOutSub(duration=duration)
 
     def setWaitDuration(self, duration, canBeSkipped=False):
@@ -198,23 +202,23 @@ class ScreenController():
     def debugGetFaderStatus(self):
         return self._faderLayer.debugGetFaderStatus()
 
-    def fadeInMain(self, duration=FaderLayer.DEFAULT_FADE_TIME):
-        self._faderLayer.fadeInMain(duration=duration)
+    def fadeInMain(self, duration=FaderLayer.DEFAULT_FADE_TIME, callback=None):
+        self._faderLayer.fadeInMain(duration=duration, callback=callback)
     
-    def fadeOutMain(self, duration=FaderLayer.DEFAULT_FADE_TIME):
-        self._faderLayer.fadeOutMain(duration=duration)
+    def fadeOutMain(self, duration=FaderLayer.DEFAULT_FADE_TIME, callback=None):
+        self._faderLayer.fadeOutMain(duration=duration, callback=callback)
     
-    def fadeInSub(self, duration=FaderLayer.DEFAULT_FADE_TIME):
-        self._faderLayer.fadeInSub(duration=duration)
+    def fadeInSub(self, duration=FaderLayer.DEFAULT_FADE_TIME, callback=None):
+        self._faderLayer.fadeInSub(duration=duration, callback=callback)
     
-    def fadeOutSub(self, duration=FaderLayer.DEFAULT_FADE_TIME):
-        self._faderLayer.fadeOutSub(duration=duration)
+    def fadeOutSub(self, duration=FaderLayer.DEFAULT_FADE_TIME, callback=None):
+        self._faderLayer.fadeOutSub(duration=duration, callback=callback)
     
-    def fadeIn(self, duration=FaderLayer.DEFAULT_FADE_TIME):
-        self._faderLayer.fadeIn(duration=duration)
+    def fadeIn(self, duration=FaderLayer.DEFAULT_FADE_TIME, callback=None):
+        self._faderLayer.fadeIn(duration=duration, callback=callback)
         
-    def fadeOut(self, duration=FaderLayer.DEFAULT_FADE_TIME):
-        self._faderLayer.fadeOut(duration=duration)
+    def fadeOut(self, duration=FaderLayer.DEFAULT_FADE_TIME, callback=None):
+        self._faderLayer.fadeOut(duration=duration, callback=callback)
 
     def setWaitDuration(self, duration, canBeSkipped=False):
         self._faderLayer.setWaitDuration(duration, canBeSkipped=canBeSkipped)
@@ -269,6 +273,8 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
             self.addToCollection(PuzzlePlayer(self.laytonState, self.screenControllerObject))
         elif indexGameMode == GAMEMODES.EventTea.value:
             self.addToCollection(EventTeaPlayer(self.laytonState, self.screenControllerObject))
+        elif indexGameMode == GAMEMODES.Title.value:
+            self.addToCollection(TitlePlayer(self.laytonState, self.screenControllerObject))
             
         else:
             if indexGameMode == GAMEMODES.INVALID.value:
