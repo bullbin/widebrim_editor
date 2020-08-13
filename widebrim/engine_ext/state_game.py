@@ -1,16 +1,15 @@
 from ..engine.state.layer import ScreenCollection, ScreenLayerNonBlocking
 from ..engine.state.enum_mode import GAMEMODES
-from ..engine.const import RESOLUTION_NINTENDO_DS, PATH_BG_ROOT
-from ..engine.file import FileInterface
+from ..engine.const import RESOLUTION_NINTENDO_DS
 from ..engine.anim.fader import Fader
 
-from ..gamemodes import EventPlayer, RoomPlayer, NarrationPlayer, PuzzlePlayer, EventTeaPlayer, TitlePlayer
+from ..gamemodes import EventPlayer, RoomPlayer, NarrationPlayer, PuzzlePlayer, EventTeaPlayer, TitlePlayer, NamePlayer
 
-from ..madhatter.hat_io.asset_image import StaticImage
 from ..engine.custom_events import ENGINE_SKIP_CLOCK
+from .utils import getImageFromPath
 
 from pygame.event import post, Event
-from pygame import Surface, image, QUIT, MOUSEBUTTONUP
+from pygame import Surface, QUIT, MOUSEBUTTONUP
 
 class BgLayer(ScreenLayerNonBlocking):
 
@@ -29,39 +28,10 @@ class BgLayer(ScreenLayerNonBlocking):
         self._palMain   = 0
         self._palSub    = 0
     
-    def _getImageFromPath(self, pathBg):
-
-        def fetchBgxImage(path):
-            # TODO - Fix unwanted behaviour with reading null-terminated strings, where a null character is left at the end
-            if "bgx" in path:
-                tempPath = path.split(".")
-                path = ".".join(tempPath[:-1]) + ".arc"
-
-            imageFile = FileInterface.getData(PATH_BG_ROOT % path)
-            if imageFile != None:
-                try:
-                    imageFile = StaticImage.fromBytesArc(imageFile)
-                    return imageFile.getImage(0)
-                except:
-                    return None
-            return imageFile
-
-        if "?" not in pathBg:
-            langPath = pathBg.split("/")
-            langPath.insert(-1, self._laytonState.language.value)
-            langPath = '/'.join(langPath)
-        else:
-            langPath = pathBg.replace("?", self._laytonState.language.value)
-
-        bg = fetchBgxImage(langPath)
-        if bg == None:
-            bg = fetchBgxImage(pathBg)
-        return bg
-    
     def _setBg(self, pathBg):
-        bg = self._getImageFromPath(pathBg)
+        bg = getImageFromPath(self._laytonState, pathBg)
         if bg != None:
-            output = image.fromstring(bg.convert("RGB").tobytes("raw", "RGB"), bg.size, "RGB").convert()
+            output = bg
         else:
             output = Surface(RESOLUTION_NINTENDO_DS)
         return output
@@ -275,6 +245,10 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
             self.addToCollection(EventTeaPlayer(self.laytonState, self.screenControllerObject))
         elif indexGameMode == GAMEMODES.Title.value:
             self.addToCollection(TitlePlayer(self.laytonState, self.screenControllerObject))
+
+        # Both modes use the same overlay in-game
+        elif indexGameMode == GAMEMODES.Name.value or indexGameMode == GAMEMODES.HamsterName.value:
+            self.addToCollection(NamePlayer(self.laytonState, self.screenControllerObject))
             
         else:
             if indexGameMode == GAMEMODES.INVALID.value:

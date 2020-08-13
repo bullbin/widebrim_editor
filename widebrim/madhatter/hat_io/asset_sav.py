@@ -718,6 +718,9 @@ class Layton2SaveFile(File):
                     self.getSlotData(slotId).fromBytes(reader.read(880))
                 else:
                     reader.seek(880,1)
+        
+            return True
+        return False
 
     def save(self):
         writer = binary.BinaryWriter()

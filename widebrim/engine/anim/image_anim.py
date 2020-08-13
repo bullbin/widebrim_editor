@@ -146,6 +146,9 @@ class AnimatedImageObject():
         self._pos = pos
         if self.subAnimation != None:
             self.subAnimation.setPos(pos)
+    
+    def getPos(self):
+        return self._pos
 
     def getActiveFrame(self):
         if self.animActive != None:

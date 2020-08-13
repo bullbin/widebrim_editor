@@ -340,7 +340,9 @@ class EventPlayer(ScreenLayerNonBlocking):
         # Looking at binary reveals that it actually sets the current mode to room..
         # If the immediate ID has been set, this is shifted to the drama event ID, voided
         # and the current game mode is set to event to force things to restart.
-        self.laytonState.setGameMode(GAMEMODES.Room)
+
+        # TODO - This should be GameMode. Causes a regression however at event 20003
+        self.laytonState.setGameModeNext(GAMEMODES.Room)
         self.packEventTalk = LaytonPack()
 
         self.scriptCurrentCommandIndex = 0
