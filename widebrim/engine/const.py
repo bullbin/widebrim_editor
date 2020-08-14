@@ -10,6 +10,7 @@ EVENT_ID_START_TEA              = 30000
 PATH_DB_EV_INF2     = "/data_lt2/rc/%s/ev_inf2.dlz"
 PATH_DB_GOAL_INF    = "goal_inf.dlz"
 PATH_DB_NZ_LST      = "nz_lst.dlz"
+PATH_DB_CHP_INF     = "chp_inf.dlz"
 PATH_DB_RC_ROOT     = "/data_lt2/rc/%s"
 PATH_DB_RC_ROOT_LANG    = "/data_lt2/rc/%s/%s"
 
@@ -54,6 +55,7 @@ PATH_PACK_PLACE_NAME = "/data_lt2/nazo/%s/jiten.plz"
 PATH_PACK_TXT2 = "/data_lt2/txt/%s/txt2.plz"
 
 PATH_TEXT_GOAL = "goal_%i.txt"
+PATH_TEXT_GENERIC = "tx_%i.txt"
 PATH_TEXT_PLACE_NAME = "p_%i.txt"
 
 class LANGUAGES(Enum):

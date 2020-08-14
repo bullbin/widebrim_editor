@@ -338,9 +338,6 @@ class EventPlayer(ScreenLayerNonBlocking):
         self.laytonState = laytonState
 
         # Looking at binary reveals that it actually sets the current mode to room..
-        # If the immediate ID has been set, this is shifted to the drama event ID, voided
-        # and the current game mode is set to event to force things to restart.
-
         # TODO - This should be GameMode. Causes a regression however at event 20003
         self.laytonState.setGameModeNext(GAMEMODES.Room)
         self.packEventTalk = LaytonPack()
@@ -358,11 +355,13 @@ class EventPlayer(ScreenLayerNonBlocking):
         self.nameCharacters = []
         self.characterSpawnIdToCharacterMap = {}
 
-        print("Loaded event", spawnId)
+        self.isWaitingForTouch = False
+        self.popup = None
 
         if spawnId == -1:
-            self._canBeKilled = True
+            self.terminate()
         else:
+            print("Loaded event", spawnId)
             # Centralise this so it can be deleted when finished
             try:
                 self.packEventTalk.load(FileInterface.getData(getEventTalkPath()))
@@ -412,33 +411,46 @@ class EventPlayer(ScreenLayerNonBlocking):
 
             except TypeError:
                 print("Failed to catch script data for event!")
-                self._canBeKilled = True
+                self.terminate()
             except FileInvalidCritical:
                 print("Failed to fetch required data for event!")
-                self._canBeKilled = True
+                self.terminate()
         
-        goalInfoEntry = self.laytonState.getGoalInfEntry()
-        # TODO - Goal versus objective?
-        # Maybe if unk is 1, also update chapter.
+            goalInfoEntry = self.laytonState.getGoalInfEntry()
+            # TODO - Goal versus objective?
+            # Maybe if unk is 1, also update chapter.
 
-        # TODO - This is incorrect. Photo event sequence proves this
-        # After initial photo event which triggers popup, chapter and goal are different.
-        # FML
+            # TODO - This is incorrect. Photo event sequence proves this
+            # After initial photo event which triggers popup, chapter and goal are different.
+            # FML
 
-        if goalInfoEntry != None:
-            # Does the unk cause the window to pop up?
-            if goalInfoEntry.type == 1:
-                print("\tUpdated goal and chapter to", goalInfoEntry.goal)
-                self.laytonState.saveSlot.chapter = goalInfoEntry.goal
-            else:
-                print("\tUpdated goal to", goalInfoEntry.goal)
-            self.laytonState.saveSlot.goal = goalInfoEntry.goal
+            if goalInfoEntry != None:
+                # Does the unk cause the window to pop up?
+                if goalInfoEntry.type == 1:
+                    print("\tUpdated goal and chapter to", goalInfoEntry.goal)
+                    self.laytonState.saveSlot.chapter = goalInfoEntry.goal
+                else:
+                    print("\tUpdated goal to", goalInfoEntry.goal)
+                self.laytonState.saveSlot.goal = goalInfoEntry.goal
 
-        if not(self._canBeKilled):
-            if self.laytonState.entryEvInfo != None and self.laytonState.entryEvInfo.indexEventViewedFlag != None:
-                self.laytonState.saveSlot.eventViewed.setSlot(True, self.laytonState.entryEvInfo.indexEventViewedFlag)
+            if not(self._canBeKilled):
+                if self.laytonState.entryEvInfo != None and self.laytonState.entryEvInfo.indexEventViewedFlag != None:
+                    self.laytonState.saveSlot.eventViewed.setSlot(True, self.laytonState.entryEvInfo.indexEventViewedFlag)
 
-        self.popup = None
+    def terminate(self):
+        # TODO - Bugfix required. This should be current gamemode but it doesn't work.
+        # This unfortunately doesn't spawn correct behaviour anyway under this model but it still needs to be fixed.
+        # TODO - Research more into next handler. What happens if the next gamemode is set in chapter event? Or normal gamemode?
+        # When reaching a forced save screen, will this force the event to run twice? Perhaps hitting no on the question to save invalidates this event.
+
+        # According to research, this event should run first, destroying the event currently queued to play. But playing the game, the chapter event plays first.
+        # Why is this the case?
+
+        if self.laytonState.saveSlot.idImmediateEvent != -1:
+            self.laytonState.setEventId(self.laytonState.saveSlot.idImmediateEvent)
+            self.laytonState.setGameModeNext(GAMEMODES.DramaEvent)
+            self.laytonState.saveSlot.idImmediateEvent = -1
+        self._canBeKilled = True
 
     def draw(self, gameDisplay):
         
@@ -451,6 +463,8 @@ class EventPlayer(ScreenLayerNonBlocking):
     def handleTouchEvent(self, event):
         if self.popup != None:
             self.popup.handleTouchEvent(event)
+        elif self.isWaitingForTouch and event.type == MOUSEBUTTONUP:
+            self.isWaitingForTouch = False
         return super().handleTouchEvent(event)
 
     def update(self, gameClockDelta):
@@ -471,7 +485,7 @@ class EventPlayer(ScreenLayerNonBlocking):
 
         if not(self._canBeKilled):
             if self.popup == None:
-                while self.scriptCurrentCommandIndex < self.script.getInstructionCount() and not(self.screenController.getFadingStatus()):
+                while not(self.isWaitingForTouch) and self.scriptCurrentCommandIndex < self.script.getInstructionCount() and not(self.screenController.getFadingStatus()):
                     
                     command = self.script.getInstruction(self.scriptCurrentCommandIndex)
                     opcode = int.from_bytes(command.opcode, byteorder = 'little')
@@ -483,6 +497,9 @@ class EventPlayer(ScreenLayerNonBlocking):
                         triggerPopup(TextWindow(self.laytonState, self.characterSpawnIdToCharacterMap, self.talkScript))
                         break
 
+                    elif opcode == OPCODES_LT2.WaitInput.value:
+                        self.isWaitingForTouch = True
+
                     elif opcode == OPCODES_LT2.DoStockScreen.value:
                         triggerPopup(PlaceholderPopup())
                         break
@@ -492,6 +509,20 @@ class EventPlayer(ScreenLayerNonBlocking):
                         if self.laytonState.entryNzList != None and self.laytonState.entryNzList.idReward != -1:
                             triggerPopup(PlaceholderPopup())
                             break
+                    
+                    elif opcode == OPCODES_LT2.DoHukamaruAddScreen.value:
+                        # TODO - Not accurate, but required to get fading looking correct
+                        self.screenController.obscureViewLayer()
+
+                        # TODO - How best to handle this?
+                        for character in self.characters:
+                            character.setVisibility(False)
+                    
+                    elif opcode == OPCODES_LT2.DoSaveScreen.value:
+                        # TODO - Not accurate, but required to not softlock. Research required
+                        self.screenController.obscureViewLayer()
+                        if command.operands[0].value != -1:
+                            self.laytonState.saveSlot.idImmediateEvent = command.operands[0].value
                     
                     elif opcode == OPCODES_LT2.DoItemAddScreen.value:
                         self.laytonState.saveSlot.storyItemFlag.setSlot(True, command.operands[0].value)
@@ -609,7 +640,7 @@ class EventPlayer(ScreenLayerNonBlocking):
                     elif opcode == OPCODES_LT2.DrawChapter.value:
                         self.screenController.fadeIn()
                         self.screenController.setBgMain(PATH_CHAP_ROOT % command.operands[0].value)
-                        # TODO - Global way for waiting until touch
+                        self.isWaitingForTouch = True
 
 
 
@@ -642,21 +673,6 @@ class EventPlayer(ScreenLayerNonBlocking):
                     
                     elif opcode == OPCODES_LT2.FadeOutFrameSub.value:
                         self.screenController.fadeOutSub(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
-
-                    elif opcode == OPCODES_LT2.DoHukamaruAddScreen.value:
-                        # TODO - Not accurate, but required to get fading looking correct
-                        self.screenController.obscureViewLayer()
-
-                        # TODO - How best to handle this?
-                        for character in self.characters:
-                            character.setVisibility(False)
-                    
-                    elif opcode == OPCODES_LT2.DoSaveScreen.value:
-                        # TODO - Not accurate, but required to not softlock. Research required
-                        self.screenController.obscureViewLayer()
-                        if command.operands[0].value != -1 and False:
-                            self.laytonState.setGameModeNext(GAMEMODES.DramaEvent)
-                            self.laytonState.setEventId(command.operands[0].value)
 
                     elif opcode == OPCODES_LT2.WaitFrame.value:
                         self.screenController.setWaitDuration(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
@@ -692,8 +708,8 @@ class EventPlayer(ScreenLayerNonBlocking):
 
                     self.scriptCurrentCommandIndex += 1
                 
-                if not(self.screenController.getFadingStatus()) and self.scriptCurrentCommandIndex >= self.script.getInstructionCount() and self.popup == None:
-                    self._canBeKilled = True
+                if not(self.isWaitingForTouch) and not(self.screenController.getFadingStatus()) and self.scriptCurrentCommandIndex >= self.script.getInstructionCount() and self.popup == None:
+                    self.terminate()
             else:
                 self.popup.update(gameClockDelta)
                 if self.popup.canBeTerminated:

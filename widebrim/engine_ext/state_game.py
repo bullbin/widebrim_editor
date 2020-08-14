@@ -93,28 +93,45 @@ class FaderLayer(ScreenLayerNonBlocking):
         self._faderSurfSub.set_alpha(round(self._faderSub.getStrength() * 255))
 
     def fadeInMain(self, duration=DEFAULT_FADE_TIME, callback=None):
-        post(Event(ENGINE_SKIP_CLOCK))
-        self._faderMain.setDuration(duration)
-        self._faderMain.setCallback(callback)
-        self._faderMain.setInvertedState(True)
+        # TODO - Match callback model
+        if not(self._faderMain.getActiveState()) and self._faderMain.getStrength() == 0:
+            if callable(callback):
+                callback()
+        else:
+            post(Event(ENGINE_SKIP_CLOCK))
+            self._faderMain.setDuration(duration)
+            self._faderMain.setCallback(callback)
+            self._faderMain.setInvertedState(True)
     
     def fadeOutMain(self, duration=DEFAULT_FADE_TIME, callback=None):
-        post(Event(ENGINE_SKIP_CLOCK))
-        self._faderMain.setDuration(duration)
-        self._faderMain.setCallback(callback)
-        self._faderMain.setInvertedState(False)
+        if not(self._faderMain.getActiveState()) and self._faderMain.getStrength() == 1:
+            if callable(callback):
+                callback()
+        else:
+            post(Event(ENGINE_SKIP_CLOCK))
+            self._faderMain.setDuration(duration)
+            self._faderMain.setCallback(callback)
+            self._faderMain.setInvertedState(False)
     
     def fadeInSub(self, duration=DEFAULT_FADE_TIME, callback=None):
-        post(Event(ENGINE_SKIP_CLOCK))
-        self._faderSub.setDuration(duration)
-        self._faderSub.setCallback(callback)
-        self._faderSub.setInvertedState(True)
+        if not(self._faderSub.getActiveState()) and self._faderSub.getStrength() == 0:
+            if callable(callback):
+                callback()
+        else:
+            post(Event(ENGINE_SKIP_CLOCK))
+            self._faderSub.setDuration(duration)
+            self._faderSub.setCallback(callback)
+            self._faderSub.setInvertedState(True)
     
     def fadeOutSub(self, duration=DEFAULT_FADE_TIME, callback=None):
-        post(Event(ENGINE_SKIP_CLOCK))
-        self._faderSub.setDuration(duration)
-        self._faderSub.setCallback(callback)
-        self._faderSub.setInvertedState(False)
+        if not(self._faderSub.getActiveState()) and self._faderSub.getStrength() == 1:
+            if callable(callback):
+                callback()
+        else:
+            post(Event(ENGINE_SKIP_CLOCK))
+            self._faderSub.setDuration(duration)
+            self._faderSub.setCallback(callback)
+            self._faderSub.setInvertedState(False)
     
     def fadeIn(self, duration=DEFAULT_FADE_TIME, callback=None):
         post(Event(ENGINE_SKIP_CLOCK))
@@ -137,6 +154,7 @@ class FaderLayer(ScreenLayerNonBlocking):
         return (self._faderSub.getActiveState(), self._faderMain.getActiveState())
     
     def obscureViewLayer(self):
+        # TODO - Can just use fade out now, probably.
         if self._faderMain.getStrength() != 1:
             self.fadeOutMain()
         if self._faderSub.getStrength() != 1:
@@ -226,11 +244,11 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
         self.waitingForFadeOut = False
 
     def _loadGameMode(self, indexGameMode):
-
         def updateGameModeStateVariables():
             self.laytonState.setGameModeActive(GAMEMODES(indexGameMode))
             self._currentActiveGameMode = indexGameMode
 
+        updateGameModeStateVariables()
         layerFader = self._layers.pop()
 
         if indexGameMode == GAMEMODES.DramaEvent.value:
@@ -255,13 +273,11 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
                 self._voidGameMode()
             else:
                 print("Missing connection for type", indexGameMode)
-                updateGameModeStateVariables()
                 self._currentActiveGameModeObject = None
 
             self.addToCollection(layerFader)
             return False
         
-        updateGameModeStateVariables()
         self._currentActiveGameModeObject = self._layers[-1]
 
         self.addToCollection(layerFader)
@@ -304,7 +320,7 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
                 # Execution hit the invalid state, meaning that it's time to end
                 self._triggerQuit()
 
-            elif self._currentActiveGameModeObject == None or self._currentActiveGameModeObject.getContextState():
+            elif not(self.laytonState.gameModeRestartRequired) and (self._currentActiveGameModeObject == None or self._currentActiveGameModeObject.getContextState()):
                 # The current layer is finished, so the next one can now be loaded
 
                 # If there was a layer running (not virtual), remove it from the collection

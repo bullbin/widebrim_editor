@@ -5,8 +5,9 @@ from ...madhatter.hat_io.asset_storyflag import StoryFlag
 from ...madhatter.hat_io.asset_autoevent import AutoEvent
 from ...madhatter.hat_io.asset_dlz.goal_inf import GoalInfo
 from ...madhatter.hat_io.asset_dlz.nz_lst import NazoList
+from ...madhatter.hat_io.asset_dlz.chp_inf import ChapterInfo
 from ...madhatter.hat_io.asset import LaytonPack, File
-from ..const import LANGUAGES, EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_EV_INF2, PATH_PROGRESSION_DB, PATH_DB_RC_ROOT, PATH_DB_GOAL_INF, PATH_DB_NZ_LST, PATH_DB_RC_ROOT_LANG
+from ..const import LANGUAGES, EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_EV_INF2, PATH_PROGRESSION_DB, PATH_DB_RC_ROOT, PATH_DB_GOAL_INF, PATH_DB_NZ_LST, PATH_DB_RC_ROOT_LANG, PATH_DB_CHP_INF
 from ..exceptions import FileInvalidCritical
 from ..file import FileInterface
 
@@ -192,6 +193,25 @@ class Layton2GameState():
         idEntry = self._dbNazoList.searchForEntry(idInternal)
         if idEntry != None:
             return self._dbNazoList.getEntry(idEntry)
+        return None
+
+    def loadChapterInfoDb(self):
+        self._dbChapterInfo = ChapterInfo()
+        self._dbChapterInfo.load(FileInterface.getData(PATH_DB_RC_ROOT % PATH_DB_CHP_INF))
+
+    def unloadChapterInfoDb(self):
+        del self._dbChapterInfo
+        self._dbChapterInfo = None
+
+    def getChapterInfEntry(self):
+        if self._dbChapterInfo == None:
+            print("Bad: Chapter Info should have been loaded sooner!")
+            self.loadChapterInfoDb()
+
+        for indexEntry in range(self._dbChapterInfo.getCountEntries()):
+            entry = self._dbChapterInfo.getEntry(indexEntry)
+            if entry.chapter == self.saveSlot.chapter:
+                return entry
         return None
 
     def getGoalInfEntry(self):

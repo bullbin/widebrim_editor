@@ -1,10 +1,25 @@
 from ...engine.state.layer import ScreenLayerNonBlocking
 from ...madhatter.hat_io.asset_sav import Layton2SaveFile
 from ...engine.anim.fader import Fader
+from ...engine.state.enum_mode import GAMEMODES
 from .const import PATH_BG_TITLE_SUB
 from ...engine.config import PATH_SAVE
 from .main_title import MenuScreen
 from ...gamemodes.core_popup.save import SaveLoadScreenPopup
+
+# Here to expose for quick launchers to be able to immediately launch a slot
+def behaviourOnContinue(laytonState):
+    chapterEntry = laytonState.getChapterInfEntry()
+    if chapterEntry != None:
+        laytonState.setGameMode(GAMEMODES.DramaEvent)
+        if chapterEntry.idEventAlt != 0:
+            if laytonState.saveSlot.eventViewed.getSlot(chapterEntry.indexEventViewedFlag):
+                laytonState.setEventId(chapterEntry.idEventAlt)
+                return
+        laytonState.setEventId(chapterEntry.idEvent)
+    else:
+        laytonState.setGameMode(GAMEMODES.Room)
+    return
 
 class TitlePlayer(ScreenLayerNonBlocking):
     def __init__(self, laytonState, screenController):
@@ -12,6 +27,7 @@ class TitlePlayer(ScreenLayerNonBlocking):
 
         saveBytes = None
         saveData = Layton2SaveFile()
+        # TODO - Only active check required, nothing more
         try:
             with open(PATH_SAVE, 'rb') as saveIn:
                 saveBytes = saveIn.read()
@@ -22,6 +38,24 @@ class TitlePlayer(ScreenLayerNonBlocking):
 
         self.popup = None
 
+        # Callbacks for exiting title screen
+        def callbackTriggerGameContinue():
+            screenController.fadeOut(callback=callbackContinueGame)
+        
+        def callbackContinueGame():
+            laytonState.loadChapterInfoDb()
+            behaviourOnContinue(laytonState)
+            laytonState.unloadChapterInfoDb()
+            self._canBeKilled = True
+
+        def callbackTriggerSecretScreen():
+            screenController.fadeOut(callback=callbackStartSecret)
+        
+        def callbackStartSecret():
+            laytonState.setGameMode(GAMEMODES.SecretMenu)
+            self._canBeKilled = True
+
+        # Callbacks for UI buttons
         def callbackTerminate():
             self._canBeKilled = True
 
@@ -39,10 +73,10 @@ class TitlePlayer(ScreenLayerNonBlocking):
                                     callbackSpawnTitle, callbackSpawnContinue, callbackSpawnBonus, callbackTerminate)
         
         def callbackStartContinueScreen():
-            self.popup = SaveLoadScreenPopup(laytonState, screenController, 0, callbackSpawnTitle, callbackSpawnTitle)
+            self.popup = SaveLoadScreenPopup(laytonState, screenController, SaveLoadScreenPopup.MODE_LOAD, 0, callbackSpawnTitle, callbackTriggerGameContinue)
         
         def callbackStartBonusScreen():
-            self.popup = SaveLoadScreenPopup(laytonState, screenController, 1, callbackSpawnTitle, callbackSpawnTitle)
+            self.popup = SaveLoadScreenPopup(laytonState, screenController, SaveLoadScreenPopup.MODE_LOAD, 1, callbackSpawnTitle, callbackTriggerSecretScreen)
 
         self.screenController = screenController
         self.laytonState = laytonState

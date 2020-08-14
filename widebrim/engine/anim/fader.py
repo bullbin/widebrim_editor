@@ -1,3 +1,6 @@
+# TODO - Add mode which forces fader to have strength grabbed first before it terminates
+# Due to clock desyncs with inexact timing, faders can sometimes not fully obscure the screen, which allows various jumps to be seen
+
 class Fader():
 
     # Transitions from 0 to 1 over time

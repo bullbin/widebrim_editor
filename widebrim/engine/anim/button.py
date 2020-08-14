@@ -1,5 +1,18 @@
 from pygame import MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION
 
+class NullButton():
+    def __init__(self, pos, posEnd, callback=None):
+        self._posTl = pos
+        self._posBr = posEnd
+        self._callback = callback
+    
+    def handleTouchEvent(self, event):
+        if event.type == MOUSEBUTTONDOWN:
+            if event.pos[0] >= self._posTl[0] and event.pos[1] >= self._posTl[1]:
+                if event.pos[0] <= self._posBr[0] and event.pos[1] <= self._posBr[1]:
+                    if callable(self._callback):
+                        self._callback()
+
 class AnimatedButton():
     def __init__(self, image, animNamePushed, animNameUnpushed, callback=None):
         self.image = image
