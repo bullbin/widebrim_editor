@@ -1,77 +1,124 @@
 from pygame import MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION
 
-class NullButton():
+class TargettedButton():
+    def __init__(self, callbackOnPressed, callbackOnTargetted, callbackOnUntargetted):
+        self._isTargetted = False
+        self.callbackOnPressed = callbackOnPressed
+        self.callbackOnTargetted = callbackOnTargetted
+        self.callbackOnUntargetted = callbackOnUntargetted
+    
+    def setTargettedState(self, newState):
+        if self._isTargetted != newState:
+            if newState:
+                if callable(self.callbackOnTargetted):
+                    self.callbackOnTargetted()
+                self.doOnMouseTargetting()
+            else:
+                if callable(self.callbackOnUntargetted):
+                    self.callbackOnUntargetted()
+                self.doOnMouseAwayFromTarget()
+
+        self._isTargetted = newState
+
+    def doOnMouseTargetting(self):
+        pass
+
+    def doOnMouseAwayFromTarget(self):
+        pass
+
+    def doBeforePressedCallback(self):
+        pass
+
+    def getTargettedState(self):
+        return self._isTargetted
+
+    def wasPressed(self, pos):
+        return False
+
+    def handleTouchEvent(self, event):
+        if event.type == MOUSEBUTTONDOWN:
+            if self.wasPressed(event.pos):
+                self.setTargettedState(True)
+            else:
+                self.setTargettedState(False)
+
+        elif event.type == MOUSEMOTION:
+            if self.getTargettedState():
+                if self.wasPressed(event.pos):
+                    self.doOnMouseTargetting()
+                else:
+                    self.doOnMouseAwayFromTarget()
+
+        elif event.type == MOUSEBUTTONUP:
+            if self.getTargettedState() and self.wasPressed(event.pos):
+                self.doBeforePressedCallback()
+                if callable(self.callbackOnPressed):
+                    self.callbackOnPressed()
+
+                self.setTargettedState(False)
+                return True
+
+            self.setTargettedState(False)
+        
+        return False
+
+class NullButton(TargettedButton):
     def __init__(self, pos, posEnd, callback=None):
+        TargettedButton.__init__(self, callback, None, None)
         self._posTl = pos
         self._posBr = posEnd
-        self._callback = callback
     
+    def getPos(self):
+        return self._posTl
+
     def setPos(self, newPos):
         length = (self._posBr[0] - self._posTl[0], self._posBr[1] - self._posTl[1])
         self._posTl = newPos
         self._posBr = (newPos[0] + length[0], newPos[1] + length[1])
 
-    def handleTouchEvent(self, event):
-        if event.type == MOUSEBUTTONDOWN:
-            if event.pos[0] >= self._posTl[0] and event.pos[1] >= self._posTl[1]:
-                if event.pos[0] <= self._posBr[0] and event.pos[1] <= self._posBr[1]:
-                    if callable(self._callback):
-                        self._callback()
-                        return True
+    def wasPressed(self, pos):
+        if pos[0] >= self._posTl[0] and pos[1] >= self._posTl[1]:
+            if pos[0] <= self._posBr[0] and pos[1] <= self._posBr[1]:
+                return True
         return False
 
 class StaticButton(NullButton):
-    def __init__(self, pos, surfaceButton, callback=None):
+    def __init__(self, pos, surfaceButton, callback=None, targettedOffset=(0,0)):
         NullButton.__init__(self, pos, (pos[0] + surfaceButton.get_width(), pos[1] + surfaceButton.get_height()), callback=callback)
         self._image = surfaceButton
+        self._imageBlitPos = self._posTl
+        self._offsetBlitPos = (self._imageBlitPos[0] + targettedOffset[0], self._imageBlitPos[1] + targettedOffset[1])
+    
+    def doOnMouseTargetting(self):
+        self._imageBlitPos = self._offsetBlitPos
+
+    def doOnMouseAwayFromTarget(self):
+        self._imageBlitPos = self._posTl
     
     def draw(self, gameDisplay):
-        gameDisplay.blit(self._image, self._posTl)
+        gameDisplay.blit(self._image, self._imageBlitPos)
 
-class AnimatedButton():
-    def __init__(self, image, animNamePushed, animNameUnpushed, callback=None):
+class AnimatedButton(TargettedButton):
+    def __init__(self, image, animNamePressed, animNameUnpressed, callback=None):
+        TargettedButton.__init__(self, callback, None, None)
+        self._animNamePressed = animNamePressed
+        self._animNameUnpressed = animNameUnpressed
         self.image = image
-        self._animNamePushed    = animNamePushed
-        self._animNameUnpushed  = animNameUnpushed
-        self.image.setAnimationFromName(self._animNameUnpushed)
-
-        self._isTargetted = False
-        self._callback = callback
+        self.image.setAnimationFromName(self._animNameUnpressed)
     
     def update(self, gameClockDelta):
         self.image.update(gameClockDelta)
     
     def draw(self, gameDisplay):
         self.image.draw(gameDisplay)
+
+    def doOnMouseTargetting(self):
+        if self.image.animActive != None and self.image.animActive.name != self._animNamePressed:
+            self.image.setAnimationFromName(self._animNamePressed)
     
-    def handleTouchEvent(self, event):
-        if event.type == MOUSEBUTTONDOWN:
-            # If the button was pressed, start the pressed animation
-            if self.image.wasPressed(event.pos):
-                self._isTargetted = True
-                self.image.setAnimationFromName(self._animNamePushed)
-            else:
-                if self._isTargetted:
-                    self.image.setAnimationFromName(self._animNameUnpushed)
-                self._isTargetted = False
-
-        elif event.type == MOUSEMOTION:
-            # Judder between pressed and unpressed as mouse hovers over button
-            if self._isTargetted:
-                if self.image.wasPressed(event.pos):
-                    if self.image.animActive != None and self.image.animActive.name != self._animNamePushed:
-                        self.image.setAnimationFromName(self._animNamePushed)
-
-                elif self.image.animActive != None and self.image.animActive.name != self._animNameUnpushed:
-                    self.image.setAnimationFromName(self._animNameUnpushed)
-        
-        elif event.type == MOUSEBUTTONUP:
-            # When mouse is released and the button was being targetted, do the callback.
-            if self._isTargetted and self.image.wasPressed(event.pos):
-                self.image.setAnimationFromName(self._animNameUnpushed)
-                if callable(self._callback):
-                    self._callback()
-                    self._isTargetted = False
-                    return True
-            self._isTargetted = False
-        return False
+    def doOnMouseAwayFromTarget(self):
+        if self.image.animActive != None and self.image.animActive.name != self._animNameUnpressed:
+            self.image.setAnimationFromName(self._animNameUnpressed)
+    
+    def wasPressed(self, pos):
+        return self.image.wasPressed(pos)

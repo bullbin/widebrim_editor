@@ -13,6 +13,7 @@ PATH_BG_SUB_NAME    = "name/?/name_sub.bgx"
 PATH_BG_SUB_HAM     = "name/?/name_sub.bgx"
 
 PATH_ANI_CURSOR = "nazo/drawinput/di_cursor.spr"
+PATH_ANI_OK     = "name/?/name_ok.spr"
 PATH_ANI_BUTTON = "name/name_btn.spr"
 
 STRIDE_CHARACTER = 0x10
@@ -44,4 +45,6 @@ BTN_SPACE_POS   = (0x44, 0x81)
 BTN_BACK_NAME   = "erase"
 BTN_BACK_POS    = (0xc2, 0x81)
 
-NAMES_NOT_ALLOWED = ["Layton", "Luke"]
+NAMES_BLOCKED   = ["Layton", "Luke"]
+PATH_BAD_NAME   = "name/?/bad_name.spr"
+POS_BAD_NAME    = (0, 0x3b)

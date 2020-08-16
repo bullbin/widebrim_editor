@@ -1,5 +1,7 @@
 from .const import DECODE_MAP
 
+# TODO - Enforce cp1252 encoding
+
 def getSubstitutedString(inString):
     # Not fully accurate
 
