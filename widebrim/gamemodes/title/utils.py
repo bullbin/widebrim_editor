@@ -1,15 +1,12 @@
-from ...engine.const import PATH_ANI, RESOLUTION_NINTENDO_DS
-from ...engine.file import FileInterface
+from ...engine.const import RESOLUTION_NINTENDO_DS
 from ...engine.state.layer import ScreenLayerNonBlocking
-from ...madhatter.hat_io.asset_image import AnimatedImage
-from ...engine.anim.image_anim import AnimatedImageObject
+from ...engine_ext.utils import getAnimFromPath as getAnimFromPathRaw
 
 def getAnimFromPath(inPath, spawnAnimName="gfx", posVariable="pos"):
 
     # TODO - Where do buttons go if this is messed with?
 
-    tempAsset = FileInterface.getData(PATH_ANI % inPath)
-    tempImage = AnimatedImageObject.fromMadhatter(AnimatedImage.fromBytesArc(tempAsset))
+    tempImage = getAnimFromPathRaw(inPath)
     tempImage.setAnimationFromName(spawnAnimName)
     if tempImage.getVariable(posVariable) != None:
         tempImage.setPos((tempImage.getVariable(posVariable)[0],

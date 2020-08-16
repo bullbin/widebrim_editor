@@ -6,12 +6,27 @@ class NullButton():
         self._posBr = posEnd
         self._callback = callback
     
+    def setPos(self, newPos):
+        length = (self._posBr[0] - self._posTl[0], self._posBr[1] - self._posTl[1])
+        self._posTl = newPos
+        self._posBr = (newPos[0] + length[0], newPos[1] + length[1])
+
     def handleTouchEvent(self, event):
         if event.type == MOUSEBUTTONDOWN:
             if event.pos[0] >= self._posTl[0] and event.pos[1] >= self._posTl[1]:
                 if event.pos[0] <= self._posBr[0] and event.pos[1] <= self._posBr[1]:
                     if callable(self._callback):
                         self._callback()
+                        return True
+        return False
+
+class StaticButton(NullButton):
+    def __init__(self, pos, surfaceButton, callback=None):
+        NullButton.__init__(self, pos, (pos[0] + surfaceButton.get_width(), pos[1] + surfaceButton.get_height()), callback=callback)
+        self._image = surfaceButton
+    
+    def draw(self, gameDisplay):
+        gameDisplay.blit(self._image, self._posTl)
 
 class AnimatedButton():
     def __init__(self, image, animNamePushed, animNameUnpushed, callback=None):
@@ -56,4 +71,7 @@ class AnimatedButton():
                 self.image.setAnimationFromName(self._animNameUnpushed)
                 if callable(self._callback):
                     self._callback()
+                    self._isTargetted = False
+                    return True
             self._isTargetted = False
+        return False

@@ -638,7 +638,9 @@ class EventPlayer(ScreenLayerNonBlocking):
 
 
                     elif opcode == OPCODES_LT2.DrawChapter.value:
-                        self.screenController.fadeIn()
+                        # TODO - Since its known faders only work when required, how does this event fade in the bottom screen when it should already be unobscured?
+                        self.screenController.fadeOutMain(duration=0)
+                        self.screenController.fadeInMain()
                         self.screenController.setBgMain(PATH_CHAP_ROOT % command.operands[0].value)
                         self.isWaitingForTouch = True
 

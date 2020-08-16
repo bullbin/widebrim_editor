@@ -2,6 +2,7 @@ from pygame import Surface, display, BLEND_RGB_MULT
 from ...config import TIME_FRAMERATE
 from ...const import RESOLUTION_NINTENDO_DS
 from .const import BLEND_MAP
+from ...string import getSubstitutedString
 
 display.init()
 display.set_mode((RESOLUTION_NINTENDO_DS[0], RESOLUTION_NINTENDO_DS[1] * 2))
@@ -42,7 +43,7 @@ class ScrollingFontHelper():
         self._outputLineSurfaces = []
         self._workingLineSurfaceIndex = 0
         self._workingLineXOffset = 0
-        self._text = text
+        self._text = getSubstitutedString(text)
 
         self._hasCharsRemaining = True
         self._durationCarried = 0
@@ -53,7 +54,7 @@ class ScrollingFontHelper():
 
         # Remove any sequences to do with changing anims, etc
         removedControlledCharString = []
-        for indexLine, line in enumerate(text.split("&")):
+        for indexLine, line in enumerate(self._text.split("&")):
             if not(indexLine % 2):
                 removedControlledCharString.append(line)
         removedControlledCharString = ''.join(removedControlledCharString)
