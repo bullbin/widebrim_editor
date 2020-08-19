@@ -1,7 +1,6 @@
 from ..engine.state.layer import ScreenLayerNonBlocking
 from ..engine.state.enum_mode import GAMEMODES
 from ..engine.file import FileInterface
-from ..engine.anim.image_anim import AnimatedImageObject
 from ..engine.exceptions import FileInvalidCritical
 from ..engine.const import PATH_PLACE_A, PATH_PLACE_B, PATH_PACK_PLACE, PATH_PLACE_BG, PATH_PLACE_MAP, PATH_ANI, PATH_EXT_BGANI, RESOLUTION_NINTENDO_DS, PATH_EXT_EXIT, PATH_EXT_EVENT
 from ..engine.const import PATH_PACK_PLACE_NAME, PATH_TEXT_PLACE_NAME, PATH_PACK_TXT2, PATH_TEXT_GOAL
@@ -9,10 +8,10 @@ from ..engine.const import PATH_PACK_PLACE_NAME, PATH_TEXT_PLACE_NAME, PATH_PACK
 from pygame import MOUSEBUTTONUP, MOUSEBUTTONDOWN, MOUSEMOTION, BLEND_RGB_SUB
 
 from ..madhatter.hat_io.asset import LaytonPack
-from ..madhatter.hat_io.asset_image import AnimatedImage
 from ..madhatter.hat_io.asset_dat.place import PlaceData
 
 from ..engine.anim.font.static import generateImageFromString
+from ..engine_ext.utils import getAnimFromPath
 
 from time import time
 
@@ -28,7 +27,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
     # TODO - Speed up loading. Stutter exceeds 500ms which causes faders to look very strange
 
-    ANIM_MOVE_MODE = AnimatedImageObject.fromMadhatter(AnimatedImage.fromBytesArc(FileInterface.getData(PATH_ANI % "map/movemode.arc")))
+    ANIM_MOVE_MODE = getAnimFromPath("map/movemode.arc")
     ANIM_MOVE_MODE.setPos((230,350))
 
     IMAGE_EXIT_OFF = []
@@ -46,9 +45,8 @@ class RoomPlayer(ScreenLayerNonBlocking):
     exitAssetData   = None
     exitAsset       = None
     for indexExitImage in range(8):
-        exitAssetData = FileInterface.getData(PATH_ANI % (PATH_EXT_EXIT % indexExitImage))
-        if exitAssetData != None:
-            exitAsset = AnimatedImageObject.fromMadhatter(AnimatedImage.fromBytesArc(exitAssetData))
+        exitAsset = getAnimFromPath(PATH_EXT_EXIT % indexExitImage)
+        if exitAsset != None:
             exitAsset.setAnimationFromName("gfx")
             IMAGE_EXIT_OFF.append(exitAsset.getActiveFrame())
             exitAsset.setAnimationFromName("gfx2")
@@ -120,38 +118,35 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
             for indexBgAni in range(self.placeData.getCountObjBgEvent()):
                 bgAni = self.placeData.getObjBgEvent(indexBgAni)
-
-                # Workaround to remove spr type, probably resolved somewhere
-                bgAniAssetName = ".".join(bgAni.name.split(".")[:-1]) + ".arc"
-                tempBgAsset = FileInterface.getData(PATH_ANI % (PATH_EXT_BGANI % bgAniAssetName))
+                tempBgAsset = getAnimFromPath(PATH_EXT_BGANI % bgAni.name)
 
                 if tempBgAsset != None:
-                    bgAsset = AnimatedImage.fromBytesArc(tempBgAsset)
-                    self.bgAni.append(AnimatedImageObject.fromMadhatter(bgAsset))
+                    self.bgAni.append(tempBgAsset)
                     self.bgAni[-1].setAnimationFromName("gfx")
                     self.bgAni[-1].setPos((bgAni.pos[0],
                                            bgAni.pos[1] + RESOLUTION_NINTENDO_DS[1]))
                 else:
-                    print("Failed to load", PATH_ANI % (PATH_EXT_BGANI % bgAniAssetName))
+                    print("Failed to load", PATH_ANI % (PATH_EXT_BGANI % indexBgAni))
 
             for indexObjEvent in range(self.placeData.getCountObjEvents()):
                 objEvent = self.placeData.getObjEvent(indexObjEvent)
 
                 # TODO - What is the second byte of spawnData used for?
-                # Strange behaviour at end of carriage, tiny sprite clipped at bottom
 
                 if objEvent.idImage != 0:
-                    tempMaskedId = objEvent.idImage & 0xff
-                    tempEventAsset = FileInterface.getData(PATH_ANI % (PATH_EXT_EVENT % tempMaskedId))
 
-                    if tempEventAsset != None:
-                        eventAsset = AnimatedImageObject.fromMadhatter(AnimatedImage.fromBytesArc(tempEventAsset))
-                        eventAsset.setAnimationFromName("gfx")
-                        eventAsset.setPos((objEvent.bounding.x, objEvent.bounding.y + RESOLUTION_NINTENDO_DS[1]))
-                        self.objEvent.append(eventAsset)
-                    else:
+                    tempMaskedId = objEvent.idImage & 0xff
+                    tempEventAsset = getAnimFromPath(PATH_EXT_EVENT % tempMaskedId)
+                    
+                    if tempMaskedId == 0 or tempEventAsset == None:
                         self.objEvent.append(None)
-                        print("Failed to load", PATH_ANI % (PATH_EXT_EVENT % tempMaskedId))
+                        if tempMaskedId != 0:
+                            print("Failed to load", PATH_ANI % (PATH_EXT_EVENT % tempMaskedId))
+                    else:
+                        tempEventAsset.setAnimationFromName("gfx")
+                        tempEventAsset.setPos((objEvent.bounding.x, objEvent.bounding.y + RESOLUTION_NINTENDO_DS[1]))
+                        self.objEvent.append(tempEventAsset)
+                        
                 else:
                     self.objEvent.append(None)
 

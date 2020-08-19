@@ -41,5 +41,7 @@ def getAnimFromPath(inPath):
     if ".spr" in inPath:
         inPath = inPath.split("spr")[0] + "arc"
     tempAsset = FileInterface.getData(PATH_ANI % inPath)
-    tempImage = AnimatedImageObject.fromMadhatter(AnimatedImage.fromBytesArc(tempAsset))
-    return tempImage
+    if tempAsset != None:
+        tempImage = AnimatedImageObject.fromMadhatter(AnimatedImage.fromBytesArc(tempAsset))
+        return tempImage
+    return tempAsset

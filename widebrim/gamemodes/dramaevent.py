@@ -27,7 +27,6 @@ def functionGetAnimationFromName(name):
     resolvedPath = PATH_FACE_ROOT % name
     return FileInterface.getData(resolvedPath)
 
-# TODO - Bugfix, Layton anim b2 normal has an extra space that for some reason is not counted. Present in RAM dumps as well so being loaded with that space.
 # TODO - During fading, the main screen doesn't actually seem to be updated.
 
 # TODO - Set up preparations for many hardcoded event IDs which are called for various tasks in binary
@@ -93,8 +92,6 @@ class PlaceholderPopup(Popup):
 
     def draw(self, gameDisplay):
         gameDisplay.blit(self.surface, (0,0))
-
-# TODO - Centralise a popup with background and cursor fade in, used in TextWindow and all other event windows (eg reward popup, stock screen)
 
 class TextWindow(Popup):
 
@@ -337,7 +334,6 @@ class EventPlayer(ScreenLayerNonBlocking):
         self.screenController = screenController
         self.laytonState = laytonState
 
-        # Looking at binary reveals that it actually sets the current mode to room..
         # TODO - This should be GameMode. Causes a regression however at event 20003
         self.laytonState.setGameModeNext(GAMEMODES.Room)
         self.packEventTalk = LaytonPack()
@@ -417,20 +413,10 @@ class EventPlayer(ScreenLayerNonBlocking):
                 self.terminate()
         
             goalInfoEntry = self.laytonState.getGoalInfEntry()
-            # TODO - Goal versus objective?
-            # Maybe if unk is 1, also update chapter.
-
-            # TODO - This is incorrect. Photo event sequence proves this
-            # After initial photo event which triggers popup, chapter and goal are different.
-            # FML
+            # TODO - Popup if unk is 1
 
             if goalInfoEntry != None:
-                # Does the unk cause the window to pop up?
-                if goalInfoEntry.type == 1:
-                    print("\tUpdated goal and chapter to", goalInfoEntry.goal)
-                    self.laytonState.saveSlot.chapter = goalInfoEntry.goal
-                else:
-                    print("\tUpdated goal to", goalInfoEntry.goal)
+                print("\tUpdated goal to", goalInfoEntry.goal)
                 self.laytonState.saveSlot.goal = goalInfoEntry.goal
 
             if not(self._canBeKilled):
@@ -503,12 +489,6 @@ class EventPlayer(ScreenLayerNonBlocking):
                     elif opcode == OPCODES_LT2.DoStockScreen.value:
                         triggerPopup(PlaceholderPopup())
                         break
-
-                    elif opcode == OPCODES_LT2.DoSubItemAddScreen.value:
-                        # TODO - Only trigger on popups which mean something
-                        if self.laytonState.entryNzList != None and self.laytonState.entryNzList.idReward != -1:
-                            triggerPopup(PlaceholderPopup())
-                            break
                     
                     elif opcode == OPCODES_LT2.DoHukamaruAddScreen.value:
                         # TODO - Not accurate, but required to get fading looking correct
@@ -704,7 +684,6 @@ class EventPlayer(ScreenLayerNonBlocking):
                         self.characters[command.operands[0].value].setVisibility(command.operands[1].value >= 0)
 
                     else:
-                        #print("\tSkipped command!")
                         print("\nUnimplemented", OPCODES_LT2(opcode).name)
                         print(command)
 

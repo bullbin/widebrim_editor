@@ -133,6 +133,7 @@ class FaderLayer(ScreenLayerNonBlocking):
             self._faderSub.setCallback(callback)
             self._faderSub.setInvertedState(False)
     
+    # TODO - Callback can only be called when both screens are ready, this will call when either are ready which is not the right behaviour
     def fadeIn(self, duration=DEFAULT_FADE_TIME, callback=None):
         post(Event(ENGINE_SKIP_CLOCK))
         self.fadeInMain(duration=duration, callback=callback)
@@ -272,7 +273,11 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
             if indexGameMode == GAMEMODES.INVALID.value:
                 self._voidGameMode()
             else:
-                print("Missing connection for type", indexGameMode)
+                try:
+                    print("Missing implementation for mode", GAMEMODES(indexGameMode).name)
+                except:
+                    print("Missing connection for type", indexGameMode)
+                    
                 self._currentActiveGameModeObject = None
 
             self.addToCollection(layerFader)

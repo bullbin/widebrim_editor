@@ -121,10 +121,21 @@ class AnimatedImageObject():
                 self.subAnimation._offset = self.animActive.subAnimationOffset
 
     def setAnimationFromName(self, name):
+
+        def searchFirstNullTerminatedString(inString):
+            # Catches b2 normal on Layton.
+            # TODO - Check string compare function
+            inString = inString.split("\x00")[0]
+            for key in self._animations:
+                lengthShortest = min(len(name), len(key))
+                if key[0:lengthShortest] == inString[0:lengthShortest]:
+                    return self._animations[key]
+            return None 
+
         if name in self._animations:
             self.animActive = self._animations[name]
         else:
-            self.animActive = None
+            self.animActive = searchFirstNullTerminatedString(name)
         self._setAnimationFromActive()
         return not(self.animActive == None)
     

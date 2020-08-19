@@ -486,7 +486,7 @@ class Layton2SaveSlot():
         self.roomIndex              = 1
         self.roomSubIndex           = 0
         self.timeElapsed            = 0
-        self.chapter                = 0
+        self.chapter                = 5
         self.minigameTeaState       = HandlerTeaState()
         self.minigameHamsterState   = HandlerHamsterState()
         self.minigameCameraState    = HandlerCameraState()
@@ -502,7 +502,7 @@ class Layton2SaveSlot():
         self.anthonyDiaryState      = EnableNewFlagState(12)
         self.idImmediateEvent       = -1
 
-        self.goal = 100
+        self.goal                   = 100
     
     def clear(self):
         self = Layton2SaveSlot()

@@ -53,6 +53,11 @@ class NamePlayer(ScreenLayerNonBlocking):
         except:
             raise FileInvalidCritical
 
+        if self.laytonState.getGameMode() == GAMEMODES.Name:
+            self.screenController.setBgSub(PATH_BG_SUB_NAME)
+        else:
+            self.screenController.setBgSub(PATH_BG_SUB_HAM)
+
         self.indexBg = 0
         self.keys = []
         self.countKeys = COUNT_KEY_SPECIAL
@@ -144,7 +149,6 @@ class NamePlayer(ScreenLayerNonBlocking):
         self.animCursor = getAnimFromPath(PATH_ANI_CURSOR)
         self.animCursor.setAnimationFromIndex(1)
         self.animCursor.setPos((POS_ANI_CURSOR[0], POS_ANI_CURSOR[1] + RESOLUTION_NINTENDO_DS[1]))
-        self.animCursor
 
         self.surfaceEntry = None
         self.surfaceHighlight = Surface(SIZE_KEY)
