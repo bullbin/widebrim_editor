@@ -23,18 +23,15 @@ class Layton2GameState():
 
         self.language       = language
 
-        self._gameModeActive = GAMEMODES.INVALID    # Not accurate!
         self._gameMode       = GAMEMODES.INVALID
         self._gameModeNext   = GAMEMODES.INVALID
-
-        self.gameModeRestartRequired = False
 
         self._idEvent       = -1
         self._idMovieNum    = -1
         
         self.namePlace      = ""
 
-        self.isFirstTouchEnabled = True
+        self.isFirstTouchEnabled = False
 
         self.dbPlaceFlag        = PlaceFlag()
         self.dbStoryFlag        = StoryFlag()
@@ -84,12 +81,15 @@ class Layton2GameState():
     def setMovieNum(self, movieNum):
         self._idMovieNum = movieNum
 
-    def setGameModeActive(self, activeGameMode):
-        self._gameModeActive = activeGameMode
+    def setPlaceNum(self, placeNum):
+        if self.saveSlot.roomIndex != placeNum:
+            self.saveSlot.idHeldAutoEvent = -1
+        self.saveSlot.roomIndex = placeNum
+    
+    def getPlaceNum(self):
+        return self.saveSlot.roomIndex
 
     def setGameMode(self, newGameMode):
-        if newGameMode == self._gameModeActive and self._gameModeActive != GAMEMODES.INVALID:
-            self.gameModeRestartRequired = True
         self._gameMode = newGameMode
     
     def getGameMode(self):

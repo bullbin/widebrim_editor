@@ -1,12 +1,12 @@
-from ..engine.state.layer import ScreenLayerNonBlocking
-from ..engine.state.enum_mode import GAMEMODES, STRING_TO_GAMEMODE_VALUE
+from ..engine.state.enum_mode import GAMEMODES
 from ..engine.anim.image_anim import AnimatedImageObject
 from ..engine.anim.fader import Fader
 from ..engine.anim.font.scrolling import ScrollingFontHelper
 from ..engine.exceptions import FileInvalidCritical
 from ..engine.file import FileInterface
+from .core_popup.script import ScriptPlayer
 
-from ..engine.const import PATH_CHAP_ROOT, RESOLUTION_NINTENDO_DS, PATH_FACE_ROOT, PATH_BODY_ROOT, TIME_FRAMECOUNT_TO_MILLISECONDS
+from ..engine.const import RESOLUTION_NINTENDO_DS, PATH_FACE_ROOT, PATH_BODY_ROOT
 from ..engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C
 from ..engine.const import PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, PATH_PACK_TALK, PATH_EVENT_BG, PATH_PLACE_BG, PATH_EVENT_ROOT, PATH_ANI, PATH_NAME_ROOT
 
@@ -115,10 +115,10 @@ class TextWindow(Popup):
             self.characterController = characterSpawnIdToCharacterMap[scriptTextWindow.getInstruction(0).operands[0].value]
 
             # TODO - Make const
-            if scriptTextWindow.getInstruction(0).operands[1].value != "NONE\x00":
-                self.characterController.setCharacterAnimationFromName(scriptTextWindow.getInstruction(0).operands[1].value[:-1])
-            if scriptTextWindow.getInstruction(0).operands[2].value != "NONE\x00":
-                self.animNameOnExit = scriptTextWindow.getInstruction(0).operands[2].value[:-1]
+            if scriptTextWindow.getInstruction(0).operands[1].value != "NONE":
+                self.characterController.setCharacterAnimationFromName(scriptTextWindow.getInstruction(0).operands[1].value)
+            if scriptTextWindow.getInstruction(0).operands[2].value != "NONE":
+                self.animNameOnExit = scriptTextWindow.getInstruction(0).operands[2].value
         else:
             self.characterController = None
 
@@ -292,7 +292,6 @@ class CharacterController():
                 self._characterFlippedSurfaceNeedsUpdate = True
 
     def setCharacterAnimationFromName(self, animName):
-        animName = animName.split("\x00")[0]
         if self.imageCharacter != None:
             if self.imageCharacter.setAnimationFromName(animName):
                 self._baseAnimName = self.imageCharacter.animActive.name
@@ -302,7 +301,7 @@ class CharacterController():
             if self.imageCharacter.setAnimationFromIndex(animIndex):
                 self._baseAnimName = self.imageCharacter.animActive.name
 
-class EventPlayer(ScreenLayerNonBlocking):
+class EventPlayer(ScriptPlayer):
     def __init__(self, laytonState, screenController):
 
         def substituteEventPath(inPath, inPathA, inPathB, inPathC):
@@ -313,14 +312,14 @@ class EventPlayer(ScreenLayerNonBlocking):
                 except TypeError:
                     return path % evId
 
-            if self.eventId != 24:
-                return trySubstitute(inPath, self.laytonState.language.value, self.eventId)
-            elif self.eventSubId < 300:
-                return trySubstitute(inPathA, self.laytonState.language.value, self.eventId)
-            elif self.eventSubId < 600:
-                return trySubstitute(inPathB, self.laytonState.language.value, self.eventId)
+            if self._idMain != 24:
+                return trySubstitute(inPath, self.laytonState.language.value, self._idMain)
+            elif self._idSub < 300:
+                return trySubstitute(inPathA, self.laytonState.language.value, self._idMain)
+            elif self._idSub < 600:
+                return trySubstitute(inPathB, self.laytonState.language.value, self._idMain)
             else:
-                return trySubstitute(inPathC, self.laytonState.language.value, self.eventId)
+                return trySubstitute(inPathC, self.laytonState.language.value, self._idMain)
 
         def getEventTalkPath():
             return substituteEventPath(PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C)
@@ -330,87 +329,79 @@ class EventPlayer(ScreenLayerNonBlocking):
 
         # TODO - Search for language image as well as non-language image
 
-        ScreenLayerNonBlocking.__init__(self)
-        self.screenController = screenController
-        self.laytonState = laytonState
+        ScriptPlayer.__init__(self, laytonState, screenController, GdScript())
 
-        # TODO - This should be GameMode. Causes a regression however at event 20003
-        self.laytonState.setGameModeNext(GAMEMODES.Room)
-        self.packEventTalk = LaytonPack()
-
-        self.scriptCurrentCommandIndex = 0
-        self.script         = GdScript()
-        self.talkScript     = GdScript()
-        self.eventData      = None
+        self.laytonState.setGameMode(GAMEMODES.Room)
+        self._packEventTalk = LaytonPack()
 
         spawnId = self.laytonState.getEventId()
-        self.eventId = spawnId // 1000
-        self.eventSubId = spawnId % 1000
+
+        self._idMain = spawnId // 1000
+        self._idSub = spawnId % 1000
+
+        self.talkScript     = GdScript()
 
         self.characters = []
         self.nameCharacters = []
         self.characterSpawnIdToCharacterMap = {}
 
-        self.isWaitingForTouch = False
-        self.popup = None
-
         if spawnId == -1:
-            self.terminate()
+            self.doOnKill()
         else:
             print("Loaded event", spawnId)
             # Centralise this so it can be deleted when finished
             try:
-                self.packEventTalk.load(FileInterface.getData(getEventTalkPath()))
                 packEventScript = LaytonPack()
                 packEventScript.load(FileInterface.getData(getEventScriptPath()))
+                self._packEventTalk.load(FileInterface.getData(getEventTalkPath()))
 
-                self.script.load(packEventScript.getFile(PATH_PACK_EVENT_SCR % (self.eventId, self.eventSubId)))
-                self.eventData = packEventScript.getFile(PATH_PACK_EVENT_DAT % (self.eventId, self.eventSubId))
+                self._script.load(packEventScript.getFile(PATH_PACK_EVENT_SCR % (self._idMain, self._idSub)))
+                eventData = packEventScript.getFile(PATH_PACK_EVENT_DAT % (self._idMain, self._idSub))
 
                 # TODO - Rewrite event info module
 
-                if self.eventData == None:
+                if eventData == None:
                     raise FileInvalidCritical()
             
-                self.eventData = BinaryReader(data=self.eventData)
-                self.screenController.setBgMain(PATH_PLACE_BG % self.eventData.readU16())
-                self.screenController.setBgSub(PATH_EVENT_BG % self.eventData.readU16())
+                eventData = BinaryReader(data=eventData)
+                self.screenController.setBgMain(PATH_PLACE_BG % eventData.readU16())
+                self.screenController.setBgSub(PATH_EVENT_BG % eventData.readU16())
 
-                introBehaviour = self.eventData.readUInt(1)
+                introBehaviour = eventData.readUInt(1)
                 if introBehaviour == 0 or introBehaviour == 3:
                     self.screenController.modifyPaletteMain(120)
                 
                 if introBehaviour != 1:
                     self.screenController.fadeIn()
 
-                self.eventData.seek(6)
+                eventData.seek(6)
                 for charIndex in range(8):
-                    character = self.eventData.readUInt(1)
+                    character = eventData.readUInt(1)
                     if character != 0:
                         self.characters.append(CharacterController(self.laytonState, character))
                         self.characterSpawnIdToCharacterMap[character] = self.characters[-1]
 
                 for charIndex in range(8):
-                    slot = self.eventData.readUInt(1)
+                    slot = eventData.readUInt(1)
                     if charIndex < len(self.characters):
                         self.characters[charIndex].setCharacterSlot(slot)
 
                 for charIndex in range(8):
-                    visibility = self.eventData.readUInt(1) == 1
+                    visibility = eventData.readUInt(1) == 1
                     if charIndex < len(self.characters):
                         self.characters[charIndex].setVisibility(visibility)
                 
                 for charIndex in range(8):
-                    animIndex = self.eventData.readUInt(1)
+                    animIndex = eventData.readUInt(1)
                     if charIndex < len(self.characters):
                         self.characters[charIndex].setCharacterAnimationFromIndex(animIndex)
 
             except TypeError:
                 print("Failed to catch script data for event!")
-                self.terminate()
+                self.doOnKill()
             except FileInvalidCritical:
                 print("Failed to fetch required data for event!")
-                self.terminate()
+                self.doOnKill()
         
             goalInfoEntry = self.laytonState.getGoalInfEntry()
             # TODO - Popup if unk is 1
@@ -423,278 +414,122 @@ class EventPlayer(ScreenLayerNonBlocking):
                 if self.laytonState.entryEvInfo != None and self.laytonState.entryEvInfo.indexEventViewedFlag != None:
                     self.laytonState.saveSlot.eventViewed.setSlot(True, self.laytonState.entryEvInfo.indexEventViewedFlag)
 
-    def terminate(self):
-        # TODO - Bugfix required. This should be current gamemode but it doesn't work.
-        # This unfortunately doesn't spawn correct behaviour anyway under this model but it still needs to be fixed.
+    def doOnKill(self):
         # TODO - Research more into next handler. What happens if the next gamemode is set in chapter event? Or normal gamemode?
         # When reaching a forced save screen, will this force the event to run twice? Perhaps hitting no on the question to save invalidates this event.
 
         # According to research, this event should run first, destroying the event currently queued to play. But playing the game, the chapter event plays first.
         # Why is this the case?
-
         if self.laytonState.saveSlot.idImmediateEvent != -1:
             self.laytonState.setEventId(self.laytonState.saveSlot.idImmediateEvent)
-            self.laytonState.setGameModeNext(GAMEMODES.DramaEvent)
+            self.laytonState.setGameMode(GAMEMODES.DramaEvent)
             self.laytonState.saveSlot.idImmediateEvent = -1
-        self._canBeKilled = True
+        super().doOnKill()
 
     def draw(self, gameDisplay):
-        
         for controller in self.characters:
             controller.draw(gameDisplay)
-
-        if self.popup != None:
-            self.popup.draw(gameDisplay)
-
-    def handleTouchEvent(self, event):
-        if self.popup != None:
-            self.popup.handleTouchEvent(event)
-        elif self.isWaitingForTouch and event.type == MOUSEBUTTONUP:
-            self.isWaitingForTouch = False
-        return super().handleTouchEvent(event)
+        super().draw(gameDisplay)
 
     def update(self, gameClockDelta):
-        # TODO - Maybe also detect if popup active
-        if self.screenController.getFadingStatus():
-            return self.updateBlocked(gameClockDelta)
-        return self.updateNonBlocked(gameClockDelta)
-
-    def updateBlocked(self, gameClockDelta):
         for controller in self.characters:
             controller.update(gameClockDelta)
 
-    def updateNonBlocked(self, gameClockDelta):
+        super().update(gameClockDelta)
 
-        def triggerPopup(popup):
-            self.popup = popup
-            self.scriptCurrentCommandIndex += 1
+    def _spriteOffAllCharacters(self):
+        for character in self.characters:
+            character.setVisibility(False)
+        self._makeActive()
 
-        if not(self._canBeKilled):
-            if self.popup == None:
-                while not(self.isWaitingForTouch) and self.scriptCurrentCommandIndex < self.script.getInstructionCount() and not(self.screenController.getFadingStatus()):
-                    
-                    command = self.script.getInstruction(self.scriptCurrentCommandIndex)
-                    opcode = int.from_bytes(command.opcode, byteorder = 'little')
-                    
-                    if opcode == OPCODES_LT2.TextWindow.value:
+    def _doUnpackedCommand(self, opcode, operands):
+        if opcode == OPCODES_LT2.TextWindow.value:
+            self.talkScript = GdScript()
+            self.talkScript.load(self._packEventTalk.getFile(PATH_PACK_TALK % (self._idMain, self._idSub, operands[0].value)), isTalkscript=True)
+            self._popup = TextWindow(self.laytonState, self.characterSpawnIdToCharacterMap, self.talkScript)
 
-                        self.talkScript = GdScript()
-                        self.talkScript.load(self.packEventTalk.getFile(PATH_PACK_TALK % (self.eventId, self.eventSubId, command.operands[0].value)), isTalkscript=True)
-                        triggerPopup(TextWindow(self.laytonState, self.characterSpawnIdToCharacterMap, self.talkScript))
-                        break
+        elif opcode == OPCODES_LT2.SpriteOn.value:
+            if 0 <= operands[0].value < len(self.characters):
+                self.characters[operands[0].value].setVisibility(True)
 
-                    elif opcode == OPCODES_LT2.WaitInput.value:
-                        self.isWaitingForTouch = True
+        elif opcode == OPCODES_LT2.SpriteOff.value:
+            if 0 <= operands[0].value < len(self.characters):
+                self.characters[operands[0].value].setVisibility(False)
 
-                    elif opcode == OPCODES_LT2.DoStockScreen.value:
-                        triggerPopup(PlaceholderPopup())
-                        break
-                    
-                    elif opcode == OPCODES_LT2.DoHukamaruAddScreen.value:
-                        # TODO - Not accurate, but required to get fading looking correct
-                        self.screenController.obscureViewLayer()
+        elif opcode == OPCODES_LT2.DoSpriteFade.value:
+            self.characters[operands[0].value].setVisibility(operands[1].value >= 0)
 
-                        # TODO - How best to handle this?
-                        for character in self.characters:
-                            character.setVisibility(False)
-                    
-                    elif opcode == OPCODES_LT2.DoSaveScreen.value:
-                        # TODO - Not accurate, but required to not softlock. Research required
-                        self.screenController.obscureViewLayer()
-                        if command.operands[0].value != -1:
-                            self.laytonState.saveSlot.idImmediateEvent = command.operands[0].value
-                    
-                    elif opcode == OPCODES_LT2.DoItemAddScreen.value:
-                        self.laytonState.saveSlot.storyItemFlag.setSlot(True, command.operands[0].value)
-                        triggerPopup(PlaceholderPopup())
-                        break
-
-                    elif opcode == OPCODES_LT2.DoPhotoPieceAddScreen.value:
-                        self.laytonState.saveSlot.photoPieceFlag.setSlot(True, command.operands[0].value)
-
-                        photoPieceAddCounter = bytearray(self.laytonState.saveSlot.eventCounter.toBytes(outLength=128))
-                        photoPieceAddCounter[0x18] = photoPieceAddCounter[0x18] + 1
-                        if photoPieceAddCounter[0x18] == 0:
-                            # String in popup is 222
-                            pass
-                        else:
-                            # String in popup is 212
-                            pass
-                        self.laytonState.saveSlot.eventCounter = FlagsAsArray.fromBytes(photoPieceAddCounter)
-
-                        triggerPopup(PlaceholderPopup())
-                        break
-
-                    elif opcode == OPCODES_LT2.SetGameMode.value:
-                        try:
-                            self.laytonState.setGameMode(STRING_TO_GAMEMODE_VALUE[command.operands[0].value[:-1]])
-                        except:
-                            print("SetGameMode Handler", command.operands[0].value, "unimplemented!")
-                    
-                    elif opcode == OPCODES_LT2.SetEndGameMode.value:
-                        try:
-                            self.laytonState.setGameModeNext(STRING_TO_GAMEMODE_VALUE[command.operands[0].value[:-1]])
-                        except:
-                            print("SetEndGameMode Handler", command.operands[0].value, "unimplemented!")
-
-                    elif opcode == OPCODES_LT2.SetDramaEventNum.value:
-                        self.laytonState.setEventId(command.operands[0].value)
-
-                    elif opcode == OPCODES_LT2.SetPuzzleNum.value:
-                        self.laytonState.setPuzzleId(command.operands[0].value)
-                    
-                    elif opcode == OPCODES_LT2.ReleaseItem.value:
-                        self.laytonState.saveSlot.storyItemFlag.setSlot(False, command.operands[0].value)
-                    
-                    elif opcode == OPCODES_LT2.SetPlace.value:
-                        self.laytonState.saveSlot.roomIndex = command.operands[0].value
-                    
-                    elif opcode == OPCODES_LT2.SetEventCounter.value:
-                        indexCounter = command.operands[0].value
-                        valueCounter = command.operands[1].value
-
-                        if 0 <= indexCounter < 128:
-                            tempEventCounter = bytearray(self.laytonState.saveSlot.eventCounter.toBytes(outLength=128))
-                            tempEventCounter[indexCounter] = valueCounter
-                            self.laytonState.saveSlot.eventCounter = FlagsAsArray.fromBytes(tempEventCounter)
-                    
-                    # TODO - Auto event repeat
-
-                    elif opcode == OPCODES_LT2.AddEventCounter.value:
-                        indexCounter = command.operands[0].value
-                        valueCounter = command.operands[1].value
-
-                        if 0 <= indexCounter < 128:
-                            tempEventCounter = bytearray(self.laytonState.saveSlot.eventCounter.toBytes(outLength=128))
-                            tempEventCounter[indexCounter] = tempEventCounter[indexCounter] + valueCounter
-                            self.laytonState.saveSlot.eventCounter = FlagsAsArray.fromBytes(tempEventCounter)
-
-                    elif opcode == OPCODES_LT2.OrEventCounter.value:
-                        indexCounter = command.operands[0].value
-                        valueCounter = command.operands[1].value
-
-                        if 0 <= indexCounter < 128:
-                            tempEventCounter = bytearray(self.laytonState.saveSlot.eventCounter.toBytes(outLength=128))
-                            tempEventCounter[indexCounter] = tempEventCounter[indexCounter] | valueCounter
-                            self.laytonState.saveSlot.eventCounter = FlagsAsArray.fromBytes(tempEventCounter)
-
-                    elif opcode == OPCODES_LT2.AddMemo.value:
-                        self.laytonState.saveSlot.memoFlag.flagEnabled.setSlot(True, command.operands[0].value)
-                        self.laytonState.saveSlot.memoFlag.flagNew.setSlot(True, command.operands[0].value)
-
-                    elif opcode == OPCODES_LT2.LoadBG.value:
-                        self.screenController.setBgMain(command.operands[0].value)
-            
-                    elif opcode == OPCODES_LT2.LoadSubBG.value:
-                        self.screenController.setBgSub(command.operands[0].value)
-
-                    elif opcode == OPCODES_LT2.SetMovieNum.value:
-                        self.laytonState.setMovieNum(command.operands[0].value)
-
-                    elif opcode == OPCODES_LT2.SetEventTea.value:
-                        self.laytonState.setGameModeNext(GAMEMODES.EventTea)
-                        # TODO - 2 unks, maybe about the current tea mode?
-                        # Additionally, the tea screen uses the current state of the bottom screen, which needs to be captured.
-                        # This could be a problem with current pipeline as the fader writes over the screen
-                        # Maybe this could be recorded in the fader layer before the obstruction
-
-                    elif opcode == OPCODES_LT2.CheckCounterAutoEvent.value:
-                        if 0 <= command.operands[0].value < 128:
-                            # Type 0 of CheckEventCounter
-                            eventCounterEncoded = self.laytonState.saveSlot.eventCounter.toBytes(outLength=128)
-                            if eventCounterEncoded[command.operands[0].value] == command.operands[1].value:
-                                self.laytonState.setGameMode(GAMEMODES.DramaEvent)
-                                self.laytonState.setGameModeNext(GAMEMODES.DramaEvent)
-
-
-
-                    elif opcode == OPCODES_LT2.ModifyBGPal.value:
-                        # TODO - 3 unknowns in this command
-                        self.screenController.modifyPaletteMain(command.operands[3].value)
-
-                    elif opcode == OPCODES_LT2.ModifySubBGPal.value:
-                        self.screenController.modifyPaletteSub(command.operands[3].value)
-
-
-
-                    elif opcode == OPCODES_LT2.DrawChapter.value:
-                        # TODO - Since its known faders only work when required, how does this event fade in the bottom screen when it should already be unobscured?
-                        self.screenController.fadeOutMain(duration=0)
-                        self.screenController.fadeInMain()
-                        self.screenController.setBgMain(PATH_CHAP_ROOT % command.operands[0].value)
-                        self.isWaitingForTouch = True
-
-
-
-                    elif opcode == OPCODES_LT2.FadeIn.value:
-                        self.screenController.fadeIn()
-                    
-                    elif opcode == OPCODES_LT2.FadeOut.value:
-                        self.screenController.fadeOut()
-
-                    elif opcode == OPCODES_LT2.FadeInFrame.value:
-                        self.screenController.fadeIn(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
-                    
-                    elif opcode == OPCODES_LT2.FadeOutFrame.value:
-                        self.screenController.fadeOut(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
-                    
-                    elif opcode == OPCODES_LT2.FadeInOnlyMain.value:
-                        self.screenController.fadeInMain()
-                    
-                    elif opcode == OPCODES_LT2.FadeOutOnlyMain.value:
-                        self.screenController.fadeOutMain()
-
-                    elif opcode == OPCODES_LT2.FadeInFrameMain.value:
-                        self.screenController.fadeInMain(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
-                    
-                    elif opcode == OPCODES_LT2.FadeOutFrameMain.value:
-                        self.screenController.fadeOutMain(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
-                    
-                    elif opcode == OPCODES_LT2.FadeInFrameSub.value:
-                        self.screenController.fadeInSub(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
-                    
-                    elif opcode == OPCODES_LT2.FadeOutFrameSub.value:
-                        self.screenController.fadeOutSub(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
-
-                    elif opcode == OPCODES_LT2.WaitFrame.value:
-                        self.screenController.setWaitDuration(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
-
-                    elif opcode == OPCODES_LT2.WaitVSyncOrPenTouch.value:
-                        self.screenController.setWaitDuration(duration=command.operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS, canBeSkipped=True)
-
-
-
-                    elif opcode == OPCODES_LT2.SpriteOn.value:
-                        if 0 <= command.operands[0].value < len(self.characters):
-                            self.characters[command.operands[0].value].setVisibility(True)
-
-                    elif opcode == OPCODES_LT2.SpriteOff.value:
-                        if 0 <= command.operands[0].value < len(self.characters):
-                            self.characters[command.operands[0].value].setVisibility(False)
-
-                    elif opcode == OPCODES_LT2.SetSpriteAnimation.value:
-                        if command.operands[0].value in self.characterSpawnIdToCharacterMap:
-                            self.characterSpawnIdToCharacterMap[command.operands[0].value].setCharacterAnimationFromName(command.operands[1].value)
-
-                    elif opcode == OPCODES_LT2.SetSpritePos.value:
-                        if command.operands[0].value < len(self.characters):
-                            self.characters[command.operands[0].value].setCharacterSlot(command.operands[1].value)
-
-                    elif opcode == OPCODES_LT2.DoSpriteFade.value:
-                        self.characters[command.operands[0].value].setVisibility(command.operands[1].value >= 0)
-
-                    else:
-                        print("\nUnimplemented", OPCODES_LT2(opcode).name)
-                        print(command)
-
-                    self.scriptCurrentCommandIndex += 1
-                
-                if not(self.isWaitingForTouch) and not(self.screenController.getFadingStatus()) and self.scriptCurrentCommandIndex >= self.script.getInstructionCount() and self.popup == None:
-                    self.terminate()
-            else:
-                self.popup.update(gameClockDelta)
-                if self.popup.canBeTerminated:
-                    self.popup = None
+        elif opcode == OPCODES_LT2.DrawChapter.value:
+            self.screenController.fadeOutMain(duration=0, callback=self._spriteOffAllCharacters)
+            return super()._doUnpackedCommand(opcode, operands)
         
-        for controller in self.characters:
-            controller.update(gameClockDelta)
+        elif opcode == OPCODES_LT2.SetSpritePos.value:
+            if operands[0].value < len(self.characters):
+                self.characters[operands[0].value].setCharacterSlot(operands[1].value)
+        
+        elif opcode == OPCODES_LT2.SetSpriteAnimation.value:
+            if operands[0].value in self.characterSpawnIdToCharacterMap:
+                self.characterSpawnIdToCharacterMap[operands[0].value].setCharacterAnimationFromName(operands[1].value)
+
+        elif opcode == OPCODES_LT2.DoHukamaruAddScreen.value:
+            # TODO - Not accurate, but required to get fading looking correct
+            self.screenController.fadeOut(callback=self._spriteOffAllCharacters)
+            self._makeInactive()
+
+        elif opcode == OPCODES_LT2.DoSubItemAddScreen.value:
+            self._popup = PlaceholderPopup()
+
+        elif opcode == OPCODES_LT2.DoStockScreen.value:
+            self._popup = PlaceholderPopup()
+        
+        elif opcode == OPCODES_LT2.DoNazobaListScreen.value:
+            self._popup = PlaceholderPopup()
+
+        elif opcode == OPCODES_LT2.DoItemAddScreen.value:
+            self.laytonState.saveSlot.storyItemFlag.setSlot(True, operands[0].value)
+            self._popup = PlaceholderPopup()
+        
+        elif opcode == OPCODES_LT2.SetSubItem.value:
+            self._popup = PlaceholderPopup()
+        
+        elif opcode == OPCODES_LT2.DoSubGameAddScreen.value:
+            self._popup = PlaceholderPopup()
+        
+        elif opcode == OPCODES_LT2.DoSaveScreen.value:
+            # TODO - Not accurate, but required to not softlock. Research required
+            self.screenController.fadeOut(callback=self._makeActive)
+            if operands[0].value != -1:
+                self.laytonState.saveSlot.idImmediateEvent = operands[0].value
+            self._makeInactive()
+        
+        elif opcode == OPCODES_LT2.DoPhotoPieceAddScreen.value:
+            self.laytonState.saveSlot.photoPieceFlag.setSlot(True, operands[0].value)
+
+            photoPieceAddCounter = bytearray(self.laytonState.saveSlot.eventCounter.toBytes(outLength=128))
+            photoPieceAddCounter[0x18] = photoPieceAddCounter[0x18] + 1
+            if photoPieceAddCounter[0x18] == 0: # String in popup is 222
+                pass
+            else:                               # String in popup is 212
+                pass
+            self.laytonState.saveSlot.eventCounter = FlagsAsArray.fromBytes(photoPieceAddCounter)
+            self._popup = PlaceholderPopup()
+        
+        elif opcode == OPCODES_LT2.MokutekiScreen.value:
+            self._popup = PlaceholderPopup()
+        
+        elif opcode == OPCODES_LT2.DoNamingHamScreen.value:
+            self._popup = PlaceholderPopup()
+
+        elif opcode == OPCODES_LT2.DoLostPieceScreen.value:
+            self._popup = PlaceholderPopup()
+        
+        elif opcode == OPCODES_LT2.DoInPartyScreen.value:
+            self._popup = PlaceholderPopup()
+        
+        elif opcode == OPCODES_LT2.DoOutPartyScreen.value:
+            self._popup = PlaceholderPopup()
+
+        else:
+            return super()._doUnpackedCommand(opcode, operands)
+
+        return True

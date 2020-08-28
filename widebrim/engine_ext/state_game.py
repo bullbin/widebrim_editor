@@ -4,12 +4,23 @@ from ..engine.const import RESOLUTION_NINTENDO_DS
 from ..engine.anim.fader import Fader
 
 from ..gamemodes import EventPlayer, RoomPlayer, NarrationPlayer, PuzzlePlayer, EventTeaPlayer, TitlePlayer, NamePlayer
+from ..gamemodes.core_popup.reset import ResetHelper
 
 from ..engine.custom_events import ENGINE_SKIP_CLOCK
 from .utils import getImageFromPath
 
 from pygame.event import post, Event
 from pygame import Surface, QUIT, MOUSEBUTTONUP
+
+GAMEMODE_TO_HANDLER = {GAMEMODES.Reset:ResetHelper,
+                       GAMEMODES.DramaEvent:EventPlayer,
+                       GAMEMODES.Room:RoomPlayer,
+                       GAMEMODES.Narration:NarrationPlayer,
+                       GAMEMODES.Puzzle:PuzzlePlayer,
+                       GAMEMODES.EventTea:EventTeaPlayer,
+                       GAMEMODES.Title:TitlePlayer,
+                       GAMEMODES.Name:NamePlayer,
+                       GAMEMODES.HamsterName:NamePlayer}
 
 class BgLayer(ScreenLayerNonBlocking):
 
@@ -134,6 +145,7 @@ class FaderLayer(ScreenLayerNonBlocking):
             self._faderSub.setInvertedState(False)
     
     # TODO - Callback can only be called when both screens are ready, this will call when either are ready which is not the right behaviour
+    # TODO - Remove wait fader
     def fadeIn(self, duration=DEFAULT_FADE_TIME, callback=None):
         post(Event(ENGINE_SKIP_CLOCK))
         self.fadeInMain(duration=duration, callback=callback)
@@ -242,108 +254,69 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
         self._currentActiveGameMode = 0
         self._currentActiveGameModeObject = None
 
-        self.waitingForFadeOut = False
+        self._waitingForFadeOut = False
 
-    def _loadGameMode(self, indexGameMode):
-        def updateGameModeStateVariables():
-            self.laytonState.setGameModeActive(GAMEMODES(indexGameMode))
-            self._currentActiveGameMode = indexGameMode
+    def _loadGameMode(self, gameMode):
+        # TODO - Fix support for unimplemented gamemode values
+        self._currentActiveGameMode = gameMode
+        self.laytonState.setGameMode(gameMode)
 
-        updateGameModeStateVariables()
         layerFader = self._layers.pop()
 
-        if indexGameMode == GAMEMODES.DramaEvent.value:
-            self.addToCollection(EventPlayer(self.laytonState, self.screenControllerObject))
-        elif indexGameMode == GAMEMODES.Room.value:
-            self.addToCollection(RoomPlayer(self.laytonState, self.screenControllerObject))
-        elif indexGameMode == GAMEMODES.Narration.value:
-            self.addToCollection(NarrationPlayer(self.laytonState, self.screenControllerObject))
-        elif indexGameMode == GAMEMODES.Puzzle.value:
-            self.addToCollection(PuzzlePlayer(self.laytonState, self.screenControllerObject))
-        elif indexGameMode == GAMEMODES.EventTea.value:
-            self.addToCollection(EventTeaPlayer(self.laytonState, self.screenControllerObject))
-        elif indexGameMode == GAMEMODES.Title.value:
-            self.addToCollection(TitlePlayer(self.laytonState, self.screenControllerObject))
-
-        # Both modes use the same overlay in-game
-        elif indexGameMode == GAMEMODES.Name.value or indexGameMode == GAMEMODES.HamsterName.value:
-            self.addToCollection(NamePlayer(self.laytonState, self.screenControllerObject))
-            
+        if gameMode in GAMEMODE_TO_HANDLER:
+            self.addToCollection(GAMEMODE_TO_HANDLER[gameMode](self.laytonState, self.screenControllerObject))
         else:
-            if indexGameMode == GAMEMODES.INVALID.value:
+            if gameMode == GAMEMODES.INVALID:
                 self._voidGameMode()
             else:
-                try:
-                    print("Missing implementation for mode", GAMEMODES(indexGameMode).name)
-                except:
-                    print("Missing connection for type", indexGameMode)
-                    
+                print("Missing implementation for mode", gameMode.name)
                 self._currentActiveGameModeObject = None
 
             self.addToCollection(layerFader)
             return False
         
         self._currentActiveGameModeObject = self._layers[-1]
-
         self.addToCollection(layerFader)
         return True
     
     def _voidGameMode(self):
-        self._currentActiveGameMode = GAMEMODES.INVALID.value
+        self._currentActiveGameMode = GAMEMODES.INVALID
         self._currentActiveGameModeObject = None
 
     def _triggerQuit(self):
         post(Event(QUIT))
     
-    def _switchToNextGameMode(self):
-        self.laytonState.setGameMode(self.laytonState.getGameModeNext())
-        self.laytonState.setGameModeNext(GAMEMODES.INVALID)
-
     def update(self, gameClockDelta):
 
-        def startObscuration():
+        def readyScreenFadeOut():
             self.screenControllerObject.obscureViewLayer()
-            self.waitingForFadeOut = True
+            self._waitingForFadeOut = True
+        
+        def readyGameModeSwitch(nextGameMode):
+            if self.screenControllerObject.getFaderIsViewObscured():
+                self._voidGameMode()
+                self._loadGameMode(nextGameMode)
+            else:
+                readyScreenFadeOut()
 
-        if not(self.waitingForFadeOut):
-            if self._currentActiveGameMode != self.laytonState.getGameMode().value or self.laytonState.gameModeRestartRequired:
-                # Active gamemode is outdated, so kill the current instance and load the new one.
-                if self._currentActiveGameModeObject != None and not(self._currentActiveGameModeObject.getContextState()):
-                    # Don't kill a layer that isn't actually finished, or this can cause a softlock
-                    pass
+        if not(self._waitingForFadeOut):
+            if self._currentActiveGameModeObject != None:
+                if self._currentActiveGameModeObject.getContextState():
+                    # If the current gamemode is finised (equivalent to code on exit in binary, works on stack), terminate and reload current gamemode (which should've changed)
+                    readyGameModeSwitch(self.laytonState.getGameMode())
+            else:
+                if self._currentActiveGameMode != self.laytonState.getGameMode():
+                    # If first run, spawn initial game mode
+                    readyGameModeSwitch(self.laytonState.getGameMode())
+                elif self.laytonState.getGameModeNext() != self.laytonState.getGameMode():
+                    # Hack: If there is an unimplemented (or invalid) state loaded, attempt to load the next gamemode instead.
+                    readyGameModeSwitch(self.laytonState.getGameModeNext())
                 else:
-                    if self.screenControllerObject.getFaderIsViewObscured():
-                        if self._currentActiveGameModeObject != None:
-                            self.removeFromCollection(self._layers.index(self._currentActiveGameModeObject))
-                        
-                        self._loadGameMode(self.laytonState.getGameMode().value)
-                        self.laytonState.gameModeRestartRequired = False
-                    else:
-                        startObscuration()
-
-            elif self._currentActiveGameMode == GAMEMODES.INVALID.value:
-                # Execution hit the invalid state, meaning that it's time to end
-                self._triggerQuit()
-
-            elif not(self.laytonState.gameModeRestartRequired) and (self._currentActiveGameModeObject == None or self._currentActiveGameModeObject.getContextState()):
-                # The current layer is finished, so the next one can now be loaded
-
-                # If there was a layer running (not virtual), remove it from the collection
-                if self.screenControllerObject.getFaderIsViewObscured():
-                    if self._currentActiveGameModeObject != None:
-                        self.removeFromCollection(self._layers.index(self._currentActiveGameModeObject))
-
-                    # As there is nothing associated with the running handler anymore, void the current instance
-                    self._voidGameMode()
-
-                    # Load next game mode for for next update to grab
-                    self._switchToNextGameMode()
-                else:
-                    startObscuration()
-
+                    # If neither the current or next gamemode spawned a handler, terminate the game.
+                    self._triggerQuit()
         elif self.screenControllerObject.getFaderIsViewObscured():
-            self.waitingForFadeOut = False
-
+            self._waitingForFadeOut = False
+        
         # Override original update to ensure game mode object cannot be deleted, as logic above does that properly
         for indexLayer in range(len(self._layers) - 1, -1, -1):
             layer = self._layers[indexLayer]

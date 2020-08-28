@@ -89,7 +89,7 @@ class NarrationPlayer(ScreenLayerNonBlocking):
                 startIndex, stopIndex = self._arrangementSlides.pop(0)
                 self._popup = NarrationPopup(self._animNarration, startIndex, stopIndex, 0, switchSlide)
             else:
-                self._canBeKilled = True
+                self.doOnKill()
 
         def makeActive():
             switchSlide()        
@@ -120,11 +120,15 @@ class NarrationPlayer(ScreenLayerNonBlocking):
             self._countNarrationSlides = COUNT_ANI_NARRATION_3
             self._arrangementSlides = SLIDES_ANI_NARRATION_3
         else:
-            self._canBeKilled = True
+            self.doOnKill()
         
-        if not(self._canBeKilled):
+        if not(self.getContextState()):
             self.screenController.fadeInMain(callback=makeActive)
     
+    def doOnKill(self):
+        self.laytonState.setGameMode(self.laytonState.getGameModeNext())
+        return super().doOnKill()
+
     def update(self, gameClockDelta):
         if self._popup != None:
             self._popup.update(gameClockDelta)

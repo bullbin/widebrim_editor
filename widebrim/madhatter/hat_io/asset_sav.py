@@ -557,8 +557,9 @@ class Layton2SaveSlot():
         self.photoPieceFlag         = FlagsAsArray.fromBytes(reader.read(2))
         self.tutorialFlag           = FlagsAsArray.fromBytes(reader.read(2))
 
-        reader.seek(3,1)
+        reader.seek(1,1)
 
+        self.idHeldAutoEvent        = reader.readS16()
         self.idImmediateEvent       = reader.readS16()
         self.anthonyDiaryState      = EnableNewFlagState.fromBytes(reader.read(4), 12, 2)
 
@@ -621,8 +622,7 @@ class Layton2SaveSlot():
             data.write(self.tutorialFlag.toBytes(outLength=2))
 
             data.pad(1, padChar = b'\x00')
-            data.pad(2, padChar = b'\xff')
-
+            data.writeInt(self.idHeldAutoEvent, 2, signed=True)
             data.writeInt(self.idImmediateEvent, 2, signed=True)
             data.write(self.anthonyDiaryState.toBytes(2))
 

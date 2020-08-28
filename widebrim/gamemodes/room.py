@@ -22,6 +22,7 @@ def wasBoundingCollided(bounding, pos):
     return False
 
 # TODO - Hardcoded position for cursor: 207,105
+# TODO - MenuNewFlag 0 is the memo
 
 class RoomPlayer(ScreenLayerNonBlocking):
 
@@ -59,7 +60,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
         ScreenLayerNonBlocking.__init__(self)
 
         def getPlaceData():
-            if laytonState.saveSlot.roomIndex < 40:
+            if laytonState.getPlaceNum() < 40:
                 packPlaceData = FileInterface.getData(PATH_PLACE_A)
             else:
                 packPlaceData = FileInterface.getData(PATH_PLACE_B)
@@ -73,7 +74,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
                 except:
                     raise FileInvalidCritical()
 
-            namePlace = PATH_PACK_PLACE % (laytonState.saveSlot.roomIndex, laytonState.saveSlot.roomSubIndex)
+            namePlace = PATH_PACK_PLACE % (laytonState.getPlaceNum(), laytonState.saveSlot.roomSubIndex)
             return packPlace.getFile(namePlace)
 
         self.laytonState = laytonState
@@ -100,10 +101,10 @@ class RoomPlayer(ScreenLayerNonBlocking):
         # If not, only the bottom screen fades in.
 
         if self._executeAutoEvent():
-            self.laytonState.setGameModeNext(GAMEMODES.DramaEvent)
+            self.laytonState.setGameMode(GAMEMODES.DramaEvent)
             self._canBeKilled = True
         else:
-            print("Loaded room", self.laytonState.saveSlot.roomIndex, self.laytonState.saveSlot.roomSubIndex)
+            print("Loaded room", self.laytonState.getPlaceNum(), self.laytonState.saveSlot.roomSubIndex)
             placeDataBytes = getPlaceData()
             if placeDataBytes == None:
                 raise FileInvalidCritical()
@@ -216,12 +217,12 @@ class RoomPlayer(ScreenLayerNonBlocking):
         
         def doExit(exitEntry):
             if exitEntry.canSpawnEvent():
-                self.laytonState.setGameModeNext(GAMEMODES.DramaEvent)
+                self.laytonState.setGameMode(GAMEMODES.DramaEvent)
                 self.laytonState.setEventId(exitEntry.spawnData)
             else:
                 # TODO - Replicate in-game behaviour. Currently just terminating
-                self.laytonState.setGameModeNext(GAMEMODES.Room)
-                self.laytonState.saveSlot.roomIndex = exitEntry.spawnData
+                self.laytonState.setGameMode(GAMEMODES.Room)
+                self.laytonState.setPlaceNum(exitEntry.spawnData)
             self.startTermination()
 
         # TODO - Stop interaction on blocking event
@@ -267,7 +268,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
                     for indexEvent in range(self.placeData.getCountObjEvents()):
                         objEvent = self.placeData.getObjEvent(indexEvent)
                         if wasBoundingCollided(objEvent.bounding, boundaryTestPos):
-                            self.laytonState.setGameModeNext(GAMEMODES.DramaEvent)
+                            self.laytonState.setGameMode(GAMEMODES.DramaEvent)
                             self.laytonState.setEventId(objEvent.idEvent)
                             self.startTermination()
                             return super().handleTouchEvent(event)
@@ -275,15 +276,15 @@ class RoomPlayer(ScreenLayerNonBlocking):
                     for indexHint in range(self.placeData.getCountHintCoin()):
                         objHint = self.placeData.getObjHintCoin(indexHint)
                         if wasBoundingCollided(objHint.bounding, boundaryTestPos):
-                            if not(self.laytonState.saveSlot.roomHintData.getRoomHintData(self.laytonState.saveSlot.roomIndex).hintsFound[indexHint]):
-                                self.laytonState.saveSlot.roomHintData.getRoomHintData(self.laytonState.saveSlot.roomIndex).hintsFound[indexHint] = True
+                            if not(self.laytonState.saveSlot.roomHintData.getRoomHintData(self.laytonState.getPlaceNum()).hintsFound[indexHint]):
+                                self.laytonState.saveSlot.roomHintData.getRoomHintData(self.laytonState.getPlaceNum()).hintsFound[indexHint] = True
                                 self.laytonState.saveSlot.hintCoinEncountered += 1
                                 self.laytonState.saveSlot.hintCoinAvailable += 1
                                 print("Found a hint coin!")
 
-                                if indexHint == 0 and self.laytonState.saveSlot.roomIndex == 3:
+                                if indexHint == 0 and self.laytonState.getPlaceNum() == 3:
                                     # Hardcoded behaviour to force the event after encountering first hint coin to play out
-                                    self.laytonState.setGameModeNext(GAMEMODES.DramaEvent)
+                                    self.laytonState.setGameMode(GAMEMODES.DramaEvent)
                                     self.laytonState.setEventId(10080)
                                     self.startTermination()
                                     return super().handleTouchEvent(event)
@@ -298,7 +299,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
             self.textObjective = generateImageFromString(self.laytonState.fontEvent, tempPack.getFile(PATH_TEXT_GOAL % self.laytonState.saveSlot.goal).decode('ascii'))
             tempPack = LaytonPack()
             tempPack.load(FileInterface.getData(PATH_PACK_PLACE_NAME % self.laytonState.language.value))
-            self.textRoomTitle = generateImageFromString(self.laytonState.fontEvent, tempPack.getFile(PATH_TEXT_PLACE_NAME % self.laytonState.saveSlot.roomIndex).decode('ascii'))
+            self.textRoomTitle = generateImageFromString(self.laytonState.fontEvent, tempPack.getFile(PATH_TEXT_PLACE_NAME % self.laytonState.getPlaceNum()).decode('ascii'))
 
             self.posObjective = (RoomPlayer.POS_CENTER_TEXT_OBJECTIVE[0] - self.textObjective.get_width() // 2, RoomPlayer.POS_CENTER_TEXT_OBJECTIVE[1])
             self.posRoomTitle = (RoomPlayer.POS_CENTER_TEXT_ROOM_TITLE[0] - self.textRoomTitle.get_width() // 2, RoomPlayer.POS_CENTER_TEXT_ROOM_TITLE[1])
@@ -309,10 +310,16 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
     def _executeAutoEvent(self):
 
-        def hasAutoEventBeenExecuted(eventId):
+        def getEventInfoEventViewedIdFlag(eventId):
             eventInfo = self.laytonState.getEventInfoEntry(eventId)
-            if eventInfo.indexEventViewedFlag != None:
-                return self.laytonState.saveSlot.eventViewed.getSlot(eventInfo.indexEventViewedFlag)
+            if eventInfo == None:
+                return eventInfo
+            return eventInfo.indexEventViewedFlag
+
+        def hasAutoEventBeenExecuted(eventId):
+            eventViewedFlag = getEventInfoEventViewedIdFlag(eventId)
+            if eventViewedFlag != None:
+                return self.laytonState.saveSlot.eventViewed.getSlot(eventViewedFlag)
             return False
 
         autoEvent = self.laytonState.dbAutoEvent
@@ -320,7 +327,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
         autoEventId = None
         for entryId in range(8):
             # Chapter definitely used here
-            entry = autoEvent.entries[self.laytonState.saveSlot.roomIndex].getSubPlaceEntry(entryId)
+            entry = autoEvent.entries[self.laytonState.getPlaceNum()].getSubPlaceEntry(entryId)
             if entry != None and entry.chapterStart <= self.laytonState.saveSlot.chapter <= entry.chapterEnd:
                 autoEventId = entry.idEvent
         
@@ -328,6 +335,13 @@ class RoomPlayer(ScreenLayerNonBlocking):
             # TODO - Can there be multiple autoevents that pass the above check?
             if hasAutoEventBeenExecuted(autoEventId):
                 return False
+            
+            repeatId = getEventInfoEventViewedIdFlag(autoEventId)
+            if repeatId == self.laytonState.saveSlot.idHeldAutoEvent:
+                # TODO - Figure out exactly how game does this check. Hack implemented in setter for place which works around loops caused by
+                # repeating autoevents. Current implementation assumes room set will be executed, which could do weird stuff in longer event chains
+                return False
+
             self.laytonState.setEventId(autoEventId)
             return True
         return False
@@ -384,7 +398,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
             return output
 
         placeFlag = self.laytonState.dbPlaceFlag
-        indexRoom = self.laytonState.saveSlot.roomIndex
+        indexRoom = self.laytonState.getPlaceNum()
 
         print("\tPrior to calculation", self.laytonState.saveSlot.chapter)
         self._calculateChapter()

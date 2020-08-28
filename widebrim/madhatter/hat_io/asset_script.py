@@ -155,7 +155,7 @@ class GdScript(Script):
             elif lastType == 2: # Float
                 command.operands.append(Operand(lastType, reader.readF32()))
             elif lastType == 3: # String
-                command.operands.append(Operand(lastType, reader.read(reader.readU16()).decode(ENCODING_DEFAULT_STRING)))
+                command.operands.append(Operand(lastType, reader.readPaddedString(reader.readU16(), ENCODING_DEFAULT_STRING)))
             elif lastType == 4: # Flags
                 command.operands.append(Operand(lastType, reader.read(reader.readU16())))
             elif lastType in [5,8,9,10,11,12]:  # Skip

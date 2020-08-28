@@ -1,7 +1,9 @@
 from enum import Enum
 
 class GAMEMODES(Enum):
-    INVALID     = 0
+    INVALID     = 255
+
+    Reset       = 0
     Room        = 1
     DramaEvent  = 3
     Movie       = 6

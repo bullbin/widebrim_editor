@@ -1,14 +1,15 @@
-from ..engine.state.layer import ScreenLayerNonBlocking
+from . import EventPlayer
 from ..engine.state.enum_mode import GAMEMODES
 
-class PuzzlePlayer(ScreenLayerNonBlocking):
+# Hack mixes Puzzle and EndPuzzle to skip gamemode correctly
+
+class PuzzlePlayer(EventPlayer):
     def __init__(self, laytonState, screenController):
-        ScreenLayerNonBlocking.__init__(self)
+
         laytonState.setGameModeNext(GAMEMODES.Room)
 
         baseEventId = laytonState.entryEvInfo
         if baseEventId != None:
-            # TODO - Has to be converted to external index, then subtracted 1.
 
             if laytonState.entryNzList != None:
                 laytonState.saveSlot.puzzleData.getPuzzleData(laytonState.entryNzList.idExternal - 1).wasSolved = True
@@ -16,6 +17,12 @@ class PuzzlePlayer(ScreenLayerNonBlocking):
 
             baseEventId = baseEventId.idEvent + 3
             laytonState.setEventId(baseEventId)
-            laytonState.setGameModeNext(GAMEMODES.DramaEvent)
-
-        self._canBeKilled = True
+            EventPlayer.__init__(self, laytonState, screenController)
+        else:
+            EventPlayer.__init__(self, laytonState, screenController)
+            self._makeInactive()
+            self.doOnKill()
+    
+    def doOnKill(self):
+        self.laytonState.setGameMode(self.laytonState.getGameModeNext())
+        return super().doOnKill()

@@ -125,6 +125,7 @@ class AnimatedImageObject():
         def searchFirstNullTerminatedString(inString):
             # Catches b2 normal on Layton.
             # TODO - Check string compare function
+            # TODO - Check if anim reset if same anim set twice
             inString = inString.split("\x00")[0]
             for key in self._animations:
                 lengthShortest = min(len(name), len(key))
@@ -134,7 +135,7 @@ class AnimatedImageObject():
 
         if name in self._animations:
             self.animActive = self._animations[name]
-        else:
+        elif type(name) == str:
             self.animActive = searchFirstNullTerminatedString(name)
         self._setAnimationFromActive()
         return not(self.animActive == None)

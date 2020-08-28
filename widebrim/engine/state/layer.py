@@ -11,6 +11,9 @@ class ScreenLayer():
     def getContextState(self):
         return self._canBeKilled
     
+    def doOnKill(self):
+        self._canBeKilled = True
+
     def draw(self, gameDisplay):
         pass
     
