@@ -1,4 +1,5 @@
 # Dumped from text decoding function found in Ghidra
+# TODO - Grab from ROM at boot
 DECODE_MAP = {"C=":"€",
               ",":"‚",
               ",,":"„",

@@ -1,23 +1,25 @@
-from ..engine.state.enum_mode import GAMEMODES
-from ..engine.anim.image_anim import AnimatedImageObject
-from ..engine.anim.fader import Fader
-from ..engine.anim.font.scrolling import ScrollingFontHelper
-from ..engine.exceptions import FileInvalidCritical
-from ..engine.file import FileInterface
-from .core_popup.script import ScriptPlayer
+from ...engine.state.enum_mode import GAMEMODES
+from ...engine.anim.image_anim import AnimatedImageObject
+from ...engine.anim.fader import Fader
+from ...engine.anim.font.scrolling import ScrollingFontHelper
+from ...engine.exceptions import FileInvalidCritical
+from ...engine.file import FileInterface
+from ..core_popup.script import ScriptPlayer
 
-from ..engine.const import RESOLUTION_NINTENDO_DS, PATH_FACE_ROOT, PATH_BODY_ROOT
-from ..engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C
-from ..engine.const import PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, PATH_PACK_TALK, PATH_EVENT_BG, PATH_PLACE_BG, PATH_EVENT_ROOT, PATH_ANI, PATH_NAME_ROOT
+from ...engine.const import RESOLUTION_NINTENDO_DS, PATH_FACE_ROOT, PATH_BODY_ROOT
+from ...engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C
+from ...engine.const import PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, PATH_PACK_TALK, PATH_EVENT_BG, PATH_PLACE_BG, PATH_EVENT_ROOT, PATH_ANI, PATH_NAME_ROOT
 
-from ..madhatter.hat_io.asset import LaytonPack
-from ..madhatter.hat_io.asset_script import GdScript
-from ..madhatter.hat_io.asset_sav import FlagsAsArray
-from ..madhatter.hat_io.asset_image import AnimatedImage
-from ..madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from ...madhatter.hat_io.asset import LaytonPack
+from ...madhatter.hat_io.asset_script import GdScript
+from ...madhatter.hat_io.asset_sav import FlagsAsArray
+from ...madhatter.hat_io.asset_image import AnimatedImage
+from ...madhatter.typewriter.stringsLt2 import OPCODES_LT2
+
+from .const import *
 
 # TODO - Remove workaround by properly creating library
-from ..madhatter.hat_io.binary import BinaryReader
+from ...madhatter.hat_io.binary import BinaryReader
 
 from pygame import Surface, MOUSEBUTTONUP
 from pygame.transform import flip
@@ -364,7 +366,18 @@ class EventPlayer(ScriptPlayer):
                     raise FileInvalidCritical()
             
                 eventData = BinaryReader(data=eventData)
+
+                # Event_MaybeLoadEvent
+                # Wants to set gamemode to puzzle, but this is overriden by setting to room. Done in different functions in game but both run during event
+                if ID_EVENT_PUZZLE <= spawnId < ID_EVENT_TEA and self.laytonState.entryEvInfo != None and self.laytonState.entryEvInfo.dataPuzzle != None:
+                    self.laytonState.setPuzzleId(self.laytonState.entryEvInfo.dataPuzzle)
+                    self.laytonState.setGameModeNext(GAMEMODES.EndPuzzle)
+                
+                if self.laytonState.entryEvInfo != None and self.laytonState.entryEvInfo.indexEventViewedFlag != None:
+                    self.laytonState.saveSlot.eventViewed.setSlot(True, self.laytonState.entryEvInfo.indexEventViewedFlag)
+
                 self.screenController.setBgMain(PATH_PLACE_BG % eventData.readU16())
+                # TODO - Game isolates certain range of images which it wants language-specific backgrounds for
                 self.screenController.setBgSub(PATH_EVENT_BG % eventData.readU16())
 
                 introBehaviour = eventData.readUInt(1)
@@ -410,10 +423,6 @@ class EventPlayer(ScriptPlayer):
                 print("\tUpdated goal to", goalInfoEntry.goal)
                 self.laytonState.saveSlot.goal = goalInfoEntry.goal
 
-            if not(self._canBeKilled):
-                if self.laytonState.entryEvInfo != None and self.laytonState.entryEvInfo.indexEventViewedFlag != None:
-                    self.laytonState.saveSlot.eventViewed.setSlot(True, self.laytonState.entryEvInfo.indexEventViewedFlag)
-
     def doOnKill(self):
         # TODO - Research more into next handler. What happens if the next gamemode is set in chapter event? Or normal gamemode?
         # When reaching a forced save screen, will this force the event to run twice? Perhaps hitting no on the question to save invalidates this event.
@@ -443,28 +452,36 @@ class EventPlayer(ScriptPlayer):
         self._makeActive()
 
     def _doUnpackedCommand(self, opcode, operands):
+
+        def isCharacterSlotValid(indexSlot):
+            if type(indexSlot) == int and 0 <= indexSlot <= 7:
+                if indexSlot < len(self.characters):
+                    return True
+            return False
+
         if opcode == OPCODES_LT2.TextWindow.value:
             self.talkScript = GdScript()
             self.talkScript.load(self._packEventTalk.getFile(PATH_PACK_TALK % (self._idMain, self._idSub, operands[0].value)), isTalkscript=True)
             self._popup = TextWindow(self.laytonState, self.characterSpawnIdToCharacterMap, self.talkScript)
 
         elif opcode == OPCODES_LT2.SpriteOn.value:
-            if 0 <= operands[0].value < len(self.characters):
+            if isCharacterSlotValid(operands[0].value):
                 self.characters[operands[0].value].setVisibility(True)
 
         elif opcode == OPCODES_LT2.SpriteOff.value:
-            if 0 <= operands[0].value < len(self.characters):
+            if isCharacterSlotValid(operands[0].value):
                 self.characters[operands[0].value].setVisibility(False)
 
         elif opcode == OPCODES_LT2.DoSpriteFade.value:
-            self.characters[operands[0].value].setVisibility(operands[1].value >= 0)
+            if isCharacterSlotValid(operands[0].value):
+                self.characters[operands[0].value].setVisibility(operands[1].value >= 0)
 
         elif opcode == OPCODES_LT2.DrawChapter.value:
             self.screenController.fadeOutMain(duration=0, callback=self._spriteOffAllCharacters)
             return super()._doUnpackedCommand(opcode, operands)
         
         elif opcode == OPCODES_LT2.SetSpritePos.value:
-            if operands[0].value < len(self.characters):
+            if isCharacterSlotValid(operands[0].value):
                 self.characters[operands[0].value].setCharacterSlot(operands[1].value)
         
         elif opcode == OPCODES_LT2.SetSpriteAnimation.value:

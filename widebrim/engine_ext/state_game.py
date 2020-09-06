@@ -3,7 +3,7 @@ from ..engine.state.enum_mode import GAMEMODES
 from ..engine.const import RESOLUTION_NINTENDO_DS
 from ..engine.anim.fader import Fader
 
-from ..gamemodes import EventPlayer, RoomPlayer, NarrationPlayer, PuzzlePlayer, EventTeaPlayer, TitlePlayer, NamePlayer
+from ..gamemodes import EventPlayer, RoomPlayer, NarrationPlayer, PuzzlePlayer, EventTeaPlayer, TitlePlayer, NamePlayer, EndPuzzlePlayer
 from ..gamemodes.core_popup.reset import ResetHelper
 
 from ..engine.custom_events import ENGINE_SKIP_CLOCK
@@ -16,6 +16,7 @@ GAMEMODE_TO_HANDLER = {GAMEMODES.Reset:ResetHelper,
                        GAMEMODES.DramaEvent:EventPlayer,
                        GAMEMODES.Room:RoomPlayer,
                        GAMEMODES.Narration:NarrationPlayer,
+                       GAMEMODES.EndPuzzle:EndPuzzlePlayer,
                        GAMEMODES.Puzzle:PuzzlePlayer,
                        GAMEMODES.EventTea:EventTeaPlayer,
                        GAMEMODES.Title:TitlePlayer,

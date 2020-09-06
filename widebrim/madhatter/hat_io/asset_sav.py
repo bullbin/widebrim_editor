@@ -500,6 +500,7 @@ class Layton2SaveSlot():
         self.tutorialFlag           = FlagsAsArray(16)
 
         self.anthonyDiaryState      = EnableNewFlagState(12)
+        self.idHeldAutoEvent        = -1
         self.idImmediateEvent       = -1
 
         self.goal                   = 100

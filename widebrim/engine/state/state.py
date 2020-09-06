@@ -32,6 +32,7 @@ class Layton2GameState():
         self.namePlace      = ""
 
         self.isFirstTouchEnabled = False
+        self.wasPuzzleSkipped    = False
 
         self.dbPlaceFlag        = PlaceFlag()
         self.dbStoryFlag        = StoryFlag()
@@ -189,11 +190,20 @@ class Layton2GameState():
         if self.entryNzList == None:
             print("Failed to update entry!")
 
+    def getCurrentNazoListEntry(self):
+        return self.entryNzList
+
     def getNazoListEntry(self, idInternal):
         idEntry = self._dbNazoList.searchForEntry(idInternal)
         if idEntry != None:
             return self._dbNazoList.getEntry(idEntry)
         return None
+
+    def loadCurrentNazoData(self):
+        return True
+
+    def unloadCurrentNazoData(self):
+        pass
 
     def loadChapterInfoDb(self):
         self._dbChapterInfo = ChapterInfo()
