@@ -738,7 +738,13 @@ class Layton2SaveFile(File):
                 header.writePaddedString(saveSlot.name, 20, ENCODING_DEFAULT_STRING)
                 header.writeInt(saveSlot.roomIndex, 1)
                 header.pad(23)  # Something triggers game to write string data to this instead
+                
+                # TODO - Add overflow checks to writer
+                while saveSlot.timeElapsed >= 0xffffffff:
+                    saveSlot.timeElapsed -= 0xffffffff
+
                 header.writeInt(saveSlot.timeElapsed, 4)
+
                 solved, encountered = saveSlot.getSolvedAndEncounteredPuzzleCount()
                 header.writeInt(solved, 2)
                 header.writeInt(encountered, 2)

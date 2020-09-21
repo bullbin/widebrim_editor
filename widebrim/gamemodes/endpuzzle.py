@@ -10,7 +10,13 @@ class EndPuzzlePlayer(EventPlayer):
         baseEventId = laytonState.entryEvInfo
         if baseEventId != None:
             # TODO - Check if puzzle was actually solved
-            baseEventId = baseEventId.idEvent + 3
+
+            # There's special behaviour for puzzle 135 (sword puzzle)
+            if baseEventId.dataPuzzle == 0x87:
+                baseEventId = baseEventId.idEvent + 4
+            else:
+                baseEventId = baseEventId.idEvent + 3
+                
             laytonState.setEventId(baseEventId)
             EventPlayer.__init__(self, laytonState, screenController)
         else:

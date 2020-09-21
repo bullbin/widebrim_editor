@@ -1,10 +1,10 @@
 from ...madhatter.hat_io.asset_image import Animation
 from ..const import TIME_FRAMECOUNT_TO_MILLISECONDS
+from ..convenience import initDisplay
 
 # TODO - Fix imports for only image
 import pygame
-# TODO - Init display centrally elsewhere
-pygame.display.set_mode((256, 384))
+initDisplay()
 
 class AnimationSequence(Animation):
     def __init__(self):

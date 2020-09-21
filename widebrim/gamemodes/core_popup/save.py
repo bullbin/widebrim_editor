@@ -58,8 +58,10 @@ class SaveLoadScreenPopup(MainScreenPopup):
 
         def callbackOnSlotAccessed():
             if mode == SaveLoadScreenPopup.MODE_LOAD:
+                laytonState.timeStartTimer()
                 laytonState.saveSlot = self.saveData.getSlotData(self.slotActive)
             else:
+                laytonState.timeUpdateStoredTime()
                 print("Saving unsupported!")
 
             callbackOnSlot()

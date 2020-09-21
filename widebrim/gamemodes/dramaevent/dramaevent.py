@@ -460,9 +460,14 @@ class EventPlayer(ScriptPlayer):
             return False
 
         if opcode == OPCODES_LT2.TextWindow.value:
-            self.talkScript = GdScript()
-            self.talkScript.load(self._packEventTalk.getFile(PATH_PACK_TALK % (self._idMain, self._idSub, operands[0].value)), isTalkscript=True)
-            self._popup = TextWindow(self.laytonState, self.characterSpawnIdToCharacterMap, self.talkScript)
+            tempTalkScript = self._packEventTalk.getFile(PATH_PACK_TALK % (self._idMain, self._idSub, operands[0].value))
+            if tempTalkScript != None:
+                self.talkScript = GdScript()
+                self.talkScript.load(tempTalkScript, isTalkscript=True)
+                self._popup = TextWindow(self.laytonState, self.characterSpawnIdToCharacterMap, self.talkScript)
+            else:
+                # TODO - In reality, if talkscript fails the popup will still appear with whatever text was left in the string buffer
+                print("\tTalk script missing!", PATH_PACK_TALK % (self._idMain, self._idSub, operands[0].value))
 
         elif opcode == OPCODES_LT2.SpriteOn.value:
             if isCharacterSlotValid(operands[0].value):
@@ -504,7 +509,8 @@ class EventPlayer(ScriptPlayer):
 
         elif opcode == OPCODES_LT2.DoItemAddScreen.value:
             self.laytonState.saveSlot.storyItemFlag.setSlot(True, operands[0].value)
-            self._popup = PlaceholderPopup()
+            if operands[0].value != 2:
+                self._popup = PlaceholderPopup()
         
         elif opcode == OPCODES_LT2.SetSubItem.value:
             self._popup = PlaceholderPopup()

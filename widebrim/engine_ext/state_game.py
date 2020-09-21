@@ -3,7 +3,7 @@ from ..engine.state.enum_mode import GAMEMODES
 from ..engine.const import RESOLUTION_NINTENDO_DS
 from ..engine.anim.fader import Fader
 
-from ..gamemodes import EventPlayer, RoomPlayer, NarrationPlayer, PuzzlePlayer, EventTeaPlayer, TitlePlayer, NamePlayer, EndPuzzlePlayer
+from ..gamemodes import EventPlayer, RoomPlayer, NarrationPlayer, PuzzlePlayer, EventTeaPlayer, TitlePlayer, NamePlayer, EndPuzzlePlayer, MoviePlayer
 from ..gamemodes.core_popup.reset import ResetHelper
 
 from ..engine.custom_events import ENGINE_SKIP_CLOCK
@@ -18,6 +18,7 @@ GAMEMODE_TO_HANDLER = {GAMEMODES.Reset:ResetHelper,
                        GAMEMODES.Narration:NarrationPlayer,
                        GAMEMODES.EndPuzzle:EndPuzzlePlayer,
                        GAMEMODES.Puzzle:PuzzlePlayer,
+                       GAMEMODES.Movie:MoviePlayer,
                        GAMEMODES.EventTea:EventTeaPlayer,
                        GAMEMODES.Title:TitlePlayer,
                        GAMEMODES.Name:NamePlayer,
@@ -311,6 +312,7 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
                     readyGameModeSwitch(self.laytonState.getGameMode())
                 elif self.laytonState.getGameModeNext() != self.laytonState.getGameMode():
                     # Hack: If there is an unimplemented (or invalid) state loaded, attempt to load the next gamemode instead.
+                    print("Hack: Skip gamemode to", self.laytonState.getGameModeNext())
                     readyGameModeSwitch(self.laytonState.getGameModeNext())
                 else:
                     # If neither the current or next gamemode spawned a handler, terminate the game.

@@ -21,7 +21,7 @@ class FileInterface():
             raise RomInvalid
     else:
         raise PathInvalidRom
-    
+
     @staticmethod
     def _isPathAvailableRom(filepath):
         # debugSeverePrint("RomCheck", resolveFilepath(filepath))
@@ -46,3 +46,13 @@ class FileInterface():
     @staticmethod
     def getData(filepath):
         return FileInterface._dataFromRom(filepath)
+    
+    @staticmethod
+    def isRunningFromRom():
+        return True
+    
+    @staticmethod
+    def getRom():
+        if FileInterface.isRunningFromRom():
+            return FileInterface._rom
+        return None

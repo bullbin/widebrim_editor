@@ -9,6 +9,7 @@ from ...gamemodes.core_popup.save import SaveLoadScreenPopup
 
 # Here to expose for quick launchers to be able to immediately launch a slot
 def behaviourOnContinue(laytonState):
+    # TODO - Does time increase while in secret mode as well?
     chapterEntry = laytonState.getChapterInfEntry()
     if chapterEntry != None:
         laytonState.setGameMode(GAMEMODES.DramaEvent)

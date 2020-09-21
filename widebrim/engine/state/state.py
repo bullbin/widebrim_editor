@@ -13,6 +13,8 @@ from ..file import FileInterface
 
 from ...engine.anim.font.nftr_decode import NftrTiles
 
+from time import time
+
 from .enum_mode import GAMEMODES
 
 class Layton2GameState():
@@ -78,9 +80,30 @@ class Layton2GameState():
 
         self.entryEvInfo    = None
         self.entryNzList    = None
-    
+
+        self.__isTimeStarted = False
+        self.__timeStarted = 0
+
+    def timeGetStartedState(self):
+        return self.__isTimeStarted
+
+    def timeStartTimer(self):
+        self.__isTimeStarted = True
+        self.__timeStarted = time()
+
+    def timeUpdateStoredTime(self):
+        if self.timeGetStartedState():
+            # TODO - Access method which changes the header time and save slot time simulataneously
+            # This is only used to verify whether the save was tampered with which isn't that accuracy anyway
+            # TODO - Is the padding after the time variable actually where the counting time is stored?
+            self.saveSlot.timeElapsed = max(round(time() - self.__timeStarted), 0) + self.saveSlot.timeElapsed
+            self.__timeStarted = time()
+
     def setMovieNum(self, movieNum):
         self._idMovieNum = movieNum
+    
+    def getMovieNum(self):
+        return self._idMovieNum
 
     def setPlaceNum(self, placeNum):
         if self.saveSlot.roomIndex != placeNum:
