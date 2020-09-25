@@ -32,7 +32,7 @@ class ScriptPlayer(ScreenLayerNonBlocking):
             if self._popup != None:
                 self._popup.update(gameClockDelta)
                 # TODO - Change to some other way of detecting finished state
-                if self._popup.canBeTerminated:
+                if self._popup.getContextState():
                     self._popup = None
             else:
                 while self._popup == None and self._isActive and self._indexScriptCommand < self._script.getInstructionCount():

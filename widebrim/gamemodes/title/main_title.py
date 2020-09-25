@@ -1,4 +1,4 @@
-from .utils import getAnimFromPath, TitlePlayerBottomScreenOverlay
+from ...engine_ext.utils import getAnimFromPathWithAttributes
 from ...engine_ext.utils import getImageFromPath
 from .const import PATH_ANIM_SENRO, PATH_ANIM_TRAIN, PATH_ANIM_WAKU, PATH_BG_TITLE, PATH_BUTTON_NEW_GAME, PATH_BUTTON_CONTINUE, PATH_BUTTON_BONUS
 from ...engine.const import RESOLUTION_NINTENDO_DS
@@ -6,11 +6,17 @@ from ...engine.state.layer import ScreenLayerNonBlocking
 from ...engine.state.enum_mode import GAMEMODES
 from ...engine.anim.button import AnimatedButton
 
+class TitlePlayerBottomScreenOverlay(ScreenLayerNonBlocking):
+    def __init__(self, laytonState, screenController, saveData, routineTitleScreen, routineContinue, routineBonus, routineTerminate):
+        ScreenLayerNonBlocking.__init__(self)
+        self.screenController = screenController
+        self.laytonState = laytonState
+
 class MenuScreen(TitlePlayerBottomScreenOverlay):
 
-    ANIM_TRAIN  = getAnimFromPath(PATH_ANIM_TRAIN)
-    ANIM_SENRO  = getAnimFromPath(PATH_ANIM_SENRO)
-    ANIM_WAKU   = getAnimFromPath(PATH_ANIM_WAKU)
+    ANIM_TRAIN  = getAnimFromPathWithAttributes(PATH_ANIM_TRAIN)
+    ANIM_SENRO  = getAnimFromPathWithAttributes(PATH_ANIM_SENRO)
+    ANIM_WAKU   = getAnimFromPathWithAttributes(PATH_ANIM_WAKU)
 
     BUTTON_NEW      = None
     BUTTON_CONT     = None
@@ -43,16 +49,16 @@ class MenuScreen(TitlePlayerBottomScreenOverlay):
             self.routineTerminate()
 
         if MenuScreen.BUTTON_BONUS == None:
-            MenuScreen.BUTTON_BONUS = AnimatedButton(getAnimFromPath(PATH_BUTTON_BONUS % laytonState.language.value), "on", "off", callback=routineBonus)
+            MenuScreen.BUTTON_BONUS = AnimatedButton(getAnimFromPathWithAttributes(PATH_BUTTON_BONUS % laytonState.language.value), "on", "off", callback=routineBonus)
 
         if MenuScreen.BUTTON_NEW == None:
             if self.isActive:
-                MenuScreen.BUTTON_NEW = AnimatedButton(getAnimFromPath(PATH_BUTTON_NEW_GAME % laytonState.language.value), "on", "off", callback=callbackOnNewGame)
+                MenuScreen.BUTTON_NEW = AnimatedButton(getAnimFromPathWithAttributes(PATH_BUTTON_NEW_GAME % laytonState.language.value), "on", "off", callback=callbackOnNewGame)
             else:
-                MenuScreen.BUTTON_NEW = AnimatedButton(getAnimFromPath(PATH_BUTTON_NEW_GAME % laytonState.language.value, posVariable="pos2"), "on", "off", callback=callbackOnNewGame)
+                MenuScreen.BUTTON_NEW = AnimatedButton(getAnimFromPathWithAttributes(PATH_BUTTON_NEW_GAME % laytonState.language.value, posVariable="pos2"), "on", "off", callback=callbackOnNewGame)
 
         if MenuScreen.BUTTON_CONT == None:
-            MenuScreen.BUTTON_CONT = AnimatedButton(getAnimFromPath(PATH_BUTTON_CONTINUE % laytonState.language.value), "on", "off", callback=routineContinue)
+            MenuScreen.BUTTON_CONT = AnimatedButton(getAnimFromPathWithAttributes(PATH_BUTTON_CONTINUE % laytonState.language.value), "on", "off", callback=routineContinue)
     
     def update(self, gameClockDelta):
 

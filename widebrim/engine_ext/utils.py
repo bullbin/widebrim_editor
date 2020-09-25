@@ -1,8 +1,10 @@
 from ..madhatter.hat_io.asset_image import StaticImage
-from ..engine.const import PATH_BG_ROOT, PATH_ANI
+from ..engine.const import PATH_BG_ROOT, PATH_ANI, RESOLUTION_NINTENDO_DS
 from ..engine.file import FileInterface
 from ..madhatter.hat_io.asset_image import AnimatedImage
+from ..madhatter.hat_io.asset import LaytonPack
 from ..engine.anim.image_anim import AnimatedImageObject
+from ..engine.const import PATH_PACK_TXT2, PATH_PACK_TXT
 from pygame import image
 
 def getImageFromPath(laytonState, pathBg):
@@ -37,6 +39,21 @@ def getImageFromPath(laytonState, pathBg):
         return bg
     return image.fromstring(bg.convert("RGB").tobytes("raw", "RGB"), bg.size, "RGB").convert()
 
+def getPackedString(pathPack, nameString):
+    textPack = LaytonPack()
+    textPack.load(FileInterface.getData(pathPack))
+    tempString = textPack.getFile(nameString)
+    try:
+        return tempString.decode('shift-jis')
+    except:
+        return ""
+
+def getTxtString(laytonState, nameString):
+    return getPackedString(PATH_PACK_TXT2 % laytonState.language.value, nameString)
+
+def getTxt2String(laytonState, nameString):
+    return getPackedString(PATH_PACK_TXT2 % laytonState.language.value, nameString)
+
 def getAnimFromPath(inPath):
     if ".spr" in inPath:
         inPath = inPath.split("spr")[0] + "arc"
@@ -45,3 +62,13 @@ def getAnimFromPath(inPath):
         tempImage = AnimatedImageObject.fromMadhatter(AnimatedImage.fromBytesArc(tempAsset))
         return tempImage
     return tempAsset
+
+def getAnimFromPathWithAttributes(inPath, spawnAnimName="gfx", posVariable="pos"):
+    tempImage = getAnimFromPath(inPath)
+    tempImage.setAnimationFromName(spawnAnimName)
+    if tempImage.getVariable(posVariable) != None:
+        tempImage.setPos((tempImage.getVariable(posVariable)[0],
+                          tempImage.getVariable(posVariable)[1] + RESOLUTION_NINTENDO_DS[1]))
+    else:
+        tempImage.setPos((0, RESOLUTION_NINTENDO_DS[1]))
+    return tempImage

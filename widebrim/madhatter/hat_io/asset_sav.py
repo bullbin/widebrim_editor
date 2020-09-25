@@ -684,6 +684,13 @@ class Layton2SaveFile(File):
     
     def getSlotData(self, slot):
         return self._slots[slot]
+    
+    def setSlotData(self, indexSlot, slot):
+        if 0 <= indexSlot < len(self._slots):
+            if type(slot) == Layton2SaveSlot:
+                self._slots[indexSlot] = slot
+                return True
+        return False
 
     def load(self, data):
         reader = binary.BinaryReader(data=data)

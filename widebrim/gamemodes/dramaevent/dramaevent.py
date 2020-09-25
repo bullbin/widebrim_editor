@@ -16,6 +16,12 @@ from ...madhatter.hat_io.asset_sav import FlagsAsArray
 from ...madhatter.hat_io.asset_image import AnimatedImage
 from ...madhatter.typewriter.stringsLt2 import OPCODES_LT2
 
+from .storage import EventStorage
+from .popup.itemPickup import ItemPopup
+from .popup.stockScreen import StockPopup
+from .popup.doSaveScreen import SaveButtonPopup
+from ..core_popup.save import SaveLoadScreenPopup
+
 from .const import *
 
 # TODO - Remove workaround by properly creating library
@@ -59,6 +65,9 @@ class Popup():
 
     def draw(self, gameDisplay):
         pass
+
+    def getContextState(self):
+        return self.canBeTerminated
 
     def isPopupDone(self):
         return True
@@ -347,6 +356,8 @@ class EventPlayer(ScriptPlayer):
         self.nameCharacters = []
         self.characterSpawnIdToCharacterMap = {}
 
+        self._sharedImageHandler = EventStorage()
+
         if spawnId == -1:
             self.doOnKill()
         else:
@@ -502,7 +513,9 @@ class EventPlayer(ScriptPlayer):
             self._popup = PlaceholderPopup()
 
         elif opcode == OPCODES_LT2.DoStockScreen.value:
-            self._popup = PlaceholderPopup()
+            if self.laytonState.entryNzList != None:
+                if self.laytonState.entryNzList.idInternal != 0x87 and self.laytonState.entryNzList.idInternal != 0xcb:
+                    self._popup = StockPopup(self.laytonState, self.screenController, self._sharedImageHandler)
         
         elif opcode == OPCODES_LT2.DoNazobaListScreen.value:
             self._popup = PlaceholderPopup()
@@ -510,7 +523,7 @@ class EventPlayer(ScriptPlayer):
         elif opcode == OPCODES_LT2.DoItemAddScreen.value:
             self.laytonState.saveSlot.storyItemFlag.setSlot(True, operands[0].value)
             if operands[0].value != 2:
-                self._popup = PlaceholderPopup()
+                self._popup = ItemPopup(self.laytonState, self.screenController, self._sharedImageHandler, operands[0].value)
         
         elif opcode == OPCODES_LT2.SetSubItem.value:
             self._popup = PlaceholderPopup()
@@ -519,11 +532,25 @@ class EventPlayer(ScriptPlayer):
             self._popup = PlaceholderPopup()
         
         elif opcode == OPCODES_LT2.DoSaveScreen.value:
-            # TODO - Not accurate, but required to not softlock. Research required
-            self.screenController.fadeOut(callback=self._makeActive)
+
+            def clearPopup():
+                self._popup = None
+                self._spriteOffAllCharacters()
+
+            def callbackKillPopup():
+                self.screenController.fadeOut(callback=clearPopup)
+
+            def spawnSaveScreenAndTerminateCharacters():
+                self._popup = SaveLoadScreenPopup(self.laytonState, self.screenController, SaveLoadScreenPopup.MODE_SAVE, None, callbackKillPopup, callbackKillPopup)
+
+            def switchPopupToSaveScreen():
+                self.screenController.fadeOut(callback=spawnSaveScreenAndTerminateCharacters)
+
+            self._popup = SaveButtonPopup(self.laytonState, self.screenController, self._sharedImageHandler, switchPopupToSaveScreen, callbackKillPopup)
+            self._makeInactive()
+            # TODO - Not accurate. Research required
             if operands[0].value != -1:
                 self.laytonState.saveSlot.idImmediateEvent = operands[0].value
-            self._makeInactive()
         
         elif opcode == OPCODES_LT2.DoPhotoPieceAddScreen.value:
             self.laytonState.saveSlot.photoPieceFlag.setSlot(True, operands[0].value)
