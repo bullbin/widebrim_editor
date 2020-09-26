@@ -1,11 +1,12 @@
-from pygame import Surface, display, BLEND_RGB_MULT
+from pygame import Surface, BLEND_RGB_MULT
 from ...config import TIME_FRAMERATE
-from ...const import RESOLUTION_NINTENDO_DS
+from ...const import RESOLUTION_NINTENDO_DS, TIME_FRAMECOUNT_TO_MILLISECONDS
 from .const import BLEND_MAP
 from ...string import getSubstitutedString
 
-display.init()
-display.set_mode((RESOLUTION_NINTENDO_DS[0], RESOLUTION_NINTENDO_DS[1] * 2))
+from ...convenience import initDisplay
+
+initDisplay()
 
 class ScrollingFontHelper():
     def __init__(self, font, yBias = 4):
@@ -25,7 +26,7 @@ class ScrollingFontHelper():
         self._offsetText = 0
         self._hasCharsRemaining = False
 
-        self._durationPerChar = 1000 / TIME_FRAMERATE
+        self._durationPerChar = TIME_FRAMECOUNT_TO_MILLISECONDS
         self._durationCarried = 0
         self._durationWaiting = 0
 

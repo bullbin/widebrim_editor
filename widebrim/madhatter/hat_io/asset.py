@@ -373,6 +373,7 @@ class Archive(File):
                 dataOut.write(fileChunk.data)
     
     def getFile(self, name):
+        # TODO - Optimise with a dictionary
         for file in self.files:
             if file.name == name:
                 return file.data

@@ -36,6 +36,7 @@ class ScriptPlayer(ScreenLayerNonBlocking):
                     self._popup = None
             else:
                 while self._popup == None and self._isActive and self._indexScriptCommand < self._script.getInstructionCount():
+                    # print(self._indexScriptCommand, OPCODES_LT2(int.from_bytes(self._script.getInstruction(self._indexScriptCommand).opcode, byteorder = 'little')).name)
                     if not(self.executeCommand(self._script.getInstruction(self._indexScriptCommand))):
                         opcode = int.from_bytes(self._script.getInstruction(self._indexScriptCommand).opcode, byteorder = 'little')
                         print("\nUnimplemented", OPCODES_LT2(opcode).name)
@@ -80,12 +81,12 @@ class ScriptPlayer(ScreenLayerNonBlocking):
             self._indexScriptCommand = self._script.getInstructionCount()
 
         elif opcode == OPCODES_LT2.FadeIn.value:
-            self.screenController.fadeIn(callback=self._makeActive)
             self._makeInactive()
+            self.screenController.fadeIn(callback=self._makeActive)
 
         elif opcode == OPCODES_LT2.FadeOut.value:
-            self.screenController.fadeOut(callback=self._makeActive)
             self._makeInactive()
+            self.screenController.fadeOut(callback=self._makeActive)
 
         elif opcode == OPCODES_LT2.SetPlace.value:
             self.laytonState.setPlaceNum(operands[0].value)
@@ -116,24 +117,28 @@ class ScriptPlayer(ScreenLayerNonBlocking):
         elif opcode == OPCODES_LT2.DrawChapter.value:
             # TODO - Since its known faders only work when required, how does this event fade in the bottom screen when it should already be unobscured?
             # TODO - Think this will cause a bug where screen can be pressed without finishing fade in...
-            self.screenController.fadeOutMain(duration=0)
-            self.screenController.fadeInMain()
-            self.screenController.setBgMain(PATH_CHAP_ROOT % operands[0].value)
-            self._isWaitingForTouch = True
+
+            def callbackDrawChapter():
+                self.screenController.setBgMain(PATH_CHAP_ROOT % operands[0].value)
+                self.screenController.fadeInMain()
+                self._isWaitingForTouch = True
+                self._makeInactive()
+
             self._makeInactive()
+            self.screenController.fadeOutMain(callback=callbackDrawChapter)
 
         elif opcode == OPCODES_LT2.WaitFrame.value:
+            self._makeInactive()
             self._faderWait.setCallback(self._makeActive)
             self._faderWait.setDuration(TIME_FRAMECOUNT_TO_MILLISECONDS * operands[0].value)
-            self._makeInactive()
 
         elif opcode == OPCODES_LT2.FadeInOnlyMain.value:
-            self.screenController.fadeInMain(callback=self._makeActive)
             self._makeInactive()
+            self.screenController.fadeInMain(callback=self._makeActive)
 
         elif opcode == OPCODES_LT2.FadeOutOnlyMain.value:
-            self.screenController.fadeOutMain(callback=self._makeActive)
             self._makeInactive()
+            self.screenController.fadeOutMain(callback=self._makeActive)
 
         elif opcode == OPCODES_LT2.SetEventCounter.value:
             indexCounter = operands[0].value
@@ -174,10 +179,10 @@ class ScriptPlayer(ScreenLayerNonBlocking):
             self._makeInactive()
         
         elif opcode == OPCODES_LT2.WaitVSyncOrPenTouch.value:
+            self._makeInactive()
             self._isWaitingForTouch = True
             self._faderWait.setCallback(self._makeActive)
             self._faderWait.setDuration(TIME_FRAMECOUNT_TO_MILLISECONDS * operands[0].value)
-            self._makeInactive()
 
         elif opcode == OPCODES_LT2.AddMemo.value:
             # TODO - Try/except for setting flags or bypass errors
@@ -189,8 +194,8 @@ class ScriptPlayer(ScreenLayerNonBlocking):
             self.laytonState.saveSlot.memoFlag.flagEnabled.setSlot(True, operands[0].value - 1)
 
         elif opcode == OPCODES_LT2.FadeOutFrame.value:
-            self.screenController.fadeOut(duration=operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS, callback=self._makeActive)
             self._makeInactive()
+            self.screenController.fadeOut(duration=operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS, callback=self._makeActive)
 
         elif opcode == OPCODES_LT2.SetEventTea.value:
             # TODO - 2 unks stored in state, probably used in tea mode
@@ -201,16 +206,16 @@ class ScriptPlayer(ScreenLayerNonBlocking):
             self.laytonState.saveSlot.storyItemFlag.setSlot(False, operands[0].value)
 
         elif opcode == OPCODES_LT2.FadeOutFrameMain.value:
-            self.screenController.fadeOutMain(duration=operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS, callback=self._makeActive)
             self._makeInactive()
+            self.screenController.fadeOutMain(duration=operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS, callback=self._makeActive)
 
         elif opcode == OPCODES_LT2.FadeInFrame.value:
-            self.screenController.fadeIn(duration=operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS, callback=self._makeActive)
             self._makeInactive()
+            self.screenController.fadeIn(duration=operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS, callback=self._makeActive)
         
         elif opcode == OPCODES_LT2.FadeInFrameMain.value:
-            self.screenController.fadeInMain(duration=operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS, callback=self._makeActive)
             self._makeInactive()
+            self.screenController.fadeInMain(duration=operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS, callback=self._makeActive)
         
         elif opcode == OPCODES_LT2.CheckCounterAutoEvent.value:
             if 0 <= operands[0].value < 128:
@@ -221,12 +226,12 @@ class ScriptPlayer(ScreenLayerNonBlocking):
                     self.laytonState.setGameModeNext(GAMEMODES.DramaEvent)
 
         elif opcode == OPCODES_LT2.FadeOutFrameSub.value:
-            self.screenController.fadeOutSub(duration=operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS, callback=self._makeActive)
             self._makeInactive()
+            self.screenController.fadeOutSub(duration=operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS, callback=self._makeActive)
 
         elif opcode == OPCODES_LT2.FadeInFrameSub.value:
-            self.screenController.fadeInSub(duration=operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS, callback=self._makeActive)
             self._makeInactive()
+            self.screenController.fadeInSub(duration=operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS, callback=self._makeActive)
 
         elif opcode == OPCODES_LT2.SetRepeatAutoEventID.value:
             self.laytonState.saveSlot.idHeldAutoEvent = operands[0].value

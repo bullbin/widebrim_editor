@@ -1,4 +1,7 @@
 from enum import Enum
+from .config import TIME_FRAMERATE
+
+# TODO - Add const for base game framerate (60fps)
 
 RESOLUTION_NINTENDO_DS          = (256,192)
 

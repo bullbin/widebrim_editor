@@ -115,8 +115,13 @@ class FaderLayer(ScreenLayerNonBlocking):
             self._faderMain.setDuration(duration)
             self._faderMain.setCallback(callback)
             self._faderMain.setInvertedState(True)
+            return True
+        return False
     
     def fadeOutMain(self, duration=DEFAULT_FADE_TIME, callback=None):
+        # TODO - Add a method that intercepts callbacks to bring flags to blank out screen where necessary.
+        # Maybe add a variation of callback which ensures the fader layer has been rendered before operating callback
+
         if not(self._faderMain.getActiveState()) and self._faderMain.getStrength() == 1:
             if callable(callback):
                 callback()
@@ -125,6 +130,8 @@ class FaderLayer(ScreenLayerNonBlocking):
             self._faderMain.setDuration(duration)
             self._faderMain.setCallback(callback)
             self._faderMain.setInvertedState(False)
+            return True
+        return False
     
     def fadeInSub(self, duration=DEFAULT_FADE_TIME, callback=None):
         if not(self._faderSub.getActiveState()) and self._faderSub.getStrength() == 0:
@@ -135,6 +142,8 @@ class FaderLayer(ScreenLayerNonBlocking):
             self._faderSub.setDuration(duration)
             self._faderSub.setCallback(callback)
             self._faderSub.setInvertedState(True)
+            return True
+        return False
     
     def fadeOutSub(self, duration=DEFAULT_FADE_TIME, callback=None):
         if not(self._faderSub.getActiveState()) and self._faderSub.getStrength() == 1:
@@ -145,35 +154,27 @@ class FaderLayer(ScreenLayerNonBlocking):
             self._faderSub.setDuration(duration)
             self._faderSub.setCallback(callback)
             self._faderSub.setInvertedState(False)
+            return True
+        return False
     
     # TODO - Callback can only be called when both screens are ready, this will call when either are ready which is not the right behaviour
     # TODO - Remove wait fader
     def fadeIn(self, duration=DEFAULT_FADE_TIME, callback=None):
         post(Event(ENGINE_SKIP_CLOCK))
-        self.fadeInMain(duration=duration, callback=callback)
         self.fadeInSub(duration=duration)
+        return self.fadeInMain(duration=duration, callback=callback)
         
     def fadeOut(self, duration=DEFAULT_FADE_TIME, callback=None):
         post(Event(ENGINE_SKIP_CLOCK))
-        self.fadeOutMain(duration=duration, callback=callback)
         self.fadeOutSub(duration=duration)
-
+        return self.fadeOutMain(duration=duration, callback=callback)
+        
     def setWaitDuration(self, duration, canBeSkipped=False):
         self._faderWait.setDuration(duration)
         self._waitCanBeSkipped = canBeSkipped
 
     def getFaderStatus(self):
         return self._faderSub.getActiveState() or self._faderMain.getActiveState() or self._faderWait.getActiveState()
-
-    def debugGetFaderStatus(self):
-        return (self._faderSub.getActiveState(), self._faderMain.getActiveState())
-    
-    def obscureViewLayer(self):
-        # TODO - Can just use fade out now, probably.
-        if self._faderMain.getStrength() != 1:
-            self.fadeOutMain()
-        if self._faderSub.getStrength() != 1:
-            self.fadeOutSub()
 
     def draw(self, gameDisplay):
         gameDisplay.blit(self._faderSurfSub, (0,0))
@@ -197,10 +198,6 @@ class ScreenController():
 
     def getFaderIsViewObscured(self):
         return self._faderLayer.isViewObscured
-
-    def obscureViewLayer(self):
-        if not(self.getFaderIsViewObscured()):
-            self._faderLayer.obscureViewLayer()
     
     def debugGetFaderStatus(self):
         return self._faderLayer.debugGetFaderStatus()
@@ -289,10 +286,16 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
         post(Event(QUIT))
     
     def update(self, gameClockDelta):
+        # TODO - Remove obscure methods. Obselete due to new writing conventions
+        # TODO - Fix callbacks that may overwrite each other, use a queue
+        # TODO - Fix fade out callbacks, as callbacks are only assigned to main fader.
+
+        def callbackFadeOutComplete():
+            self._waitingForFadeOut = False
 
         def readyScreenFadeOut():
-            self.screenControllerObject.obscureViewLayer()
             self._waitingForFadeOut = True
+            self.screenControllerObject.fadeOut(callback=callbackFadeOutComplete)
         
         def readyGameModeSwitch(nextGameMode):
             if self.screenControllerObject.getFaderIsViewObscured():
@@ -317,8 +320,6 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
                 else:
                     # If neither the current or next gamemode spawned a handler, terminate the game.
                     self._triggerQuit()
-        elif self.screenControllerObject.getFaderIsViewObscured():
-            self._waitingForFadeOut = False
         
         # Override original update to ensure game mode object cannot be deleted, as logic above does that properly
         for indexLayer in range(len(self._layers) - 1, -1, -1):
@@ -326,10 +327,3 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
             layer.update(gameClockDelta)
             if layer.getContextState() and layer != self._currentActiveGameModeObject:
                 self.removeFromCollection(indexLayer)
-    
-    def draw(self, gameDisplay):
-        if not(self.screenControllerObject.getFaderIsViewObscured()):
-            # Saves CPU, although this leaves a faint trail
-            return super().draw(gameDisplay)
-        return super().draw(gameDisplay)
-        return None

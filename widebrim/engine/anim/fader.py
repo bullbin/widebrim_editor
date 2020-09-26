@@ -11,7 +11,9 @@ class Fader():
         self._timeElapsed = 0
         self._inverted = invertOutput
         self._callbackClearOnDone = callbackClearOnDone
-        self._isCallbackNew = True
+        self._callback = None
+        self._isCallbackNew = False
+        
         self.setCallback(callbackOnDone)
     
     def update(self, gameClockDelta):
@@ -34,8 +36,11 @@ class Fader():
         self.reset()
     
     def setCallback(self, callback):
-        self._isCallbackNew = True
-        self._callback = callback
+        if self._isCallbackNew:
+            self._doCallback()
+        if callable(callback):
+            self._isCallbackNew = True
+            self._callback = callback
 
     def _doCallback(self):
         self._isCallbackNew = False

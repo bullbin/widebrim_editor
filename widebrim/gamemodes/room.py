@@ -159,10 +159,6 @@ class RoomPlayer(ScreenLayerNonBlocking):
             print("Total load time", round((time() - fullLoadTime) * 1000, 2))
 
     def update(self, gameClockDelta):
-        if self.isTerminating:
-            if self.screenController.getFaderIsViewObscured():
-                self._canBeKilled = True
-
         for anim in self.bgAni:
             anim.update(gameClockDelta)
         
@@ -210,7 +206,11 @@ class RoomPlayer(ScreenLayerNonBlocking):
             RoomPlayer.ANIM_MOVE_MODE.draw(gameDisplay)
 
     def startTermination(self):
-        self.screenController.obscureViewLayer()
+
+        def callbackTerminate():
+            self._canBeKilled = True
+
+        self.screenController.fadeOut(callback=callbackTerminate)
         self.isTerminating = True
 
     def handleTouchEvent(self, event):

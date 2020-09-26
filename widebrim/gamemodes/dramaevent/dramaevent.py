@@ -6,7 +6,7 @@ from ...engine.exceptions import FileInvalidCritical
 from ...engine.file import FileInterface
 from ..core_popup.script import ScriptPlayer
 
-from ...engine.const import RESOLUTION_NINTENDO_DS, PATH_FACE_ROOT, PATH_BODY_ROOT
+from ...engine.const import RESOLUTION_NINTENDO_DS, PATH_FACE_ROOT, PATH_BODY_ROOT, PATH_CHAP_ROOT
 from ...engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C
 from ...engine.const import PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, PATH_PACK_TALK, PATH_EVENT_BG, PATH_PLACE_BG, PATH_EVENT_ROOT, PATH_ANI, PATH_NAME_ROOT
 
@@ -458,6 +458,7 @@ class EventPlayer(ScriptPlayer):
         super().update(gameClockDelta)
 
     def _spriteOffAllCharacters(self):
+        # TODO - Not a good hack! If a fader doesn't need to activate, this can be called immediately, breaking the order of execution!
         for character in self.characters:
             character.setVisibility(False)
         self._makeActive()
@@ -493,8 +494,16 @@ class EventPlayer(ScriptPlayer):
                 self.characters[operands[0].value].setVisibility(operands[1].value >= 0)
 
         elif opcode == OPCODES_LT2.DrawChapter.value:
-            self.screenController.fadeOutMain(duration=0, callback=self._spriteOffAllCharacters)
-            return super()._doUnpackedCommand(opcode, operands)
+            
+            def callbackDrawChapter():
+                self._spriteOffAllCharacters()
+                self.screenController.setBgMain(PATH_CHAP_ROOT % operands[0].value)
+                self.screenController.fadeInMain()
+                self._isWaitingForTouch = True
+                self._makeInactive()
+
+            self._makeInactive()
+            self.screenController.fadeOutMain(duration=0, callback=callbackDrawChapter)
         
         elif opcode == OPCODES_LT2.SetSpritePos.value:
             if isCharacterSlotValid(operands[0].value):
@@ -506,8 +515,8 @@ class EventPlayer(ScriptPlayer):
 
         elif opcode == OPCODES_LT2.DoHukamaruAddScreen.value:
             # TODO - Not accurate, but required to get fading looking correct
-            self.screenController.fadeOut(callback=self._spriteOffAllCharacters)
             self._makeInactive()
+            self.screenController.fadeOut(callback=self._spriteOffAllCharacters)
 
         elif opcode == OPCODES_LT2.DoSubItemAddScreen.value:
             self._popup = PlaceholderPopup()
@@ -546,8 +555,8 @@ class EventPlayer(ScriptPlayer):
             def switchPopupToSaveScreen():
                 self.screenController.fadeOut(callback=spawnSaveScreenAndTerminateCharacters)
 
-            self._popup = SaveButtonPopup(self.laytonState, self.screenController, self._sharedImageHandler, switchPopupToSaveScreen, callbackKillPopup)
             self._makeInactive()
+            self._popup = SaveButtonPopup(self.laytonState, self.screenController, self._sharedImageHandler, switchPopupToSaveScreen, callbackKillPopup)
             # TODO - Not accurate. Research required
             if operands[0].value != -1:
                 self.laytonState.saveSlot.idImmediateEvent = operands[0].value
