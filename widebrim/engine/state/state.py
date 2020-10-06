@@ -6,8 +6,9 @@ from ...madhatter.hat_io.asset_autoevent import AutoEvent
 from ...madhatter.hat_io.asset_dlz.goal_inf import GoalInfo
 from ...madhatter.hat_io.asset_dlz.nz_lst import NazoList
 from ...madhatter.hat_io.asset_dlz.chp_inf import ChapterInfo
+from ...madhatter.hat_io.asset_dlz.tm_def import TimeDefinitionInfo
 from ...madhatter.hat_io.asset import LaytonPack, File
-from ..const import LANGUAGES, EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_EV_INF2, PATH_PROGRESSION_DB, PATH_DB_RC_ROOT, PATH_DB_GOAL_INF, PATH_DB_NZ_LST, PATH_DB_RC_ROOT_LANG, PATH_DB_CHP_INF
+from ..const import LANGUAGES, EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_EV_INF2, PATH_PROGRESSION_DB, PATH_DB_RC_ROOT, PATH_DB_GOAL_INF, PATH_DB_NZ_LST, PATH_DB_TM_DEF, PATH_DB_RC_ROOT_LANG, PATH_DB_CHP_INF
 from ..exceptions import FileInvalidCritical
 from ..file import FileInterface
 
@@ -75,6 +76,8 @@ class Layton2GameState():
             self.fontQ              = NftrTiles(FileInterface.getData("/data_lt2/font/fontq.NFTR"))
             self._dbNazoList        = NazoList()
             self._dbNazoList.load(FileInterface.getData(PATH_DB_RC_ROOT_LANG % (self.language.value, PATH_DB_NZ_LST)))
+            self._dbTimeDef         = TimeDefinitionInfo()
+            self._dbTimeDef.load(FileInterface.getData(PATH_DB_RC_ROOT % (PATH_DB_TM_DEF)))
         except:
             raise FileInvalidCritical()
 
@@ -124,6 +127,12 @@ class Layton2GameState():
     
     def getGameModeNext(self):
         return self._gameModeNext
+
+    def getTimeDefinitionEntry(self, idTime):
+        indexEntry = self._dbTimeDef.searchForEntry(idTime)
+        if indexEntry != None:
+            return self._dbTimeDef.getEntry(indexEntry)
+        return None
 
     def getEventInfoEntry(self, idEvent):
         if self._dbEventInfo == None:

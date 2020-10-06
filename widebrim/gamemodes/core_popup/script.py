@@ -104,6 +104,10 @@ class ScriptPlayer(ScreenLayerNonBlocking):
 
         elif opcode == OPCODES_LT2.SetDramaEventNum.value:
             self.laytonState.setEventId(operands[0].value)
+        
+        elif opcode == OPCODES_LT2.SetAutoEventNum.value:
+            # Stubbed, but don't want an error
+            pass
 
         elif opcode == OPCODES_LT2.SetPuzzleNum.value:
             self.laytonState.setPuzzleId(operands[0].value)
@@ -130,7 +134,7 @@ class ScriptPlayer(ScreenLayerNonBlocking):
         elif opcode == OPCODES_LT2.WaitFrame.value:
             self._makeInactive()
             self._faderWait.setCallback(self._makeActive)
-            self._faderWait.setDuration(TIME_FRAMECOUNT_TO_MILLISECONDS * operands[0].value)
+            self._faderWait.setDurationInFrames(operands[0].value)
 
         elif opcode == OPCODES_LT2.FadeInOnlyMain.value:
             self._makeInactive()
@@ -178,11 +182,17 @@ class ScriptPlayer(ScreenLayerNonBlocking):
             self._isWaitingForTouch = True
             self._makeInactive()
         
+        elif opcode == OPCODES_LT2.ShakeBG.value:
+            self.screenController.shakeBg(operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
+        
+        elif opcode == OPCODES_LT2.ShakeSubBG.value:
+            self.screenController.shakeBgSub(operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS)
+
         elif opcode == OPCODES_LT2.WaitVSyncOrPenTouch.value:
             self._makeInactive()
             self._isWaitingForTouch = True
             self._faderWait.setCallback(self._makeActive)
-            self._faderWait.setDuration(TIME_FRAMECOUNT_TO_MILLISECONDS * operands[0].value)
+            self._faderWait.setDurationInFrames(operands[0].value)
 
         elif opcode == OPCODES_LT2.AddMemo.value:
             # TODO - Try/except for setting flags or bypass errors
@@ -232,6 +242,15 @@ class ScriptPlayer(ScreenLayerNonBlocking):
         elif opcode == OPCODES_LT2.FadeInFrameSub.value:
             self._makeInactive()
             self.screenController.fadeInSub(duration=operands[0].value * TIME_FRAMECOUNT_TO_MILLISECONDS, callback=self._makeActive)
+
+        elif opcode == OPCODES_LT2.WaitFrame2.value:
+            timeEntry = self.laytonState.getTimeDefinitionEntry(operands[0].value)
+            if timeEntry != None:
+                self._makeInactive()
+                self._faderWait.setCallback(self._makeActive)
+                self._faderWait.setDurationInFrames(timeEntry.countFrames)
+            else:
+                print("Missing time definition information for ID", operands[0].value)
 
         elif opcode == OPCODES_LT2.SetRepeatAutoEventID.value:
             self.laytonState.saveSlot.idHeldAutoEvent = operands[0].value

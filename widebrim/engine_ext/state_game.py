@@ -9,6 +9,8 @@ from ..gamemodes.core_popup.reset import ResetHelper
 from ..engine.custom_events import ENGINE_SKIP_CLOCK
 from .utils import getImageFromPath
 
+from random import randint
+
 from pygame.event import post, Event
 from pygame import Surface, QUIT, MOUSEBUTTONUP
 
@@ -33,6 +35,9 @@ class BgLayer(ScreenLayerNonBlocking):
         ScreenLayerNonBlocking.__init__(self)
         self._laytonState = laytonState
 
+        self._faderShakeMain    = Fader(0, initialActiveState=False)
+        self._faderShakeSub     = Fader(0, initialActiveState=False)
+
         self._bgMain    = Surface(RESOLUTION_NINTENDO_DS)
         self._bgSub     = Surface(RESOLUTION_NINTENDO_DS)
         self._bgMainPal = Surface(RESOLUTION_NINTENDO_DS)
@@ -41,6 +46,10 @@ class BgLayer(ScreenLayerNonBlocking):
         self._palMain   = 0
         self._palSub    = 0
     
+    def update(self, gameClockDelta):
+        self._faderShakeMain.update(gameClockDelta)
+        self._faderShakeSub.update(gameClockDelta)
+
     def _setBg(self, pathBg):
         bg = getImageFromPath(self._laytonState, pathBg)
         if bg != None:
@@ -55,6 +64,14 @@ class BgLayer(ScreenLayerNonBlocking):
         darkener.set_alpha(darkness)
         tempImage.blit(darkener, (0,0))
         return tempImage
+
+    def shakeBg(self, duration):
+        self._faderShakeMain.setDuration(duration)
+        self._faderShakeMain.setActiveState(True)
+
+    def shakeBgSub(self, duration):
+        self._faderShakeSub.setDuration(duration)
+        self._faderShakeSub.setActiveState(True)
 
     def setBgMain(self, pathBg):
         # Should this be blitted instead?
@@ -74,8 +91,16 @@ class BgLayer(ScreenLayerNonBlocking):
         self._bgSubPal = self._updatePal(self._bgSub, self._palSub)
 
     def draw(self, gameDisplay):
-        gameDisplay.blit(self._bgSubPal, (0,0))
-        gameDisplay.blit(self._bgMainPal, (0, RESOLUTION_NINTENDO_DS[1]))
+
+        def drawBg(surface, originalPos, shakeFader):
+            if shakeFader.getActiveState():
+                # TODO - Remove constants here, clip screen edges.
+                gameDisplay.blit(surface, (originalPos[0] + randint(-2,2), originalPos[1] + randint(-2,2)))
+            else:
+                gameDisplay.blit(surface, originalPos)
+
+        drawBg(self._bgMainPal, (0,RESOLUTION_NINTENDO_DS[1]), self._faderShakeMain)
+        drawBg(self._bgSubPal, (0,0), self._faderShakeSub)
 
 class FaderLayer(ScreenLayerNonBlocking):
 
@@ -89,6 +114,7 @@ class FaderLayer(ScreenLayerNonBlocking):
         self._faderMain     = Fader(0, initialActiveState=False)
         self._faderSub      = Fader(0, initialActiveState=False)
         self._faderWait         = Fader(0, initialActiveState=False)
+
         self._waitCanBeSkipped  = False
         self.isViewObscured = False
 
@@ -198,9 +224,6 @@ class ScreenController():
 
     def getFaderIsViewObscured(self):
         return self._faderLayer.isViewObscured
-    
-    def debugGetFaderStatus(self):
-        return self._faderLayer.debugGetFaderStatus()
 
     def fadeInMain(self, duration=FaderLayer.DEFAULT_FADE_TIME, callback=None):
         self._faderLayer.fadeInMain(duration=duration, callback=callback)
@@ -236,6 +259,12 @@ class ScreenController():
 
     def modifyPaletteSub(self, darkness):
         self._bgLayer.modifyPaletteSub(darkness)
+    
+    def shakeBg(self, duration):
+        self._bgLayer.shakeBg(duration)
+    
+    def shakeBgSub(self, duration):
+        self._bgLayer.shakeBgSub(duration)
 
 class ScreenCollectionGameModeSpawner(ScreenCollection):
     def __init__(self, laytonState):

@@ -513,6 +513,24 @@ class EventPlayer(ScriptPlayer):
             if operands[0].value in self.characterSpawnIdToCharacterMap:
                 self.characterSpawnIdToCharacterMap[operands[0].value].setCharacterAnimationFromName(operands[1].value)
 
+        elif opcode == OPCODES_LT2.GameOver.value:
+            # TODO - Remove const. Understand behaviour first. Plays some sound effects and stops BGM.
+            def switchToReset():
+                self.laytonState.setGameMode(GAMEMODES.Reset)
+                self._makeActive()
+
+            def switchToFadeOut():
+                self._makeInactive()
+                self.screenController.fadeOut(callback=switchToReset)
+            
+            self._makeInactive()
+            timeEntry = self.laytonState.getTimeDefinitionEntry(0x3f1)
+            if timeEntry != None:
+                self._faderWait.setCallback(switchToFadeOut)
+                self._faderWait.setDurationInFrames(timeEntry.countFrames)
+            else:
+                switchToFadeOut()
+
         elif opcode == OPCODES_LT2.DoHukamaruAddScreen.value:
             # TODO - Not accurate, but required to get fading looking correct
             self._makeInactive()
@@ -522,6 +540,7 @@ class EventPlayer(ScriptPlayer):
             self._popup = PlaceholderPopup()
 
         elif opcode == OPCODES_LT2.DoStockScreen.value:
+            # TODO - This will still execute even if entryNzLst was empty, right. Come up as ID 0
             if self.laytonState.entryNzList != None:
                 if self.laytonState.entryNzList.idInternal != 0x87 and self.laytonState.entryNzList.idInternal != 0xcb:
                     self._popup = StockPopup(self.laytonState, self.screenController, self._sharedImageHandler)
@@ -587,6 +606,10 @@ class EventPlayer(ScriptPlayer):
         
         elif opcode == OPCODES_LT2.DoOutPartyScreen.value:
             self._popup = PlaceholderPopup()
+
+        elif opcode == OPCODES_LT2.DoDiaryAddScreen.value:
+            # Stubbed, but don't want an error
+            pass
 
         else:
             return super()._doUnpackedCommand(opcode, operands)

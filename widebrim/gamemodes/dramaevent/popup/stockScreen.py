@@ -3,7 +3,8 @@
 # Loads nazo_icon just for the popup, and positions it to 0x74, 0x3c
 
 from .utils import FadingPopupAnimBackground
-from .const import NAME_POS_VARIABLE
+from ....engine_ext.utils import getTxt2String
+from .const import NAME_POS_VARIABLE, ID_STOCK_SCREEN, POS_STOCK_SCREEN_NAZO_ICON
 from ....engine.const import RESOLUTION_NINTENDO_DS
 
 class StockPopup(FadingPopupAnimBackground):
@@ -19,3 +20,4 @@ class StockPopup(FadingPopupAnimBackground):
                 prizeWindow2.setPos((prizeWindow2Pos[0], prizeWindow2Pos[1] + RESOLUTION_NINTENDO_DS[1]))
 
         FadingPopupAnimBackground.__init__(self, laytonState, screenController, None, prizeWindow2)
+        print(getTxt2String(ID_STOCK_SCREEN))
