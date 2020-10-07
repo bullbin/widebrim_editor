@@ -7,9 +7,12 @@
 #        Not everything is needed (eg keeping a save screen
 #        in memory at all times) but critical images are a must
 
+# TODO - Everything has init positions. Add them where required.
+
 from ...engine_ext.utils import getAnimFromPath
 from ...engine.file import FileInterface
-from .const import PATH_PRIZE_WINDOW, PATH_CURSOR_WAIT, PATH_ITEM_ICON
+from ...engine.const import RESOLUTION_NINTENDO_DS
+from .const import PATH_PRIZE_WINDOW, PATH_CURSOR_WAIT, PATH_ITEM_ICON, PATH_PIECE_ICON, POS_ITEM_ICON_Y
 
 class EventStorage():
     def __init__(self):
@@ -32,4 +35,10 @@ class EventStorage():
     def getAssetItemIcon(self):
         if self.__item_icon == None:
             self.__item_icon = getAnimFromPath(PATH_ITEM_ICON)
+            self.__item_icon.setPos(((RESOLUTION_NINTENDO_DS[0] - self.__item_icon.getDimensions()[0]) // 2, POS_ITEM_ICON_Y + RESOLUTION_NINTENDO_DS[1]))
         return self.__item_icon
+    
+    def getAssetPieceIcon(self):
+        if self.__piece_icon == None:
+            self.__piece_icon = getAnimFromPath(PATH_PIECE_ICON)
+        return self.__piece_icon

@@ -17,9 +17,7 @@ from ...madhatter.hat_io.asset_image import AnimatedImage
 from ...madhatter.typewriter.stringsLt2 import OPCODES_LT2
 
 from .storage import EventStorage
-from .popup.itemPickup import ItemPopup
-from .popup.stockScreen import StockPopup
-from .popup.doSaveScreen import SaveButtonPopup
+from .popup import *
 from ..core_popup.save import SaveLoadScreenPopup
 
 from .const import *
@@ -551,7 +549,7 @@ class EventPlayer(ScriptPlayer):
         elif opcode == OPCODES_LT2.DoItemAddScreen.value:
             self.laytonState.saveSlot.storyItemFlag.setSlot(True, operands[0].value)
             if operands[0].value != 2:
-                self._popup = ItemPopup(self.laytonState, self.screenController, self._sharedImageHandler, operands[0].value)
+                self._popup = ItemAddPopup(self.laytonState, self.screenController, self._sharedImageHandler, operands[0].value)
         
         elif opcode == OPCODES_LT2.SetSubItem.value:
             self._popup = PlaceholderPopup()
@@ -582,21 +580,16 @@ class EventPlayer(ScriptPlayer):
         
         elif opcode == OPCODES_LT2.DoPhotoPieceAddScreen.value:
             self.laytonState.saveSlot.photoPieceFlag.setSlot(True, operands[0].value)
-
             photoPieceAddCounter = bytearray(self.laytonState.saveSlot.eventCounter.toBytes(outLength=128))
             photoPieceAddCounter[0x18] = photoPieceAddCounter[0x18] + 1
-            if photoPieceAddCounter[0x18] == 0: # String in popup is 222
-                pass
-            else:                               # String in popup is 212
-                pass
             self.laytonState.saveSlot.eventCounter = FlagsAsArray.fromBytes(photoPieceAddCounter)
-            self._popup = PlaceholderPopup()
+            self._popup = PhotoPieceAddPopup(self.laytonState, self.screenController, self._sharedImageHandler)
         
         elif opcode == OPCODES_LT2.MokutekiScreen.value:
             self._popup = PlaceholderPopup()
         
         elif opcode == OPCODES_LT2.DoNamingHamScreen.value:
-            self._popup = PlaceholderPopup()
+            self._popup = NamingHamPopup(self.laytonState, self.screenController, self._sharedImageHandler)
 
         elif opcode == OPCODES_LT2.DoLostPieceScreen.value:
             self._popup = PlaceholderPopup()

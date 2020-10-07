@@ -1,5 +1,7 @@
 from ...core_popup.utils import MainScreenPopup
 from ....engine.anim.fader import Fader
+from ....engine.const import RESOLUTION_NINTENDO_DS
+from .const import NAME_AUTO_ANIM, NAME_POS_VARIABLE
 
 # TODO - Popups and characters all share the same layers, so alpha transitions cause colours to immediately bleed.
 # What is the best way to mimick this behaviour?
@@ -87,3 +89,18 @@ class FadingPopupAnimBackground(FadingPopup):
     def update(self, gameClockDelta):
         self._bgAnim.update(gameClockDelta)
         super().update(gameClockDelta)
+
+class PrizeWindow2PopupWithCursor(FadingPopupAnimBackground):
+    def __init__(self, laytonState, screenController, eventStorage):
+        prizeWindow2 = eventStorage.getAssetPrizeWindow2()
+        if prizeWindow2 != None:
+            prizeWindow2.setAnimationFromName(NAME_AUTO_ANIM)
+            prizeWindow2Pos = prizeWindow2.getVariable(NAME_POS_VARIABLE)
+            if prizeWindow2Pos != None:
+                prizeWindow2.setPos((prizeWindow2Pos[0], prizeWindow2Pos[1] + RESOLUTION_NINTENDO_DS[1]))
+
+        FadingPopupAnimBackground.__init__(self, laytonState, screenController, None, prizeWindow2)
+
+        self._cursorWait = eventStorage.getAssetCursorWait()
+        if self._cursorWait != None:
+            self._cursorWait.setAnimationFromName(NAME_AUTO_ANIM)

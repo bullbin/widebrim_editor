@@ -39,15 +39,21 @@ class ScrollingFontHelper():
         self._color = triplet
         self._tintSurface.fill(triplet)
 
-    def setText(self, text):
-        # Clear current stored text
+    def _reset(self):
         self._outputLineSurfaces = []
         self._workingLineSurfaceIndex = 0
         self._workingLineXOffset = 0
-        self._text = getSubstitutedString(text)
-
-        self._hasCharsRemaining = True
+        self._offsetText = 0
+        self._hasCharsRemaining = False
         self._durationCarried = 0
+        self._durationWaiting = 0
+        self._isWaitingForTap = False
+
+    def setText(self, text):
+        # Clear current stored text
+        self._reset()
+        self._text = getSubstitutedString(text)
+        self._hasCharsRemaining = True
 
         maxLineCount = 0
         currentLineCount = 0
@@ -96,13 +102,6 @@ class ScrollingFontHelper():
             else:
                 self._offsetText += 1
                 return self._text[self._offsetText - 1]
-
-    def debugGetNextChar(self):
-        nextChar = self._getNextChar()
-        print(nextChar)
-        while nextChar != None:
-            nextChar = self._getNextChar()
-            print(nextChar)
 
     def _addCharacterToDrawBuffer(self, character):
         if character in self._font.glyphMap:
@@ -178,4 +177,11 @@ class ScrollingFontHelper():
         yBias = self._pos[1]
         for buffer in self._outputLineSurfaces[0:self._workingLineSurfaceIndex + 1]:
             gameDisplay.blit(buffer, (self._pos[0], yBias))
+            yBias += self._yBias
+    
+    def drawCentered(self, gameDisplay):
+        # Bugfix - Will not draw centered as width is not aligned with buffer. Fixed in static, see to check tracking actual width
+        yBias = self._pos[1]
+        for buffer in self._outputLineSurfaces[0:self._workingLineSurfaceIndex + 1]:
+            gameDisplay.blit(buffer, ((RESOLUTION_NINTENDO_DS[0] - buffer.get_width()) // 2, yBias))
             yBias += self._yBias
