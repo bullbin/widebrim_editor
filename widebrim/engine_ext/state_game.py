@@ -3,7 +3,7 @@ from ..engine.state.enum_mode import GAMEMODES
 from ..engine.const import RESOLUTION_NINTENDO_DS
 from ..engine.anim.fader import Fader
 
-from ..gamemodes import EventPlayer, RoomPlayer, NarrationPlayer, PuzzlePlayer, EventTeaPlayer, TitlePlayer, NamePlayer, EndPuzzlePlayer, MoviePlayer
+from ..gamemodes import *
 from ..gamemodes.core_popup.reset import ResetHelper
 
 from ..engine.custom_events import ENGINE_SKIP_CLOCK
@@ -24,7 +24,9 @@ GAMEMODE_TO_HANDLER = {GAMEMODES.Reset:ResetHelper,
                        GAMEMODES.EventTea:EventTeaPlayer,
                        GAMEMODES.Title:TitlePlayer,
                        GAMEMODES.Name:NamePlayer,
-                       GAMEMODES.HamsterName:NamePlayer}
+                       GAMEMODES.HamsterName:NamePlayer,
+                       GAMEMODES.StartPuzzle:StartPuzzlePlayer,
+                       GAMEMODES.StayPuzzle:StayPuzzlePlayer}
 
 class BgLayer(ScreenLayerNonBlocking):
 

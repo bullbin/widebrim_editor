@@ -49,7 +49,7 @@ def getPackedString(pathPack, nameString):
         return ""
 
 def getTxtString(laytonState, nameString):
-    return getPackedString(PATH_PACK_TXT2 % laytonState.language.value, nameString)
+    return getPackedString(PATH_PACK_TXT % laytonState.language.value, nameString)
 
 def getTxt2String(laytonState, nameString):
     return getPackedString(PATH_PACK_TXT2 % laytonState.language.value, nameString)

@@ -544,7 +544,14 @@ class EventPlayer(ScriptPlayer):
                     self._popup = StockPopup(self.laytonState, self.screenController, self._sharedImageHandler)
         
         elif opcode == OPCODES_LT2.DoNazobaListScreen.value:
-            self._popup = PlaceholderPopup()
+
+            def switchToNazobaList():
+                for character in self.characters:
+                    character.setVisibility(False)
+                self._popup = NazobaListPopup(self.laytonState, self.screenController, self._makeActive, operands[0].value)
+            
+            self._makeInactive()
+            self.screenController.fadeOut(callback=switchToNazobaList)
 
         elif opcode == OPCODES_LT2.DoItemAddScreen.value:
             self.laytonState.saveSlot.storyItemFlag.setSlot(True, operands[0].value)
@@ -555,7 +562,7 @@ class EventPlayer(ScriptPlayer):
             self._popup = PlaceholderPopup()
         
         elif opcode == OPCODES_LT2.DoSubGameAddScreen.value:
-            self._popup = PlaceholderPopup()
+            self._popup = SubGameAddPopup(self.laytonState, self.screenController, self._sharedImageHandler, operands[0].value)
         
         elif opcode == OPCODES_LT2.DoSaveScreen.value:
 

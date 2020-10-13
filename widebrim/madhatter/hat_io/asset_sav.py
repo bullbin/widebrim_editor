@@ -51,6 +51,7 @@ class PuzzleData():
         self.wasEncountered = False
         self.wasSolved      = False
         self.wasPicked      = False
+        self.enableNazoba   = False
         self.levelDecay     = 0
         self.levelHint      = 0
     
@@ -58,6 +59,7 @@ class PuzzleData():
         self.wasEncountered = ((data & 0x01) != 0) or ((data & 0x02) != 0)
         self.wasSolved = (data & 0x02) != 0
         self.wasPicked = (data & 0x80) != 0
+        self.enableNazoba = ((data & 0x40) != 0 and not(self.wasSolved))
         self.levelDecay = (data >> 2) & 0x03
         self.levelHint = (data >> 4) & 0x03
 
@@ -72,6 +74,7 @@ class PuzzleData():
         if self.wasSolved:
             output += self.wasSolved << 1
         else:
+            output += (self.enableNazoba << 6)
             output += self.wasEncountered
         return output.to_bytes(1, byteorder = 'little')
 

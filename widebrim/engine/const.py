@@ -62,6 +62,7 @@ PATH_PACK_TXT2 = "/data_lt2/txt/%s/txt2.plz"
 PATH_TEXT_GOAL = "goal_%i.txt"
 PATH_TEXT_GENERIC = "tx_%i.txt"
 PATH_TEXT_PLACE_NAME = "p_%i.txt"
+PATH_TEXT_ITEM  = "item_%i.txt"
 
 class LANGUAGES(Enum):
     French      = "fr"

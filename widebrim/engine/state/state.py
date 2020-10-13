@@ -230,6 +230,13 @@ class Layton2GameState():
         if idEntry != None:
             return self._dbNazoList.getEntry(idEntry)
         return None
+    
+    def getNazoListEntryByExternal(self, idExternal):
+        for indexEntry in range(self._dbNazoList.getCountEntries()):
+            entry = self._dbNazoList.getEntry(indexEntry)
+            if entry.idExternal == idExternal:
+                return entry
+        return None
 
     def loadCurrentNazoData(self):
         return True

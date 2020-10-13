@@ -7,3 +7,5 @@ from .eventtea import EventTeaPlayer
 from .title import TitlePlayer
 from .name import NamePlayer
 from .movie import MoviePlayer
+from .startpuzzle import StartPuzzlePlayer
+from .staypuzzle import StayPuzzlePlayer

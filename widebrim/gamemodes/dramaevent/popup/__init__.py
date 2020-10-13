@@ -4,3 +4,5 @@ from .lostPieceScreen import LostPiecePopup
 from .namingHamScreen import NamingHamPopup
 from .photoPieceAddScreen import PhotoPieceAddPopup
 from .stockScreen import StockPopup
+from .nazobaListScreen import NazobaListPopup
+from .subGameAddScreen import SubGameAddPopup
