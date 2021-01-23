@@ -13,7 +13,7 @@ class GAMEMODES(Enum):
     StayPuzzle  = 9
 
     Puzzle      = 10
-
+    UnkNazo     = 11
     Title       = 12
 
     Narration   = 13

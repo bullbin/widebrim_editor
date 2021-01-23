@@ -1,6 +1,6 @@
-from ...madhatter.hat_io.asset_image import Animation
-from ..const import TIME_FRAMECOUNT_TO_MILLISECONDS
-from ..convenience import initDisplay
+from ....madhatter.hat_io.asset_image import Animation
+from ...const import TIME_FRAMECOUNT_TO_MILLISECONDS
+from ...convenience import initDisplay
 
 # TODO - Fix imports for only image
 import pygame

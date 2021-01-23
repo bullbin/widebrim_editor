@@ -24,7 +24,7 @@ class ScriptPlayer(ScreenLayerNonBlocking):
 
         self._script = script
         self._indexScriptCommand = 0
-    
+
     def update(self, gameClockDelta):
         if not(self.getContextState()):
             self._faderWait.update(gameClockDelta)
@@ -45,7 +45,12 @@ class ScriptPlayer(ScreenLayerNonBlocking):
                     self._indexScriptCommand += 1
                 
                 if self._popup == None and self._isActive and self._indexScriptCommand >= self._script.getInstructionCount():
-                    self.doOnKill()
+                    self._makeInactive()
+                    self.doOnComplete()
+
+    def doOnComplete(self):
+        # TODO - Maybe call doOnComplete under script fail (no available data)
+        self.doOnKill()
 
     def draw(self, gameDisplay):
         if self._popup != None:

@@ -39,21 +39,32 @@ PATH_EVENT_TALK     = "/data_lt2/event/%s/ev_t%i.plz"
 PATH_EVENT_TALK_A   = "/data_lt2/event/%s/ev_t%ia.plz"
 PATH_EVENT_TALK_B   = "/data_lt2/event/%s/ev_t%ib.plz"
 PATH_EVENT_TALK_C   = "/data_lt2/event/%s/ev_t%ic.plz"
+PATH_PUZZLE_SCRIPT  = "/data_lt2/script/puzzle.plz"
 
 PATH_PACK_EVENT_DAT = "d%i_%.3i.dat"
 PATH_PACK_EVENT_SCR = "e%i_%.3i.gds"
 PATH_PACK_TALK      = "t%i_%.3i_%i.gds"
+PATH_PACK_PUZZLE    = "q%i_param.gds"
 
 PATH_PROGRESSION_DB = "/data_lt2/place/data.plz"
 
 PATH_PLACE_A = "/data_lt2/place/plc_data1.plz"
 PATH_PLACE_B = "/data_lt2/place/plc_data2.plz"
 
-PATH_PACK_PLACE = "n_place%i_%i.dat"
+PATH_NAZO_A = "/data_lt2/nazo/%s/nazo1.plz"
+PATH_NAZO_B = "/data_lt2/nazo/%s/nazo2.plz"
+PATH_NAZO_C = "/data_lt2/nazo/%s/nazo3.plz"
 
-PATH_PLACE_BG = "map/main%i.bgx"
-PATH_PLACE_MAP = "map/map%i.bgx"
-PATH_EVENT_BG = "event/sub%i.bgx"
+PATH_PACK_PLACE = "n_place%i_%i.dat"
+PATH_PACK_NAZO  = "n%i.dat"
+
+PATH_PLACE_BG   = "map/main%i.bgx"
+PATH_PLACE_MAP  = "map/map%i.bgx"
+PATH_EVENT_BG   = "event/sub%i.bgx"
+
+PATH_PUZZLE_BG              = "nazo/q%i.bgx"
+PATH_PUZZLE_BG_LANGUAGE     = "nazo/?/q%i.bgx"
+PATH_PUZZLE_BG_NAZO_TEXT    = "nazo/system/nazo_text%i.bgx"
 
 PATH_PACK_PLACE_NAME = "/data_lt2/nazo/%s/jiten.plz"
 PATH_PACK_TXT    = "/data_lt2/txt/%s/txt.plz"

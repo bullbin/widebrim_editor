@@ -8,7 +8,10 @@ from ...madhatter.hat_io.asset_dlz.nz_lst import NazoList
 from ...madhatter.hat_io.asset_dlz.chp_inf import ChapterInfo
 from ...madhatter.hat_io.asset_dlz.tm_def import TimeDefinitionInfo
 from ...madhatter.hat_io.asset import LaytonPack, File
-from ..const import LANGUAGES, EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_EV_INF2, PATH_PROGRESSION_DB, PATH_DB_RC_ROOT, PATH_DB_GOAL_INF, PATH_DB_NZ_LST, PATH_DB_TM_DEF, PATH_DB_RC_ROOT_LANG, PATH_DB_CHP_INF
+from ...madhatter.hat_io.asset_dat.nazo import NazoData
+
+from ..const import LANGUAGES, EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_EV_INF2, PATH_PROGRESSION_DB, PATH_DB_RC_ROOT, PATH_DB_GOAL_INF, PATH_DB_NZ_LST, PATH_DB_TM_DEF, PATH_DB_RC_ROOT_LANG, PATH_DB_CHP_INF, PATH_PUZZLE_SCRIPT
+from ..const import PATH_NAZO_A, PATH_NAZO_B, PATH_NAZO_C, PATH_PACK_NAZO
 from ..exceptions import FileInvalidCritical
 from ..file import FileInterface
 
@@ -83,6 +86,7 @@ class Layton2GameState():
 
         self.entryEvInfo    = None
         self.entryNzList    = None
+        self._entryNzData    = None
 
         self.__isTimeStarted = False
         self.__timeStarted = 0
@@ -239,7 +243,33 @@ class Layton2GameState():
         return None
 
     def loadCurrentNazoData(self):
-        return True
+        if self.getCurrentNazoListEntry() != None:
+            indexPuzzle = self.getCurrentNazoListEntry().idInternal
+            # TODO - Store this max somewhere, it's already a save field
+            if type(indexPuzzle) == int and 0 <= indexPuzzle < 216:
+                if indexPuzzle < 60:
+                    pathNazo = PATH_NAZO_A
+                elif indexPuzzle < 120:
+                    pathNazo = PATH_NAZO_B
+                else:
+                    pathNazo = PATH_NAZO_C
+                
+                packPuzzleData = FileInterface.getData(pathNazo % self.language.value)
+                
+                if packPuzzleData != None:
+                    tempPackPuzzle = LaytonPack()
+                    tempPackPuzzle.load(packPuzzleData)
+                    packPuzzleData = tempPackPuzzle.getFile(PATH_PACK_NAZO % indexPuzzle)
+                    if packPuzzleData != None:
+                        self._entryNzData = NazoData()
+                        if self._entryNzData.load(packPuzzleData):
+                            return True
+
+        self._entryNzData = None
+        return False
+    
+    def getNazoData(self):
+        return self._entryNzData
 
     def unloadCurrentNazoData(self):
         pass

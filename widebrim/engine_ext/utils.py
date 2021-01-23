@@ -24,22 +24,25 @@ def getImageFromPath(laytonState, pathBg):
                 return None
         return imageFile
 
-    if "?" not in pathBg:
-        langPath = pathBg.split("/")
-        langPath.insert(-1, laytonState.language.value)
-        langPath = '/'.join(langPath)
-    else:
-        langPath = pathBg.replace("?", laytonState.language.value)
+    if type(pathBg) == str:
+        if "?" not in pathBg:
+            langPath = pathBg.split("/")
+            langPath.insert(-1, laytonState.language.value)
+            langPath = '/'.join(langPath)
+        else:
+            langPath = pathBg.replace("?", laytonState.language.value)
 
-    bg = fetchBgxImage(langPath)
-    if bg == None:
-        bg = fetchBgxImage(pathBg)
-    
-    if bg == None:
-        return bg
-    return image.fromstring(bg.convert("RGB").tobytes("raw", "RGB"), bg.size, "RGB").convert()
+        bg = fetchBgxImage(langPath)
+        if bg == None:
+            bg = fetchBgxImage(pathBg)
+        
+        if bg != None:
+            return image.fromstring(bg.convert("RGB").tobytes("raw", "RGB"), bg.size, "RGB").convert()
+    return None
 
 def getPackedString(pathPack, nameString):
+    # TODO - Maybe decoding using substiter
+    # TODO - sp... substituter
     textPack = LaytonPack()
     textPack.load(FileInterface.getData(pathPack))
     tempString = textPack.getFile(nameString)

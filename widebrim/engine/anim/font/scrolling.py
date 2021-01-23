@@ -68,12 +68,16 @@ class ScrollingFontHelper():
 
         # Account for control characters, line breaks and text clearing to calculate the maximum length of each line
         for clearParagraph in removedControlledCharString.split("@c"):
-            for indexLine, line in enumerate(clearParagraph.split("@B")):
-                while len(lineWidths) <= indexLine:
-                    lineWidths.append(0)
-                controlChars = line.count("@") + line.count("#")
-                lineWidths[indexLine] = max(lineWidths[indexLine], len(line) - (controlChars * 2))
-        
+            indexLine = 0
+            for line in clearParagraph.split("@B"):
+                for subLine in line.split("\n"):
+                    controlChars = subLine.count("@") + subLine.count("#")
+                    if len(lineWidths) > indexLine:
+                        lineWidths[indexLine] = max(lineWidths[indexLine], len(subLine) - (controlChars * 2))
+                    else:
+                        lineWidths.append(len(subLine) - (controlChars * 2))
+                    indexLine += 1
+            
         # Finally create the blank buffer surfaces for text to be written to
         for indexLine, width in enumerate(lineWidths):
             self._outputLineSurfaces.append(Surface((int(self._font.dimensions[0] * width), int(self._font.dimensions[1]))).convert_alpha())
@@ -120,9 +124,13 @@ class ScrollingFontHelper():
         # Returns True if the character contributed graphically
         nextChar = self._getNextChar()
         while nextChar != None and self._hasCharsRemaining and not(self.isWaiting()):
-            if len(nextChar) == 1:
+            # Newline character added for puzzles - cannot be used in events
+            if nextChar == "\n":
+                self._workingLineSurfaceIndex += 1
+                self._workingLineXOffset = 0
+            elif len(nextChar) == 1:
                 self._addCharacterToDrawBuffer(nextChar)
-                return True
+                return True 
             else:
                 if nextChar[0] == "@":
                     # Control character
@@ -150,7 +158,6 @@ class ScrollingFontHelper():
                     # Command characters
                     pass
 
-                return False
             return False
 
     def isWaiting(self):

@@ -5,6 +5,3 @@ class OutroLayer(FullScreenPopup):
     def __init__(self, laytonState, screenController, callbackOnTerminate):
         FullScreenPopup.__init__(self, callbackOnTerminate)
         print("Spawned outro!")
-
-        if callable(callbackOnTerminate):
-            callbackOnTerminate()
