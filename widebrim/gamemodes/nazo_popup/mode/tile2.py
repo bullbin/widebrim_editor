@@ -1,29 +1,117 @@
 from .base import BaseQuestionObject
 from ....engine_ext.utils import getAnimFromPath
+from ....engine.const import RESOLUTION_NINTENDO_DS
 from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from .const import PATH_ANI_TILE2, PATH_ANI_TILE
 
-# 2 types - Type 18, puzzle 1,2  Rotatable, plus Elysian Box puzzle
-#           Type 26, puzzle 4    Movable
+# Tile2_AddCheckRotate
+# IndexTile, IndexPoint, Direction (0-3)
+
+# Tile2_AddCheckNormal
+# IndexTile, IndexPoint
+
+class Tile():
+    def __init__(self, resource, offsetX, offsetY, animNameSpawn, animNameTouch, animNameIdle, indexSpawnPoint, allowRotation):
+        self.allowRotation = allowRotation == True
+        self.indexSpawnPoint = indexSpawnPoint
+        self.resource = resource
+
+        # custom center point
+        self.offset = (offsetX, offsetY)
+        if resource != None:
+            self.resource.setAnimationFromName(animNameSpawn)
+        else:
+            print("Failed to grab resource!")
+
+    def setMovementRegion(self, cornerBottomLeft, dimensions):
+        pass
+
+    def setRotationRegion(self, cornerBottomLeft, dimensions):
+        pass
 
 class HandlerTile2(BaseQuestionObject):
     def __init__(self, laytonState, screenController, callbackOnTerminate):
         super().__init__(laytonState, screenController, callbackOnTerminate)
 
         self._canTilesBeSwapped = False
+
         if laytonState.getNazoData().idHandler == 18:
             self._canTilesBeRotated = True
         else:
             self._canTilesBeRotated = False
-        
+
         self._resources = {}
         self._resourcesLastIndex = 0
+        self._points = []
+        self._tiles = []
+
+    def drawPuzzleElements(self, gameDisplay):
+        for tile in self._tiles:
+            if tile.resource != None:
+                frame = tile.resource.getActiveFrame()
+                if frame != None:
+                    indexPoint = tile.indexSpawnPoint
+                    if 0 <= indexPoint < len(self._points):
+                        x, y = self._points[indexPoint]
+                        y += RESOLUTION_NINTENDO_DS[1]
+
+                        # TODO - Why is the center point behaviour changed for this variant?
+                        if self._canTilesBeRotated:
+                            x -= (frame.get_width()) // 2
+                            y -= (frame.get_height()) // 2
+
+                        gameDisplay.blit(frame, (x,y))
+
+        return super().drawPuzzleElements(gameDisplay)
         
     def _doUnpackedCommand(self, opcode, operands):
+        # TODO - Check if order of operands matters - it probably very much does
         if opcode == OPCODES_LT2.Tile2_AddSprite.value and len(operands) == 1:
-
+            if self._canTilesBeRotated:
+                animResource = PATH_ANI_TILE2 % operands[0].value
+            else:
+                animResource = PATH_ANI_TILE % operands[0].value
+            self._resources[self._resourcesLastIndex] = animResource
             self._resourcesLastIndex += 1
+        elif opcode == OPCODES_LT2.Tile2_AddPoint.value and len(operands) == 2:
+            self._points.append((operands[0].value, operands[1].value))
+        elif opcode == OPCODES_LT2.Tile2_AddObjectNormal.value and len(operands) == 7:
+            if len(self._tiles) < 32:
+                tile = Tile(self._getCopyOfResource(operands[0].value),
+                            operands[1].value, operands[2].value,
+                            operands[3].value, operands[5].value, operands[6].value, 
+                            operands[6].value, self._canTilesBeRotated)
+                self._tiles.append(tile)
+        elif opcode == OPCODES_LT2.Tile2_AddObjectRotate.value and len(operands) == 8:
+            if len(self._tiles) < 32:
+                # TODO - Add rotation param (last operand)
+                tile = Tile(self._getCopyOfResource(operands[0].value),
+                            operands[1].value, operands[2].value,
+                            operands[3].value, operands[5].value, operands[6].value, 
+                            operands[6].value, self._canTilesBeRotated)
+                self._tiles.append(tile)
+        elif opcode == OPCODES_LT2.Tile2_AddObjectRange.value and len(operands) == 4:
+            if len(self._tiles) > 0:
+                if self._canTilesBeRotated:
+                    self._tiles[-1].setRotationRegion((operands[0].value, operands[1].value),
+                                                      (operands[2].value, operands[3].value))
+                else:
+                    self._tiles[-1].setMovementRegion((operands[0].value, operands[1].value),
+                                                      (operands[2].value, operands[3].value))
+        elif opcode == OPCODES_LT2.Tile2_AddObjectRange2.value and len(operands) == 4:
+            if len(self._tiles) > 0:
+                if self._canTilesBeRotated:
+                    self._tiles[-1].setMovementRegion((operands[0].value, operands[1].value),
+                                                      (operands[2].value, operands[3].value))
         elif opcode == OPCODES_LT2.Tile2_SwapOn.value and len(operands) == 0:
             self._canTilesBeSwapped = True
         else:
             return super()._doUnpackedCommand(opcode, operands)
         return True
+
+    def _getCopyOfResource(self, indexResource):
+        # Duplicate resource for tile
+        # TODO - Create a way to copy anim or have duplicates playing to reduce memory usage
+        if indexResource in self._resources:
+            return getAnimFromPath(self._resources[indexResource])
+        return None
