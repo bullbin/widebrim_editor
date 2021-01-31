@@ -44,6 +44,22 @@ class HandlerTile2(BaseQuestionObject):
         self._resourcesLastIndex = 0
         self._points = []
         self._tiles = []
+    
+    def hasMemoButton(self):
+        return self.laytonState.getCurrentNazoListEntry().idInternal != 203
+    
+    def hasQuitButton(self):
+        if self.laytonState.getCurrentNazoListEntry().idInternal != 203:
+            return True
+        else:
+            # Has checks for 2 gamemodes
+            return False
+
+    def hasSubmitButton(self):
+        return self.laytonState.getCurrentNazoListEntry().idInternal != 2 and self.laytonState.getCurrentNazoListEntry().idInternal != 203
+
+    def hasRestartButton(self):
+        return self.laytonState.getCurrentNazoListEntry().idInternal != 203
 
     def drawPuzzleElements(self, gameDisplay):
         for tile in self._tiles:

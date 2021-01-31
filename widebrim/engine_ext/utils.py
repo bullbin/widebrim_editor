@@ -68,10 +68,11 @@ def getAnimFromPath(inPath):
 
 def getAnimFromPathWithAttributes(inPath, spawnAnimName="gfx", posVariable="pos"):
     tempImage = getAnimFromPath(inPath)
-    tempImage.setAnimationFromName(spawnAnimName)
-    if tempImage.getVariable(posVariable) != None:
-        tempImage.setPos((tempImage.getVariable(posVariable)[0],
-                          tempImage.getVariable(posVariable)[1] + RESOLUTION_NINTENDO_DS[1]))
-    else:
-        tempImage.setPos((0, RESOLUTION_NINTENDO_DS[1]))
+    if tempImage != None:
+        tempImage.setAnimationFromName(spawnAnimName)
+        if tempImage.getVariable(posVariable) != None:
+            tempImage.setPos((tempImage.getVariable(posVariable)[0],
+                            tempImage.getVariable(posVariable)[1] + RESOLUTION_NINTENDO_DS[1]))
+        else:
+            tempImage.setPos((0, RESOLUTION_NINTENDO_DS[1]))
     return tempImage

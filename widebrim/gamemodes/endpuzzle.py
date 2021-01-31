@@ -5,17 +5,28 @@ from ..engine.state.enum_mode import GAMEMODES
 class EndPuzzlePlayer(EventPlayer):
     def __init__(self, laytonState, screenController):
 
-        laytonState.setGameModeNext(GAMEMODES.Room)
+        self.laytonState = laytonState
+        self.laytonState.setGameModeNext(GAMEMODES.Room)
 
         baseEventId = laytonState.entryEvInfo
         if baseEventId != None:
-            # TODO - Check if puzzle was actually solved
+            wasSkipped = self.laytonState.wasPuzzleSkipped
+            if self.laytonState.getCurrentNazoListEntry() != None:
+                puzzleState = self.laytonState.saveSlot.puzzleData.getPuzzleData((self.laytonState.getCurrentNazoListEntry().idExternal - 1))
+                if not(puzzleState.wasSolved):
+                    wasSkipped = True
 
             # There's special behaviour for puzzle 135 (sword puzzle)
             if baseEventId.dataPuzzle == 0x87:
-                baseEventId = baseEventId.idEvent + 4
+                if wasSkipped:
+                    baseEventId = baseEventId.idEvent + 3
+                else:
+                    baseEventId = baseEventId.idEvent + 4
             else:
-                baseEventId = baseEventId.idEvent + 3
+                if wasSkipped:
+                    baseEventId = baseEventId.idEvent + 4
+                else:
+                    baseEventId = baseEventId.idEvent + 3
                 
             laytonState.setEventId(baseEventId)
             EventPlayer.__init__(self, laytonState, screenController)

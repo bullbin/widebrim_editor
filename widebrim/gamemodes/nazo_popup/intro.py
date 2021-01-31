@@ -156,7 +156,7 @@ class IntroLayer(FullScreenPopup):
                     for x in [185,155,125]:
                         self.aniTitle.setPos((x,50))
                         self.aniTitle.draw(self.bgTitleScreen)
-                elif 153 < nzLstEntry.idInternal:
+                elif 153 < nzLstEntry.idExternal:
                     # WiFi
                     self.aniTitle.setAnimationFromName("w")
                     self.aniTitle.setPos((115,50))

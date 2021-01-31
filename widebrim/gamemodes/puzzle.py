@@ -48,7 +48,6 @@ def getPuzzleHandler(laytonState, screenController, callbackOnTerminate):
             handler = ID_TO_NAZO_HANDLER[laytonState.getNazoData().idHandler]
             if type(handler) != str:
                 return handler(laytonState, screenController, callbackOnTerminate)
-                handler = BaseQuestionObject(laytonState, screenController, callbackOnTerminate)
         except KeyError:
             pass
     return BaseQuestionObject(laytonState, screenController, callbackOnTerminate)
@@ -74,7 +73,6 @@ class PuzzlePlayer(ScreenLayerNonBlocking):
         self.laytonState.wasPuzzleSkipped = False
         if self.laytonState.loadCurrentNazoData():
             # Do intro screen and start loading chain
-            print("Puzzle player was spawned, handler", self.laytonState.getNazoData().idHandler)
             self.__callbackSpawnPuzzleIntro()
         else:
             # I think this will cause a softlock. Bypass potentially required (switch to next gamemode?)
@@ -102,10 +100,7 @@ class PuzzlePlayer(ScreenLayerNonBlocking):
         self._popup = IntroLayer(self.laytonState, self.screenController, self.__callbackSpawnPuzzleObject)
 
     def __callbackSpawnPuzzleObject(self):
-        # This should change the popup to a puzzle popup, but currently bypass to spawn end popup.
-        self.laytonState.saveSlot.puzzleData.getPuzzleData(self.laytonState.getCurrentNazoListEntry().idExternal - 1).wasSolved = True     # Hack
         self._popup = getPuzzleHandler(self.laytonState, self.screenController, self.__callbackOnPuzzleEnd)
-        # self.__callbackOnPuzzleEnd()
 
     def __callbackOnPuzzleEnd(self):
         # If user tried to solved puzzle, display outro layer.
