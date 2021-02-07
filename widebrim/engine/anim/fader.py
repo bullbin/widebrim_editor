@@ -52,7 +52,7 @@ class Fader():
         if callable(self._callback):
             self._callback()
             if self._callbackClearOnDone and not(self._isCallbackNew):
-                self.setCallback(None)
+                self._callback = None
 
     def setInvertedState(self, isInverted):
         self._inverted = isInverted

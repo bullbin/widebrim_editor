@@ -2,7 +2,7 @@ from ..engine.state.layer import ScreenLayerNonBlocking
 from ..engine.state.enum_mode import GAMEMODES
 from .nazo_popup.intro import IntroLayer
 from .nazo_popup.outro import OutroLayer
-from .nazo_popup.mode import HandlerTile2, BaseQuestionObject, HandlerFreeButton, HandlerDivide, HandlerTouch, HandlerOnOff2, HandlerTraceButton
+from .nazo_popup.mode import *
 
 ID_TO_NAZO_HANDLER = {2:HandlerFreeButton,
 
@@ -21,22 +21,22 @@ ID_TO_NAZO_HANDLER = {2:HandlerFreeButton,
                       11:"Tile",
                       13:"Pancake",
 
-                      16:"DrawInput",
-                      20:"DrawInput",
-                      21:"DrawInput",
-                      22:"DrawInput",
-                      28:"DrawInput",
-                      32:"DrawInput",
-                      35:"DrawInput",
+                      16:HandlerDrawInput,
+                      20:HandlerDrawInput,
+                      21:HandlerDrawInput,
+                      22:HandlerDrawInput,
+                      28:HandlerDrawInput,
+                      32:HandlerDrawInput,
+                      35:HandlerDrawInput,
 
                       18:HandlerTile2,
                       26:HandlerTile2,
                       
-                      17:"Knight",
+                      17:HandlerKnight,
                       23:HandlerOnOff2,
                       24:"Rose",
                       25:"Slide2",
-                      27:"Skate",
+                      27:HandlerSkate,
                       29:"PegSolitaire",
                       30:"Couple",
                       31:"Lamp",

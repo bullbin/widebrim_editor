@@ -4,6 +4,8 @@ from ....engine.const import RESOLUTION_NINTENDO_DS
 from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
 from .const import PATH_ANI_TILE2, PATH_ANI_TILE
 
+from pygame import Rect, draw
+
 # Tile2_AddCheckRotate
 # IndexTile, IndexPoint, Direction (0-3)
 
@@ -22,12 +24,15 @@ class Tile():
             self.resource.setAnimationFromName(animNameSpawn)
         else:
             print("Failed to grab resource!")
+        
+        self.rectsMovement = []
+        self.rectsRotation = []
 
     def setMovementRegion(self, cornerBottomLeft, dimensions):
-        pass
+        self.rectsMovement.append(Rect(cornerBottomLeft, dimensions))
 
     def setRotationRegion(self, cornerBottomLeft, dimensions):
-        pass
+        self.rectsRotation.append(Rect(cornerBottomLeft, dimensions))
 
 class HandlerTile2(BaseQuestionObject):
     def __init__(self, laytonState, screenController, callbackOnTerminate):
@@ -77,6 +82,10 @@ class HandlerTile2(BaseQuestionObject):
                             y -= (frame.get_height()) // 2
 
                         gameDisplay.blit(frame, (x,y))
+                        for tileMoveRect in tile.rectsMovement:
+                            moveRect = tileMoveRect.copy()
+                            moveRect.move_ip((x,y))
+                            draw.rect(gameDisplay, (255,0,0), moveRect)
 
         return super().drawPuzzleElements(gameDisplay)
         

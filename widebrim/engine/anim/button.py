@@ -67,6 +67,7 @@ class NullButton(TargettedButton):
         TargettedButton.__init__(self, callback, None, None)
         self._posTl = pos
         self._posBr = posEnd
+        self.setPos(pos)
     
     def getPos(self):
         return self._posTl
@@ -84,11 +85,17 @@ class NullButton(TargettedButton):
 
 class StaticButton(NullButton):
     def __init__(self, pos, surfaceButton, callback=None, targettedOffset=(0,0)):
-        NullButton.__init__(self, pos, (pos[0] + surfaceButton.get_width(), pos[1] + surfaceButton.get_height()), callback=callback)
         self._image = surfaceButton
-        self._imageBlitPos = self._posTl
-        self._offsetBlitPos = (self._imageBlitPos[0] + targettedOffset[0], self._imageBlitPos[1] + targettedOffset[1])
+        self._offset = targettedOffset
+        self._imageBlitPos = (0,0)
+        self._offsetBlitPos = (0,0)
+        NullButton.__init__(self, pos, (pos[0] + surfaceButton.get_width(), pos[1] + surfaceButton.get_height()), callback=callback)
     
+    def setPos(self, newPos):
+        super().setPos(newPos)
+        self._imageBlitPos = self._posTl
+        self._offsetBlitPos = (self._imageBlitPos[0] + self._offset[0], self._imageBlitPos[1] + self._offset[1])
+
     def doOnMouseTargetting(self):
         self._imageBlitPos = self._offsetBlitPos
 

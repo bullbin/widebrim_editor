@@ -155,10 +155,8 @@ class BaseQuestionObject(ScriptPlayer):
         return False
 
     def _startJudgement(self):
-        self.laytonState.wasPuzzleSolved = self._wasAnswerSolution()
-        
         # TODO - When is this set in the binary?
-        if self.laytonState.wasPuzzleSolved:
+        if self._wasAnswerSolution():
             self.laytonState.saveSlot.puzzleData.getPuzzleData(self.laytonState.getCurrentNazoListEntry().idExternal - 1).wasSolved = True
             
         self._isTerminating = True
