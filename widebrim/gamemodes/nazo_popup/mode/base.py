@@ -97,6 +97,9 @@ class BaseQuestionObject(ScriptPlayer):
     def _doReset(self):
         pass
 
+    def _setButtonEnabled(self):
+        pass
+
     def update(self, gameClockDelta):
         if not(self._isTerminating):
             super().update(gameClockDelta)

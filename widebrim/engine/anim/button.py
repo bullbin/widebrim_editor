@@ -39,6 +39,7 @@ class TargettedButton():
         if event.type == MOUSEBUTTONDOWN:
             if self.wasPressed(event.pos):
                 self.setTargettedState(True)
+                return True
             else:
                 self.setTargettedState(False)
 
@@ -48,6 +49,7 @@ class TargettedButton():
                     self.doOnMouseTargetting()
                 else:
                     self.doOnMouseAwayFromTarget()
+                return True
 
         elif event.type == MOUSEBUTTONUP:
             if self.getTargettedState() and self.wasPressed(event.pos):

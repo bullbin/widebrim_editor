@@ -8,3 +8,4 @@ from .traceButton import HandlerTraceButton
 from .drawInput import HandlerDrawInput
 from .knight_short import HandlerShortbrimKnight as HandlerKnight
 from .skate_short import HandlerShortbrimSkate as HandlerSkate
+from .onOff import HandlerOnOff

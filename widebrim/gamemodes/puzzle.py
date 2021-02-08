@@ -6,8 +6,8 @@ from .nazo_popup.mode import *
 
 ID_TO_NAZO_HANDLER = {2:HandlerFreeButton,
 
-                      3:"OnOff",
-                      14:"OnOff",
+                      3:HandlerOnOff,
+                      14:HandlerOnOff,
 
                       5:HandlerTraceButton,
 

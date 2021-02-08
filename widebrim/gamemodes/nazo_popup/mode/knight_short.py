@@ -65,17 +65,9 @@ class HandlerShortbrimKnight(BaseQuestionObject):
             self.overlaySurface.blit(self.imageKnightVisited, tileToScreenPos(pos))
 
     def _behaviourWhenSpacePressed(self, pos):
-        if not(self._isSpacePopulated(pos)):
+        if pos not in self.tilesVisited:
             self._addElement(pos)
         self._generateOverlaySurface()
-
-    def _isSpacePopulated(self, pos):
-        return pos in self.tilesVisited
-    
-    def _isSpaceAvailable(self, pos):
-        if pos in self.tilesAvailable:
-            return True
-        return False
 
     def drawPuzzleElements(self, gameDisplay):
 
@@ -172,17 +164,15 @@ class HandlerShortbrimKnight(BaseQuestionObject):
         return True
     
     def handleTouchEventPuzzleElements(self, event):
-        if self.movementFader.getActiveState():
-            return False
-
-        if event.type == MOUSEBUTTONDOWN:
-            if event.pos[0] >= self.posCorner[0] and event.pos[1] >= self.posCorner[1] + RESOLUTION_NINTENDO_DS[1]:
-                if (event.pos[0] < self.posCorner[0] + self.tileDimensions[0] * self.tileBoardDimensions[0] and
-                    event.pos[1] < self.posCorner[1] + RESOLUTION_NINTENDO_DS[1] + self.tileDimensions[1] * self.tileBoardDimensions[1]):   # Clicked on grid
-                    deltaTilesX = (event.pos[0] - self.posCorner[0]) // self.tileDimensions[0]
-                    deltaTilesY = (event.pos[1] - RESOLUTION_NINTENDO_DS[1] - self.posCorner[1]) // self.tileDimensions[1]
-                    tempPos = (deltaTilesX, deltaTilesY)
-                    if self._isSpaceAvailable(tempPos):
-                        self._behaviourWhenSpacePressed(tempPos)
-                        return True
+        if not(self.movementFader.getActiveState()):
+            if event.type == MOUSEBUTTONDOWN:
+                if event.pos[0] >= self.posCorner[0] and event.pos[1] >= self.posCorner[1] + RESOLUTION_NINTENDO_DS[1]:
+                    if (event.pos[0] < self.posCorner[0] + self.tileDimensions[0] * self.tileBoardDimensions[0] and
+                        event.pos[1] < self.posCorner[1] + RESOLUTION_NINTENDO_DS[1] + self.tileDimensions[1] * self.tileBoardDimensions[1]):   # Clicked on grid
+                        deltaTilesX = (event.pos[0] - self.posCorner[0]) // self.tileDimensions[0]
+                        deltaTilesY = (event.pos[1] - RESOLUTION_NINTENDO_DS[1] - self.posCorner[1]) // self.tileDimensions[1]
+                        tempPos = (deltaTilesX, deltaTilesY)
+                        if tempPos in self.tilesAvailable:
+                            self._behaviourWhenSpacePressed(tempPos)
+                            return True
         return False
