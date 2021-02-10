@@ -634,6 +634,7 @@ class Layton2SaveSlot():
 
             data.writeInt(self.goal, 4)
 
+            # TODO - There's a few flags here
             writer.writeU32(calculateSaveChecksumFromData(data.data))
             writer.write(data.data)
         else:

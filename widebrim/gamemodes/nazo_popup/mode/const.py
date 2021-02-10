@@ -19,5 +19,6 @@ PATH_ANI_TILE2 = "nazo/tilerotate/%s"
 PATH_ANI_TILE  = "nazo/tile/%s"
 PATH_ANI_KNIGHT = "nazo/knight/knight_gfx.spr"
 PATH_ANI_ICESKATE = "nazo/iceskate/iceskate_gfx.spr"
+PATH_ANI_PEGSOLITAIRE = "nazo/pegsolitaire/solitaire_gfx.spr"
 
 PATH_BG_DRAWINPUT = "nazo/drawinput/%s"

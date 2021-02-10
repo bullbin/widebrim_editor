@@ -37,7 +37,7 @@ ID_TO_NAZO_HANDLER = {2:HandlerFreeButton,
                       24:"Rose",
                       25:"Slide2",
                       27:HandlerSkate,
-                      29:"PegSolitaire",
+                      29:HandlerPegSolitaire,
                       30:"Couple",
                       31:"Lamp",
                       33:"Bridge"}
