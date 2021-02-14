@@ -10,3 +10,4 @@ from .knight_short import HandlerShortbrimKnight as HandlerKnight
 from .skate_short import HandlerShortbrimSkate as HandlerSkate
 from .onOff import HandlerOnOff
 from .pegSolitaire_short import HandlerShortbrimPegSolitaire as HandlerPegSolitaire
+from .slide2_short import HandlerShortbrimSlide2 as HandlerSlide2

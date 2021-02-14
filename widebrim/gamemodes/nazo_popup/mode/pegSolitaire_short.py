@@ -5,9 +5,12 @@ from .base import BaseQuestionObject
 from .const import PATH_ANI_PEGSOLITAIRE
 from pygame import MOUSEBUTTONUP, MOUSEBUTTONDOWN, MOUSEMOTION, Surface
 
+# Ported from shortbrim
+# TODO - Rewrite with better code style
+
 class HandlerShortbrimPegSolitaire(BaseQuestionObject):
 
-    # TODO - Pull out class to support these types of puzzles which are like TapToAnswer but fixed on grid
+    # TODO - (old) Pull out class to support these types of puzzles which are like TapToAnswer but fixed on grid
 
     BANK_IMAGES = getAnimFromPath(PATH_ANI_PEGSOLITAIRE)
     BALL_X_LIMIT = 187

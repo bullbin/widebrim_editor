@@ -21,4 +21,7 @@ PATH_ANI_KNIGHT = "nazo/knight/knight_gfx.spr"
 PATH_ANI_ICESKATE = "nazo/iceskate/iceskate_gfx.spr"
 PATH_ANI_PEGSOLITAIRE = "nazo/pegsolitaire/solitaire_gfx.spr"
 
+PATH_ANI_SLIDE2_NUMBERS = "nazo/common/counter_number.spr"
+PATH_ANI_SLIDE2 = "nazo/slide/%s"
+
 PATH_BG_DRAWINPUT = "nazo/drawinput/%s"
