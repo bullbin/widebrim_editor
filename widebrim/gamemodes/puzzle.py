@@ -11,8 +11,8 @@ ID_TO_NAZO_HANDLER = {2:HandlerFreeButton,
 
                       5:HandlerTraceButton,
 
-                      6:"TraceOnly",
-                      34:"TraceOnly",
+                      6:HandlerTrace,
+                      34:HandlerTraceOnly,
 
                       9:HandlerDivide,
                       15:HandlerDivide,
@@ -70,7 +70,8 @@ class PuzzlePlayer(ScreenLayerNonBlocking):
             if not (self.laytonState.saveSlot.puzzleData.getPuzzleData(activeNazoEntry.idExternal - 1).wasEncountered):
                 self.laytonState.saveSlot.puzzleData.getPuzzleData(activeNazoEntry.idExternal - 1).wasEncountered = True
 
-        self.laytonState.wasPuzzleSkipped = False
+        self.laytonState.wasPuzzleSkipped   = False
+        self.laytonState.wasPuzzleSolved    = False
         if self.laytonState.loadCurrentNazoData():
             # Do intro screen and start loading chain
             self.__callbackSpawnPuzzleIntro()
@@ -105,9 +106,9 @@ class PuzzlePlayer(ScreenLayerNonBlocking):
     def __callbackOnPuzzleEnd(self):
         # If user tried to solved puzzle, display outro layer.
         if not(self.laytonState.wasPuzzleSkipped):
-            self._popup = OutroLayer(self.laytonState, self.screenController, None)
+            self._popup = OutroLayer(self.laytonState, self.screenController, self.__callbackOnTerminateMode)
             # Callbacks can't be called during init, or very bad things happen
-            self.__callbackOnTerminateMode()
+            # self.__callbackOnTerminateMode()
         else:
             self.__callbackOnTerminateMode()
 

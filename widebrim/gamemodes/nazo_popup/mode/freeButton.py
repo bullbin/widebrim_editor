@@ -30,7 +30,9 @@ class  HandlerFreeButton(BaseQuestionObject):
         return False
 
     def _wasAnswerSolution(self):
-        return self.indexButtonPress in self.solutions
+        if len(self.solutions) > self.indexButtonPress:
+            return self.solutions[self.indexButtonPress]
+        return False
 
     def drawPuzzleElements(self, gameDisplay):
         for button in self.buttons:

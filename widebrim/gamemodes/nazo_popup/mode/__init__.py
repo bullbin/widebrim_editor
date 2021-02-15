@@ -11,3 +11,5 @@ from .skate_short import HandlerShortbrimSkate as HandlerSkate
 from .onOff import HandlerOnOff
 from .pegSolitaire_short import HandlerShortbrimPegSolitaire as HandlerPegSolitaire
 from .slide2_short import HandlerShortbrimSlide2 as HandlerSlide2
+from .traceOnly import HandlerTraceOnly
+from .traceOnly import HandlerTraceOnly as HandlerTrace

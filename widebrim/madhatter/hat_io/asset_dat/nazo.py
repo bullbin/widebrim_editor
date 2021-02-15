@@ -101,6 +101,9 @@ class NazoData(File):
     def isBgLanguageDependent(self):
         return self.flagUseLanguageBackground
     
+    def isAltCharacterUsed(self):
+        return self.flagUseLukeAsSolver
+    
     def getBgMainIndex(self):
         return self.bgMainId
 
