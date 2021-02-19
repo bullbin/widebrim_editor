@@ -11,9 +11,14 @@ def getSubstitutedString(inString):
     while indexChar < len(inString):
         if inString[indexChar] == "<":
             stringKey = ""
-            while inString[indexChar] != ">":
+
+            while indexChar < len(inString):
+                if inString[indexChar] == ">":
+                    if indexChar < len(inString) - 1 and inString[indexChar + 1] != ">":
+                        break
                 indexChar += 1
                 stringKey += inString[indexChar]
+
             stringKey = stringKey[:-1]
 
             if stringKey in DECODE_MAP:
