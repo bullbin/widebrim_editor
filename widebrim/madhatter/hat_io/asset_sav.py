@@ -54,6 +54,9 @@ class PuzzleData():
         self.enableNazoba   = False
         self.levelDecay     = 0
         self.levelHint      = 0
+
+    def incrementDecayStage(self):
+        self.levelDecay = min(2, self.levelDecay + 1)
     
     def setFromData(self, data):
         self.wasEncountered = ((data & 0x01) != 0) or ((data & 0x02) != 0)

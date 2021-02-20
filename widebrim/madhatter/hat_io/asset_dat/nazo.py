@@ -43,7 +43,7 @@ class NazoData(File):
         self.picaratDecayStages = [reader.readUInt(1), reader.readUInt(1), reader.readUInt(1)]
         
         flags = reader.readUInt(1)
-        self.flagUseLukeAsSolver = flags & 0x01 != 0
+        self.flagUseLukeAsSolver = flags & 0x02 != 0
         self.flagUseLanguageBackground = flags & 0x20 != 0
 
         self.indexPlace = reader.readUInt(1)

@@ -33,6 +33,9 @@ def getNumberFontRendererFromImage(anim, varName):
     return None
 
 class BaseQuestionObject(ScriptPlayer):
+
+    POS_QUESTION_TEXT = (13,22)
+
     def __init__(self, laytonState, screenController, callbackOnTerminate):
         super().__init__(laytonState, screenController, GdScript())
 
@@ -43,7 +46,7 @@ class BaseQuestionObject(ScriptPlayer):
 
         self.__isPuzzleElementsActive = False
         self.__scrollerPrompt = ScrollingFontHelper(self.laytonState.fontQ, yBias=2)
-        self.__scrollerPrompt.setPos((13,22)) # Verified, 27_Question_MaybeDrawTopText
+        self.__scrollerPrompt.setPos(BaseQuestionObject.POS_QUESTION_TEXT) # Verified, 27_Question_MaybeDrawTopText
 
         # TODO - Unify language replacement, like bg
         self.__animSubText = getAnimFromPath(PATH_ANI_SUB_TEXT.replace("?", laytonState.language.value))

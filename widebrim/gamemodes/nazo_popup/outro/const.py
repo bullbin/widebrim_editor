@@ -6,6 +6,11 @@ PATH_BG_PASS   = "nazo/system/nazo_seikai%i.bgx"
 PATH_BG_ANSWER  = "nazo/q%ia.bgx"
 PATH_BG_ANSWER_LANG = "nazo/?/q%ia.bgx"
 PATH_BG_FAIL    = "nazo/system/nazo_fail%i.bgx"
+PATH_BG_RETRY   = "nazo/system/qend_retry.bgx"
+
+PATH_ANI_TRY_AGAIN  = "nazo/system/?/retry.spr"
+PATH_ANI_VIEW_HINT  = "nazo/system/?/viewhint.spr"
+PATH_ANI_QUIT       = "nazo/system/?/later.spr"
 
 CHAR_CHARACTER_0 = "l"
 CHAR_CHARACTER_1 = "r"

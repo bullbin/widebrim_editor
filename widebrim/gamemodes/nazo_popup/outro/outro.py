@@ -2,9 +2,9 @@ from widebrim.engine.const import RESOLUTION_NINTENDO_DS
 from ...core_popup.utils import FullScreenPopup
 from ....engine.anim.fader import Fader
 from ....engine_ext.utils import getImageFromPath
-from ....engine.anim.font.scrolling import ScrollingFontHelper
 from ....engine.state.enum_mode import GAMEMODES
 from .const import *
+from .end import QuestionEndPopup
 
 # TODO - Refer to annotated function to finish implementing this...
 #        DO NOT FORGET TO MARK PUZZLES AS SOLVED BY USING THE VARIABLE IN LAYTONSTATE
@@ -37,7 +37,7 @@ class JudgementPopup(FullScreenPopup):
             else:
                 self._charCharacter = CHAR_CHARACTER_0
         else:
-            self._charCharacter = "l"
+            self._charCharacter = CHAR_CHARACTER_0
     
         self._indexFrame = -1
         self._indexWait = 0
@@ -97,7 +97,8 @@ class JudgementPopup(FullScreenPopup):
             else:
                 self.screenController.setBgMain(None)
                 self._isScrollingPopup = True
-                self._animTimer.setDuration(500)
+                self._animTimer.setDuration(250)
+                # TODO - Wait before fade out
 
     def _doWaitBetweenFades(self):
         self._animTimer.setDurationInFrames(6)
@@ -128,35 +129,6 @@ class JudgementPopup(FullScreenPopup):
     def _applyFrame(self):
         self.screenController.setBgMain(self._getFramePath())
 
-class QuestionEndPopup(FullScreenPopup):
-    def __init__(self, laytonState, screenController, callbackOnTerminate):
-        super().__init__(callbackOnTerminate)
-
-        self._textScroller = ScrollingFontHelper(laytonState.fontQ)
-        self._textScroller.setPos((11, RESOLUTION_NINTENDO_DS[1] + 23))
-
-        self.screenController = screenController
-
-        if laytonState.wasPuzzleSolved:
-            screenController.setBgMain(PATH_BG_PASS % laytonState.getNazoData().getBgSubIndex())
-            if laytonState.getNazoData().isBgLanguageDependent():
-                screenController.setBgSub(PATH_BG_ANSWER_LANG % laytonState.getNazoData().getBgMainIndex())
-            else:
-                screenController.setBgSub(PATH_BG_ANSWER % laytonState.getNazoData().getBgMainIndex())
-            self._textScroller.setText(laytonState.getNazoData().getTextCorrect())
-            screenController.fadeIn()
-        else:
-            screenController.setBgMain(PATH_BG_FAIL % laytonState.getNazoData().getBgSubIndex())
-            self._textScroller.setText(laytonState.getNazoData().getTextIncorrect())
-            screenController.fadeInMain()
-        
-    def update(self, gameClockDelta):
-        if not(self.screenController.getFadingStatus()):
-            self._textScroller.update(gameClockDelta)
-    
-    def draw(self, gameDisplay):
-        self._textScroller.draw(gameDisplay)
-
 class OutroLayer(FullScreenPopup):
     def __init__(self, laytonState, screenController, callbackOnTerminate):
         FullScreenPopup.__init__(self, callbackOnTerminate)
@@ -165,6 +137,7 @@ class OutroLayer(FullScreenPopup):
 
         #     So when are picarats reduced?
         # If hint button pressed, a hint screen is attached and drawn over current state.
+        self._callbackOnTerminate = callbackOnTerminate
         self.laytonState = laytonState
         self.screenController = screenController
         self._popup = JudgementPopup(laytonState, screenController, self._getNextPopup)
@@ -186,7 +159,7 @@ class OutroLayer(FullScreenPopup):
     def _switchToModeEnd(self):
         # If it wasn't solved, add a callback to a handler with the retry buttons.
         # If solved, jump to another handler with the congratulations message
-        self._popup = QuestionEndPopup(self.laytonState, self.screenController, None)
+        self._popup = QuestionEndPopup(self.laytonState, self.screenController, self._callbackOnTerminate)
 
     def update(self, gameClockDelta):
         if self._popup != None:
@@ -195,3 +168,8 @@ class OutroLayer(FullScreenPopup):
     def draw(self, gameDisplay):
         if self._popup != None:
             self._popup.draw(gameDisplay)
+    
+    def handleTouchEvent(self, event):
+        if self._popup != None:
+            return self._popup.handleTouchEvent(event)
+        return super().handleTouchEvent(event)

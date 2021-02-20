@@ -37,9 +37,10 @@ class Layton2GameState():
         
         self.namePlace      = ""
 
-        self.isFirstTouchEnabled = False
-        self.wasPuzzleSkipped    = False
-        self.wasPuzzleSolved     = False
+        self.isFirstTouchEnabled    = False
+        self.wasPuzzleSkipped       = False
+        self.wasPuzzleSolved        = False
+        self.wasPuzzleRestarted     = False
 
         self.dbPlaceFlag        = PlaceFlag()
         self.dbStoryFlag        = StoryFlag()

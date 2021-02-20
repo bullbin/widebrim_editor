@@ -1,3 +1,9 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from widebrim.engine.state.state import Layton2GameState
+    from widebrim.engine_ext.state_game import ScreenController
+
 from ..engine.state.layer import ScreenLayerNonBlocking
 from ..engine.state.enum_mode import GAMEMODES
 from .nazo_popup.intro import IntroLayer
@@ -53,7 +59,7 @@ def getPuzzleHandler(laytonState, screenController, callbackOnTerminate):
     return BaseQuestionObject(laytonState, screenController, callbackOnTerminate)
 
 class PuzzlePlayer(ScreenLayerNonBlocking):
-    def __init__(self, laytonState, screenController):
+    def __init__(self, laytonState : Layton2GameState, screenController : ScreenController):
         ScreenLayerNonBlocking.__init__(self)
         self.laytonState = laytonState
         self.screenController = screenController
@@ -70,8 +76,6 @@ class PuzzlePlayer(ScreenLayerNonBlocking):
             if not (self.laytonState.saveSlot.puzzleData.getPuzzleData(activeNazoEntry.idExternal - 1).wasEncountered):
                 self.laytonState.saveSlot.puzzleData.getPuzzleData(activeNazoEntry.idExternal - 1).wasEncountered = True
 
-        self.laytonState.wasPuzzleSkipped   = False
-        self.laytonState.wasPuzzleSolved    = False
         if self.laytonState.loadCurrentNazoData():
             # Do intro screen and start loading chain
             self.__callbackSpawnPuzzleIntro()
@@ -98,6 +102,9 @@ class PuzzlePlayer(ScreenLayerNonBlocking):
         return super().handleTouchEvent(event)
 
     def __callbackSpawnPuzzleIntro(self):
+        self.laytonState.wasPuzzleSkipped   = False
+        self.laytonState.wasPuzzleSolved    = False
+        self.laytonState.wasPuzzleRestarted = False
         self._popup = IntroLayer(self.laytonState, self.screenController, self.__callbackSpawnPuzzleObject)
 
     def __callbackSpawnPuzzleObject(self):
@@ -114,8 +121,7 @@ class PuzzlePlayer(ScreenLayerNonBlocking):
 
     def __callbackOnTerminateMode(self):
         self._popup = None
-        # TODO - One more unknown condition
-        if self.laytonState.wasPuzzleSkipped or True:
+        if self.laytonState.wasPuzzleSkipped or not(self.laytonState.wasPuzzleRestarted):
             self.laytonState.setGameMode(self.laytonState.getGameModeNext()) # Usually EndPuzzle
             self.laytonState.unloadCurrentNazoData()
             
