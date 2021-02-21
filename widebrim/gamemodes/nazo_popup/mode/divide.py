@@ -15,7 +15,7 @@ from pygame.draw import line
 
 class HandlerDivide(BaseQuestionObject):
 
-    DISTANCE_MIN_GRAB = 3
+    DISTANCE_MIN_GRAB = 10
 
     def __init__(self, laytonState, screenController, callbackOnTerminate):
         super().__init__(laytonState, screenController, callbackOnTerminate)
@@ -39,12 +39,33 @@ class HandlerDivide(BaseQuestionObject):
         self._posTouchPoints = []
 
         self._lines = []
+        self._solutionLines = []
 
         self._mouseLineStart = (0,0)
         self._mouseLineEnd = (0,0)
 
         self._pointStart = None
+
+    def _doReset(self):
+        self._lines = []
+        return super()._doReset()
     
+    def _wasAnswerSolution(self):
+        if len(self._lines) != len(self._solutionLines):
+            return False
+
+        for solution in self._solutionLines:
+            pointStart, pointStop = solution
+            if pointStart in self._posTouchPoints and pointStop in self._posTouchPoints:
+                indexStart = self._posTouchPoints.index(pointStart)
+                indexStop = self._posTouchPoints.index(pointStop)
+                if not((indexStart, indexStop) in self._lines or (indexStop, indexStart) in self._lines):
+                    return False
+            else:
+                return False
+
+        return True
+
     def _getClosestTouchPoint(self, pos):
 
         def calculateDistance(x0, x1, y0, y1):
@@ -131,6 +152,8 @@ class HandlerDivide(BaseQuestionObject):
     def drawPuzzleElements(self, gameDisplay):
         # TODO - Draw green point at start point
         # Render lines...
+
+        lineWidth = 3
         super().drawPuzzleElements(gameDisplay)
         for touchPointX, touchPointY in self._posTouchPoints:
             gameDisplay.set_at((touchPointX + self._posGridCorner[0], touchPointY + self._posGridCorner[1]), (0,0,0))
@@ -138,14 +161,14 @@ class HandlerDivide(BaseQuestionObject):
         if self._pointStart != None:
             xStart, yStart = self._posTouchPoints[self._pointStart]
             line(gameDisplay, self._colourPen, (xStart + self._posGridCorner[0], yStart + self._posGridCorner[1]),
-                                       self._mouseLineEnd)
+                                       self._mouseLineEnd, lineWidth)
 
         for linePair in self._lines:
             startLine, stopLine = linePair
             xStart, yStart = self._posTouchPoints[startLine]
             xStop, yStop = self._posTouchPoints[stopLine]
             line(gameDisplay, self._colourLine, (xStart + self._posGridCorner[0], yStart + self._posGridCorner[1]),
-                                       (xStop + self._posGridCorner[0], yStop + self._posGridCorner[1]))
+                                       (xStop + self._posGridCorner[0], yStop + self._posGridCorner[1]), lineWidth)
 
         return super().drawPuzzleElements(gameDisplay)
 
@@ -185,7 +208,6 @@ class HandlerDivide(BaseQuestionObject):
                 elif self._pointStart != None:
 
                     pointsFromLine = self._getPointsOnGridBetweenPoints(self._posTouchPoints[self._pointStart], self._posTouchPoints[indexPoint])
-                    print(pointsFromLine)
                     for indexPoint in range(len(pointsFromLine) - 1):
                         startIndex = pointsFromLine[indexPoint]
                         endIndex = pointsFromLine[indexPoint + 1]
@@ -232,6 +254,9 @@ class HandlerDivide(BaseQuestionObject):
             self._allowDiagonalMoves = True
         elif opcode == OPCODES_LT2.AddTouchPoint.value and len(operands) == 2:
             self._posTouchPoints.append((operands[0].value, operands[1].value))
+        elif opcode == OPCODES_LT2.AddCheckLine.value and len(operands) == 4:
+            self._solutionLines.append(((operands[0].value, operands[1].value),
+                                        (operands[2].value, operands[3].value)))
         else:
             return super()._doUnpackedCommand(opcode, operands)
         return True

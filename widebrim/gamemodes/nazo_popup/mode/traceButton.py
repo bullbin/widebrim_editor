@@ -5,6 +5,9 @@ from pygame import MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION, draw, Surface
 from random import randint
 from math import sqrt
 
+# Up to 4 solutions
+# each can have 24 trace points
+
 class TraceZone():
     def __init__(self, x, y, diameter, isSolution):
         self.x = x

@@ -51,6 +51,7 @@ ID_TO_NAZO_HANDLER = {2:HandlerFreeButton,
 def getPuzzleHandler(laytonState, screenController, callbackOnTerminate):
     if laytonState.getNazoData() != None:
         try:
+            print("Handler", laytonState.getNazoData().idHandler)
             handler = ID_TO_NAZO_HANDLER[laytonState.getNazoData().idHandler]
             if type(handler) != str:
                 return handler(laytonState, screenController, callbackOnTerminate)
