@@ -1,3 +1,4 @@
+from widebrim.engine.anim.button import AnimatedButton
 from .base import BaseQuestionObject
 from ....engine.const import RESOLUTION_NINTENDO_DS
 from ....engine_ext.utils import getAnimFromPath, getAnimFromPathWithAttributes
@@ -6,12 +7,24 @@ from pygame import MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION, draw, Surface
 from random import randint
 from math import sqrt
 
-# Up to 4 solutions
+# TODO - Touch message prevents the arrow buttons from displaying. Oversight? Limitation? Not drawn during touch? Idk
+# TODO - Game has better code for detecting circles. Not fooled by scribbles, for example
 # TODO - Puzzle specific behaviour - a bunch of unimplemented animation names?
+# TODO - Game has unused behaviour for internal ID 10, which was used for a divide puzzle instead
+# TODO - Maybe cache background
 
 # TODO - Put these constants somewhere
-PATH_ANI_RETRY = "nazo/tracebutton/%s/retry_trace.spr"
-PATH_ANI_POINT = "nazo/tracebutton/point_trace.spr"
+PATH_ANI_RETRY      = "nazo/tracebutton/%s/retry_trace.spr"
+PATH_ANI_POINT      = "nazo/tracebutton/point_trace.spr"
+PATH_ANI_BTN_LEFT   = "nazo/tracebutton/arrow_left.spr"
+PATH_ANI_BTN_RIGHT  = "nazo/tracebutton/arrow_right.spr"
+
+POS_BTN_LEFT        = (   2,RESOLUTION_NINTENDO_DS[1])
+POS_BTN_RIGHT       = (0x9e,RESOLUTION_NINTENDO_DS[1])
+
+PATH_BG_TRACE       = "nazo/q%i.bgx"
+PATH_BG_TRACE_ALT   = "nazo/q%i_%i.bgx"
+
 WIDTH_PEN = 3
 
 class TraceZone():
@@ -27,9 +40,36 @@ class TraceZone():
 
 class HandlerTraceButton(BaseQuestionObject):
     def __init__(self, laytonState, screenController, callbackOnTerminate):
+
+        self._indexSolution = 0
+        self._maxIndexSolution = 0
+
         super().__init__(laytonState, screenController, callbackOnTerminate)
+
+        self.__buttons = []
+
+        # TODO - From base
+        def getButtonObject(pathAnim, posButton, callback=None):
+            if "?" in pathAnim:
+                pathAnim = pathAnim.replace("?", laytonState.language.value)
+            elif "%s" in pathAnim:
+                pathAnim = pathAnim % laytonState.language.value
+
+            image = getAnimFromPathWithAttributes(pathAnim)
+            if image != None:
+                image.setPos(posButton)
+                # TODO - Default parameters are on/off
+                return AnimatedButton(image, "on", "off", callback=callback)
+            return None
         
-        self._traceZones = []
+        def addIfNotNone(button):
+            if button != None:
+                self.__buttons.append(button)
+        
+        addIfNotNone(getButtonObject(PATH_ANI_BTN_LEFT, POS_BTN_LEFT, callback=self._callbackOnLeft))
+        addIfNotNone(getButtonObject(PATH_ANI_BTN_RIGHT, POS_BTN_RIGHT, callback=self._callbackOnRight))
+
+        self._traceZones = [[],[],[],[]]
         self._colourLine = (0,0,0)
         self._colourKey = (0,0,0)
 
@@ -52,22 +92,49 @@ class HandlerTraceButton(BaseQuestionObject):
         self._tracePointsCount = 0
         self._tracePointTargetted = None
     
+    def _loadPuzzleBg(self):
+        nazoData = self.laytonState.getNazoData()
+        if nazoData != None:
+            if self._indexSolution == 0:
+                self.screenController.setBgMain(PATH_BG_TRACE % nazoData.bgMainId)
+            else:
+                self.screenController.setBgMain(PATH_BG_TRACE_ALT % (nazoData.bgMainId, self._indexSolution))
+
+    def _callbackOnLeft(self):
+        self._indexSolution -= 1
+        if self._indexSolution < 0:
+            self._indexSolution = self._maxIndexSolution
+        self._loadPuzzleBg()
+        self._doReset()
+
+    def _callbackOnRight(self):
+        self._indexSolution += 1
+        if self._indexSolution > self._maxIndexSolution:
+            self._indexSolution = 0
+        self._loadPuzzleBg()
+        self._doReset()
+    
     def _doUnpackedCommand(self, opcode, operands):
         if opcode == OPCODES_LT2.SetFontUserColor.value and len(operands) == 3:
             self._colourLine = (operands[0].value, operands[1].value, operands[2].value)
                 
         elif opcode == OPCODES_LT2.AddTracePoint.value and len(operands) == 4:
-            if len(self._traceZones) < 24:
-                self._traceZones.append(TraceZone(operands[0].value, operands[1].value,
-                                                operands[2].value, operands[3].value == "true"))
+            if self._indexSolution < 4 and len(self._traceZones[self._indexSolution]) < 24:
+                self._traceZones[self._indexSolution].append(TraceZone(operands[0].value, operands[1].value,
+                                                                       operands[2].value, operands[3].value == "true"))
+        elif opcode == OPCODES_LT2.AddSolution.value and len(operands) == 0:
+            if self._maxIndexSolution < 4:
+                self._indexSolution += 1
+                self._maxIndexSolution += 1
         else:
             return super()._doUnpackedCommand(opcode, operands)
         return True
     
     def doOnComplete(self):
+        self._indexSolution = 0
         self._penSurface = Surface(RESOLUTION_NINTENDO_DS)
         while self._colourLine == self._colourKey:
-            self._colourKey = (randint(0,256), 0, 0)
+            self._colourKey = (randint(0,255), 0, 0)
         self._penSurface.set_colorkey(self._colourKey)
         self._clearSurface()
         return super().doOnComplete()
@@ -95,6 +162,11 @@ class HandlerTraceButton(BaseQuestionObject):
         offsetPos = (pos[0], pos[1] - RESOLUTION_NINTENDO_DS[1])
         draw.line(self._penSurface, self._colourLine, offsetLastPoint, offsetPos, width=WIDTH_PEN)
     
+    def updatePuzzleElements(self, gameClockDelta):
+        for button in self.__buttons:
+            button.update(gameClockDelta)
+        return super().updatePuzzleElements(gameClockDelta)
+
     def _updatePenTarget(self):
 
         def setPointPositionFromTarget(target):
@@ -105,7 +177,7 @@ class HandlerTraceButton(BaseQuestionObject):
         self._tracePointTargetted = None
         if self._tracePointsCount > 0:
             targetPos = (round(self._tracePointsTotal[0] / self._tracePointsCount), round(self._tracePointsTotal[1] / self._tracePointsCount))
-            for target in self._traceZones:
+            for target in self._traceZones[self._indexSolution]:
                 if target.wasPressed(targetPos):
                     self._tracePointTargetted = target
                     setPointPositionFromTarget(target)
@@ -114,6 +186,11 @@ class HandlerTraceButton(BaseQuestionObject):
     def drawPuzzleElements(self, gameDisplay):
         gameDisplay.blit(self._penSurface, (0, RESOLUTION_NINTENDO_DS[1]))
         # TODO - Implement top screen/bottom screen for clipping purposes
+
+        if self._maxIndexSolution > 0:
+            for button in self.__buttons:
+                button.draw(gameDisplay)
+
         if self._tracePointTargetted != None:
             # Draw arrow
             if self._animPoint != None:
@@ -126,6 +203,11 @@ class HandlerTraceButton(BaseQuestionObject):
         return super().drawPuzzleElements(gameDisplay)
 
     def handleTouchEventPuzzleElements(self, event):
+        if self._maxIndexSolution > 0:
+            for button in self.__buttons:
+                if button.handleTouchEvent(event):
+                    return True
+
         if event.type == MOUSEBUTTONDOWN:
             self._hasPenDrawn = True
             self._isPenDrawing = True
@@ -135,7 +217,6 @@ class HandlerTraceButton(BaseQuestionObject):
 
         elif self._hasPenDrawn and self._isPenDrawing:
             if event.type == MOUSEMOTION:
-                draw.line(self._penSurface, self._colourLine, self._penLastPoint, event.pos)
                 self._drawLineToCurrentPoint(event.pos)
                 self._addLastPoint()
                 self._penLastPoint = event.pos

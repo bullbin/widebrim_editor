@@ -51,7 +51,7 @@ class BaseQuestionObject(ScriptPlayer):
         # TODO - Unify language replacement, like bg
         self.__animSubText = getAnimFromPath(PATH_ANI_SUB_TEXT.replace("?", laytonState.language.value))
 
-        self.__loadPuzzleBg()
+        self._loadPuzzleBg()
         if nazoData != None:
             self.screenController.setBgSub(PATH_PUZZLE_BG_NAZO_TEXT % nazoData.bgSubId)
             self.__scrollerPrompt.setText(nazoData.getTextPrompt())
@@ -215,7 +215,7 @@ class BaseQuestionObject(ScriptPlayer):
         self.laytonState.wasPuzzleSkipped = True
         self.screenController.fadeOut(callback=self._callbackOnTerminate)
 
-    def __loadPuzzleBg(self):
+    def _loadPuzzleBg(self):
         nzLstEntry = self.laytonState.getCurrentNazoListEntry()
         nazoData = self.laytonState.getNazoData()
 
