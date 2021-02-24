@@ -1,4 +1,3 @@
-from .base import BaseQuestionObject
 from ....engine.const import RESOLUTION_NINTENDO_DS
 from ....engine_ext.utils import getAnimFromPath
 from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2

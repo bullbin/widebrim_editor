@@ -4,6 +4,8 @@ from ....engine.anim.button import StaticButton
 from ....engine.const import RESOLUTION_NINTENDO_DS
 from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
 
+from .rose_short import RoseWall
+
 from .base import BaseQuestionObject
 from .const import PATH_ANI_ICESKATE
 
@@ -11,41 +13,6 @@ from .const import PATH_ANI_ICESKATE
 
 # Ported from shortbrim
 # TODO - Rewrite with better code style
-
-class RoseWall():
-    def __init__(self, start, end):
-        # TODO - Rearrange points to make them move positively, the rose wall logic only checks under these cases
-        # TODO - These are unsigned anyway, right?
-        self.posCornerStart = start
-        self.posCornerEnd = end
-    
-    def isOnWall(self, pos):
-        
-        def testInBounds(pos):
-            minX = [self.posCornerStart[0], self.posCornerEnd[0]]
-            minY = [self.posCornerEnd[1], self.posCornerStart[1]]
-            minX.sort()
-            minY.sort()
-            if (pos[0] >= minX[0] and pos[0] <= minX[1] and
-                pos[1] >= minY[0] and pos[1] <= minY[1]):
-                return True
-            return False
-
-        if testInBounds(pos):
-            if pos == self.posCornerStart or pos == self.posCornerEnd:
-                return True
-            elif self.posCornerStart[0] == self.posCornerEnd[0]:
-                # Vertical line
-                return pos[0] == self.posCornerStart[0]
-            elif self.posCornerStart[1] == self.posCornerEnd[1]:
-                # Horizontal line
-                return pos[1] == self.posCornerStart[1]
-            else:
-                gradWall = (self.posCornerEnd[1] - self.posCornerStart[1]) / (self.posCornerEnd[0] - self.posCornerStart[0])
-                if pos[0] - self.posCornerStart[0] > 0:
-                    gradPoint = (pos[1] - self.posCornerStart[1]) / (pos[0] - self.posCornerStart[0])
-                    return gradWall == gradPoint or gradWall == -gradPoint
-        return False
 
 class HandlerShortbrimSkate(BaseQuestionObject):
 

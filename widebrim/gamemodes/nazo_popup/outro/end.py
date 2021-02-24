@@ -42,6 +42,7 @@ class QuestionEndPopup(FullScreenPopup):
             if button != None:
                 self.__buttons.append(button)
 
+        # TODO - FPS access in scroller, this is 2 chars per frame
         self._textScroller = ScrollingFontHelper(laytonState.fontQ, yBias=2)
         self._textScroller.setPos((BaseQuestionObject.POS_QUESTION_TEXT[0],
                                    BaseQuestionObject.POS_QUESTION_TEXT[1] + RESOLUTION_NINTENDO_DS[1]))

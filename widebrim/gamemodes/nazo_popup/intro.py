@@ -62,6 +62,7 @@ class IntroLayer(FullScreenPopup):
         else:
             picaratSlot = 0
 
+        # TODO - Is bottom screen skipped on some modes?
         self._countPicaratDifference = self.laytonState.getNazoData().getPicaratStage(0) - self.laytonState.getNazoData().getPicaratStage(picaratSlot)
 
         # Clear both screens

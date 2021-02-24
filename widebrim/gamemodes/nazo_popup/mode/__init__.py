@@ -13,3 +13,4 @@ from .pegSolitaire_short import HandlerShortbrimPegSolitaire as HandlerPegSolita
 from .slide2_short import HandlerShortbrimSlide2 as HandlerSlide2
 from .traceOnly import HandlerTraceOnly
 from .traceOnly import HandlerTraceOnly as HandlerTrace
+from .rose_short import HandlerShortbrimRose as HandlerRose
