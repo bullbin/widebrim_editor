@@ -26,7 +26,8 @@ GAMEMODE_TO_HANDLER = {GAMEMODES.Reset:ResetHelper,
                        GAMEMODES.Name:NamePlayer,
                        GAMEMODES.HamsterName:NamePlayer,
                        GAMEMODES.StartPuzzle:StartPuzzlePlayer,
-                       GAMEMODES.StayPuzzle:StayPuzzlePlayer}
+                       GAMEMODES.StayPuzzle:StayPuzzlePlayer,
+                       GAMEMODES.Nazoba:NazobaPlayer}
 
 class BgLayer(ScreenLayerNonBlocking):
 

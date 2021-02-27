@@ -9,3 +9,4 @@ from .name import NamePlayer
 from .movie import MoviePlayer
 from .startpuzzle import StartPuzzlePlayer
 from .staypuzzle import StayPuzzlePlayer
+from .nazoba import NazobaPlayer

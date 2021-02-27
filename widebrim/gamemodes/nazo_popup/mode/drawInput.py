@@ -277,7 +277,7 @@ class DrawInputAnswer():
                 elif self.handlerId == 28:
                     return answer == self.answer
                 else:
-                    return int(answer) == int(answer)
+                    return int(answer) == int(self.answer)
         return False
 
     def clearAnswer(self):

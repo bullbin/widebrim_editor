@@ -12,6 +12,7 @@ from math import sqrt
 # TODO - Puzzle specific behaviour - a bunch of unimplemented animation names?
 # TODO - Game has unused behaviour for internal ID 10, which was used for a divide puzzle instead
 # TODO - Maybe cache background
+# TODO - Improve trace behaviour - don't average points, as going slower in one area skews the average
 
 # TODO - Put these constants somewhere
 PATH_ANI_RETRY      = "nazo/tracebutton/%s/retry_trace.spr"

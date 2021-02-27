@@ -47,7 +47,10 @@ class BaseQuestionObject(ScriptPlayer):
         # TODO - Do not disable hint button - all other buttons are disabled
         self.__useButtons = True
 
-        self.__puzzleXLimit = RESOLUTION_NINTENDO_DS[1]
+        # TODO - Per-handler X limiting
+        # self.__puzzleXLimit = RESOLUTION_NINTENDO_DS[1]
+        self.__puzzleXLimit = RESOLUTION_NINTENDO_DS[0]
+        
         self.__isPuzzleElementsActive = False
         self.__scrollerPrompt = ScrollingFontHelper(self.laytonState.fontQ, yBias=2)
         self.__scrollerPrompt.setPos(BaseQuestionObject.POS_QUESTION_TEXT) # Verified, 27_Question_MaybeDrawTopText

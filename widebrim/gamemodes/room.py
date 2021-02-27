@@ -221,8 +221,14 @@ class RoomPlayer(ScreenLayerNonBlocking):
                 self.laytonState.setEventId(exitEntry.spawnData)
             else:
                 # TODO - Replicate in-game behaviour. Currently just terminating
-                self.laytonState.setGameMode(GAMEMODES.Room)
-                self.laytonState.setPlaceNum(exitEntry.spawnData)
+                if exitEntry.spawnData == 0x3f:
+                    # If trying to enter Riddleton's shack, set mode to 0x3f.
+                    # Place number not changed (return to room before shack)
+                    self.laytonState.setGameMode(GAMEMODES.Nazoba)
+                else:
+                    self.laytonState.setGameMode(GAMEMODES.Room)
+                    self.laytonState.setPlaceNum(exitEntry.spawnData)
+
             self.startTermination()
 
         # TODO - Stop interaction on blocking event

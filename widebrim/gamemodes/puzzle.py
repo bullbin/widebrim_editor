@@ -131,7 +131,9 @@ class PuzzlePlayer(ScreenLayerNonBlocking):
                 if self.laytonState.saveSlot.puzzleData.getPuzzleData(self.laytonState.getCurrentNazoListEntry().idExternal - 1).wasSolved:
 
                     # TODO - Make const, actually play the event. Nazoba mode is already set but this triggers the reward popups if they were required.
+                    self.laytonState.setGameMode(GAMEMODES.DramaEvent)
                     self.laytonState.setEventId(18000)
+                    # More checks here... integrates a script player into itself to play script and continue.
                     # TODO - There's one more check about the game being complete so another event can be played
 
             self.doOnKill()
