@@ -8,6 +8,7 @@ from math import pi, atan2
 
 # Ported from shortbrim
 # TODO - Rewrite with better code style
+# TODO - number font renderer
 
 class SlidingShape():
 

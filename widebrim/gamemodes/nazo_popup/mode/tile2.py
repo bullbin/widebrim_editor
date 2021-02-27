@@ -1,12 +1,13 @@
 from pygame.constants import MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION
 from .base import BaseQuestionObject
 from ....engine_ext.utils import getAnimFromPath
-from ....engine.const import PATH_PROGRESSION_DB, RESOLUTION_NINTENDO_DS
+from ....engine.const import RESOLUTION_NINTENDO_DS
 from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
 from .const import PATH_ANI_TILE2, PATH_ANI_TILE
 from math import sqrt
 
 from pygame import Rect, draw
+from pygame.transform import rotate
 
 # Tile2_AddCheckRotate
 # IndexTile, IndexPoint, Direction (0-3)
@@ -15,23 +16,36 @@ from pygame import Rect, draw
 # IndexTile, IndexPoint
 
 class Tile():
-    def __init__(self, resource, offsetX, offsetY, animNameSpawn, animNameTouch, animNameIdle, indexTile, indexSpawnPoint, allowRotation):
+    def __init__(self, resource, offsetX, offsetY, animNameSpawn, animNameTouch, animNameIdle, indexTile, indexSpawnPoint, allowRotation, spawnRot=0):
         self.allowRotation = allowRotation == True
         self.indexTile = indexTile
 
         self.indexPoint = indexSpawnPoint
         self.indexSpawnPoint = indexSpawnPoint
         self.targetPoint = None
+        self.targetRot = None
         self.resource = resource
+
+        self.indexRotation = 0
+        self.frame = None
 
         # custom center point
         # When the tile is grabbed, tile teleports to this location.
         self.offset = (offsetX, offsetY)
         if resource != None:
             self.resource.setAnimationFromName(animNameSpawn)
+            self.frame = self.resource.getActiveFrame()
         
         self.rectsMovement = []
         self.rectsRotation = []
+
+        if self.allowRotation:
+            spawnRot = spawnRot % 4
+            while self.indexRotation != spawnRot:
+                self.rotateClockwise90Deg()
+            self.indexSpawnRot = spawnRot
+        else:
+            self.indexSpawnRot = 0
 
     def setMovementRegion(self, cornerBottomLeft, dimensions):
         self.rectsMovement.append(Rect(cornerBottomLeft, dimensions))
@@ -41,11 +55,20 @@ class Tile():
 
     def reset(self):
         self.indexPoint = self.indexSpawnPoint
+        while self.indexRotation != self.indexSpawnRot:
+            self.rotateClockwise90Deg()
     
     def isPointCorrect(self):
         if self.targetPoint == None:
             return True
         return self.targetPoint == self.indexPoint
+    
+    def isRotCorrect(self):
+        if self.allowRotation:
+            if self.targetRot != None:
+                # TODO - Is normal check allowed in rotation mode?
+                return (self.indexRotation == self.targetRot) or (self.targetRot < 0)
+        return True
     
     def _wasClicked(self, rectList, shapePoint, pos):
         x, y = shapePoint
@@ -58,6 +81,16 @@ class Tile():
                 return True
         return False
 
+    def debugDraw(self, shapePoint, gameDisplay):
+        x, y = shapePoint
+        y += RESOLUTION_NINTENDO_DS[1]
+
+        for tileRect in self.rectsRotation:
+            moveRect = tileRect.copy()
+            moveRect.move_ip((x,y))
+            draw.rect(gameDisplay, (255,0,0), moveRect)
+        return False
+
     def wasClickedMove(self, shapePoint, pos):
         return self._wasClicked(self.rectsMovement, shapePoint, pos)
     
@@ -65,10 +98,36 @@ class Tile():
         return self._wasClicked(self.rectsRotation, shapePoint, pos)
     
     def getFrame(self):
-        if self.resource != None:
-            frame = self.resource.getActiveFrame()
-            return frame
-        return None
+        return self.frame
+    
+    def rotateClockwise90Deg(self):
+        # TODO - How do pieces rotate??
+
+        def getRotatedRect(rect : Rect):
+
+            def rotatePoint(point):
+                return (point[1], -point[0])
+
+            somePoint = rotatePoint(rect.bottomleft)
+            somePoint2 = rotatePoint(rect.topright)
+
+            height = rect.width
+            width = rect.height
+
+            x = min(somePoint[0], somePoint2[0])
+            y = min(somePoint[1], somePoint2[1])
+
+            return Rect(x, y, width, height)
+
+        frame = self.getFrame()
+        if frame != None:
+            for indexRect, rect in enumerate(self.rectsMovement):
+                self.rectsMovement[indexRect] = getRotatedRect(rect)
+            for indexRect, rect in enumerate(self.rectsRotation):
+                self.rectsRotation[indexRect] = getRotatedRect(rect)
+            self.frame = rotate(frame, 90)
+        
+        self.indexRotation = (self.indexRotation + 1) % 4
     
     def getFloatingPosition(self, pos):
         # TODO - Rotatable pieces from center, maybe
@@ -154,7 +213,7 @@ class HandlerTile2(BaseQuestionObject):
     
     def _wasAnswerSolution(self):
         for tile in self._tiles:
-            if not(tile.isPointCorrect()):
+            if not(tile.isPointCorrect()) or not(tile.isRotCorrect()):
                 return False
         return True
 
@@ -162,6 +221,8 @@ class HandlerTile2(BaseQuestionObject):
         for indexTile, tile in enumerate(self._tiles):
             if indexTile in self._checkPos:
                 tile.targetPoint = self._checkPos[indexTile]
+            if indexTile in self._checkRot:
+                tile.targetRot = self._checkRot[indexTile]
         return super().doOnComplete()
 
     def drawPuzzleElements(self, gameDisplay):
@@ -180,16 +241,24 @@ class HandlerTile2(BaseQuestionObject):
                         y -= (frame.get_height()) // 2
 
                     gameDisplay.blit(frame, (x,y))
+                    # tile.debugDraw(self._points[indexPoint], gameDisplay)
 
-                    #x, y = self._points[indexPoint]
-                    #y += RESOLUTION_NINTENDO_DS[1]
-                    #for tileMoveRect in tile.rectsMovement:
-                    #    moveRect = tileMoveRect.copy()
-                    #    moveRect.move_ip((x,y))
-                    #    draw.rect(gameDisplay, (255,0,0), moveRect)
-        
         if self._tileSelected != None and self._tileSelected.getFrame() != None:
-            gameDisplay.blit(self._tileSelected.getFrame(), self._tileSelected.getFloatingPosition(self._tileSelectedDrawPos))
+            if self._tileSelectedMoving:
+                gameDisplay.blit(self._tileSelected.getFrame(), self._tileSelected.getFloatingPosition(self._tileSelectedDrawPos))
+            else:
+                frame = self._tileSelected.getFrame()
+                indexPoint = self._tileSelected.indexPoint
+                if 0 <= indexPoint < len(self._points):
+                    x, y = self._points[indexPoint]
+                    y += RESOLUTION_NINTENDO_DS[1]
+
+                    # TODO - Why is the center point behaviour changed for this variant?
+                    if self._canTilesBeRotated:
+                        x -= (frame.get_width()) // 2
+                        y -= (frame.get_height()) // 2
+
+                    gameDisplay.blit(frame, (x,y))
 
         return super().drawPuzzleElements(gameDisplay)
         
@@ -227,7 +296,7 @@ class HandlerTile2(BaseQuestionObject):
                 tile = Tile(self._getCopyOfResource(operands[0].value),
                             operands[1].value, operands[2].value,
                             operands[3].value, operands[5].value, operands[6].value, len(self._tiles),
-                            operands[6].value, self._canTilesBeRotated)
+                            operands[6].value, self._canTilesBeRotated, spawnRot=operands[7].value)
                 self._tiles.append(tile)
         elif opcode == OPCODES_LT2.Tile2_AddObjectRange.value and len(operands) == 4:
             if len(self._tiles) > 0:
@@ -239,11 +308,15 @@ class HandlerTile2(BaseQuestionObject):
                                                       (operands[2].value, operands[3].value))
         elif opcode == OPCODES_LT2.Tile2_AddCheckNormal.value and len(operands) == 2:
             self._checkPos[operands[0].value] = operands[1].value
+        elif opcode == OPCODES_LT2.Tile2_AddCheckRotate.value and len(operands) == 3:
+            self._checkPos[operands[0].value] = operands[1].value
+            self._checkRot[operands[0].value] = operands[2].value
         elif opcode == OPCODES_LT2.Tile2_AddObjectRange2.value and len(operands) == 4:
             if len(self._tiles) > 0:
                 if self._canTilesBeRotated:
                     self._tiles[-1].setMovementRegion((operands[0].value, operands[1].value),
                                                       (operands[2].value, operands[3].value))
+
         elif opcode == OPCODES_LT2.Tile2_SwapOn.value and len(operands) == 0:
             self._canTilesBeSwapped = True
         else:
@@ -302,6 +375,12 @@ class HandlerTile2(BaseQuestionObject):
         self._tiles.remove(tile)
         self._tiles.insert(0, tile)
 
+    def _doOnTileFinishedInteracting(self):
+        if not(self.hasSubmitButton()):
+            # If the user found the solution, stop
+            if self._wasAnswerSolution():
+                self._startJudgement()
+
     def handleTouchEventPuzzleElements(self, event):
         # TODO - Animation to fade picking up and dropping down
         if event.type == MOUSEBUTTONDOWN:
@@ -315,21 +394,26 @@ class HandlerTile2(BaseQuestionObject):
                         self._tileSelected = tile
                         self._tileSelectedDrawPos = event.pos
 
-                        if wasClickedMove or (wasClickedRot and wasClickedMove):
+                        if (wasClickedMove and not wasClickedRot) or (wasClickedRot and wasClickedMove):
                             # wasClickedMove behaviour
                             self._tileSelectedMoving = True
                         else:
                             self._tileSelectedMoving = False
-
                         return True
 
         if self._tileSelected != None:
-            if event.type == MOUSEMOTION:
-                self._tileSelectedDrawPos = event.pos
-            if event.type == MOUSEBUTTONUP:
-                # event is offset by the center point, calculate position
-                if self._tileSelectedMoving:
+            if self._tileSelectedMoving:
+                if event.type == MOUSEMOTION:
+                    self._tileSelectedDrawPos = event.pos
+                if event.type == MOUSEBUTTONUP:
+                    # event is offset by the center point, calculate position
                     self._updateTilePoint(self._tileSelected, event.pos)
-                self._tileSelected = None
+                    self._doOnTileFinishedInteracting()
+                    self._tileSelected = None
+            else:
+                if event.type == MOUSEBUTTONUP:
+                    self._tileSelected.rotateClockwise90Deg()
+                    self._doOnTileFinishedInteracting()
+                    self._tileSelected = None
         
         return super().handleTouchEventPuzzleElements(event)

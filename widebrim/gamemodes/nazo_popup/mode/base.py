@@ -44,6 +44,10 @@ class BaseQuestionObject(ScriptPlayer):
         nzLstEntry = laytonState.getCurrentNazoListEntry()
         nazoData = laytonState.getNazoData()
 
+        # TODO - Do not disable hint button - all other buttons are disabled
+        self.__useButtons = True
+
+        self.__puzzleXLimit = RESOLUTION_NINTENDO_DS[1]
         self.__isPuzzleElementsActive = False
         self.__scrollerPrompt = ScrollingFontHelper(self.laytonState.fontQ, yBias=2)
         self.__scrollerPrompt.setPos(BaseQuestionObject.POS_QUESTION_TEXT) # Verified, 27_Question_MaybeDrawTopText
@@ -108,33 +112,51 @@ class BaseQuestionObject(ScriptPlayer):
             super().update(gameClockDelta)
             if self.__getPuzzleElementsEnabledState():
                 self.__scrollerPrompt.update(gameClockDelta)
-                for button in self.__buttons:
-                    button.update(gameClockDelta)
+
+                if self.__useButtons:
+                    for button in self.__buttons:
+                        button.update(gameClockDelta)
                 self.updatePuzzleElements(gameClockDelta)
     
     def draw(self, gameDisplay):
         super().draw(gameDisplay)
         self.__drawSubScreenOverlay(gameDisplay)
         self.__scrollerPrompt.draw(gameDisplay)
-        for button in self.__buttons:
-            button.draw(gameDisplay)
+
+        if self.__useButtons:
+            for button in self.__buttons:
+                button.draw(gameDisplay)
         self.drawPuzzleElements(gameDisplay)
+    
+    def _setPuzzleTouchBounds(self, xLimit):
+        self.__puzzleXLimit = xLimit
+    
+    def _disableButtons(self):
+        self.__useButtons = False
+
+    def _enableButtons(self):
+        self.__useButtons = True
     
     def handleTouchEvent(self, event):
         # TODO - TOUCH! animation
         if not(self._isTerminating):
             # TODO - Get mouse region, it's somewhere in binary
+            if self.__useButtons:
+                for button in self.__buttons:
+                    if button.handleTouchEvent(event):
+                        return True
+
             if event.type == MOUSEBUTTONDOWN:
                 x,y = event.pos
-                if 0 <= x < 190:
+                if 0 <= x < self.__puzzleXLimit:
                     self.__isInteractingWithPuzzle = True
                 else:
                     self.__isInteractingWithPuzzle = False
             
             if self.__isInteractingWithPuzzle:
                 x, y = event.pos
-                if x > 190:
-                    x = 190
+                if x > self.__puzzleXLimit:
+                    x = self.__puzzleXLimit
                 if y < RESOLUTION_NINTENDO_DS[1]:
                     y = RESOLUTION_NINTENDO_DS[1]
                 event.pos = x,y
@@ -142,12 +164,8 @@ class BaseQuestionObject(ScriptPlayer):
             
                 if event.type == MOUSEBUTTONUP:
                     self.__isInteractingWithPuzzle = False
-            else:
-                for button in self.__buttons:
-                    button.handleTouchEvent(event)
-            
-        return super().handleTouchEvent(event)
-
+                return True
+        return False
     def updatePuzzleElements(self, gameClockDelta):
         pass
 

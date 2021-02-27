@@ -155,13 +155,6 @@ class HandlerDivide(BaseQuestionObject):
 
         lineWidth = 3
         super().drawPuzzleElements(gameDisplay)
-        for touchPointX, touchPointY in self._posTouchPoints:
-            gameDisplay.set_at((touchPointX + self._posGridCorner[0], touchPointY + self._posGridCorner[1]), (0,0,0))
-
-        if self._pointStart != None:
-            xStart, yStart = self._posTouchPoints[self._pointStart]
-            line(gameDisplay, self._colourPen, (xStart + self._posGridCorner[0], yStart + self._posGridCorner[1]),
-                                       self._mouseLineEnd, lineWidth)
 
         for linePair in self._lines:
             startLine, stopLine = linePair
@@ -169,6 +162,11 @@ class HandlerDivide(BaseQuestionObject):
             xStop, yStop = self._posTouchPoints[stopLine]
             line(gameDisplay, self._colourLine, (xStart + self._posGridCorner[0], yStart + self._posGridCorner[1]),
                                        (xStop + self._posGridCorner[0], yStop + self._posGridCorner[1]), lineWidth)
+
+        if self._pointStart != None:
+            xStart, yStart = self._posTouchPoints[self._pointStart]
+            line(gameDisplay, self._colourPen, (xStart + self._posGridCorner[0], yStart + self._posGridCorner[1]),
+                                       self._mouseLineEnd, lineWidth)
 
         return super().drawPuzzleElements(gameDisplay)
 

@@ -45,8 +45,8 @@ ID_TO_NAZO_HANDLER = {2:HandlerFreeButton,
                       27:HandlerSkate,
                       29:HandlerPegSolitaire,
                       30:"Couple",
-                      31:"Lamp",
-                      33:"Bridge"}
+                      31:HandlerLamp,
+                      33:HandlerBridge}
 
 def getPuzzleHandler(laytonState, screenController, callbackOnTerminate):
     if laytonState.getNazoData() != None:
