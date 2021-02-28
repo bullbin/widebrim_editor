@@ -16,3 +16,4 @@ from .traceOnly import HandlerTraceOnly as HandlerTrace
 from .rose_short import HandlerShortbrimRose as HandlerRose
 from .lamp_short import HandlerShortbrimLamp as HandlerLamp
 from .bridge import HandlerBridge
+from .pancake_short import HandlerShortbrimPancake as HandlerPancake

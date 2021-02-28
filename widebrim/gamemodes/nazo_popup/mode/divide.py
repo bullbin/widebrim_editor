@@ -3,7 +3,7 @@ from .base import BaseQuestionObject
 from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
 
 from math import sqrt, atan2, degrees
-from pygame import MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION
+from pygame import MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION, Rect
 from pygame.draw import line
 
 # When drawing lines, this is the behaviour
@@ -12,6 +12,8 @@ from pygame.draw import line
 # - Going over the same line inverts it (disables)
 
 # TODO - Find image of circle around point
+# TODO - Limit the moves
+# TODO - Look into lengths of allowed items - eg region count, line count...
 
 class HandlerDivide(BaseQuestionObject):
 
@@ -40,8 +42,9 @@ class HandlerDivide(BaseQuestionObject):
 
         self._lines = []
         self._solutionLines = []
+        self._forbiddenLines = []
+        self._gridAllowedRegion = []
 
-        self._mouseLineStart = (0,0)
         self._mouseLineEnd = (0,0)
 
         self._pointStart = None
@@ -55,15 +58,9 @@ class HandlerDivide(BaseQuestionObject):
             return False
 
         for solution in self._solutionLines:
-            pointStart, pointStop = solution
-            if pointStart in self._posTouchPoints and pointStop in self._posTouchPoints:
-                indexStart = self._posTouchPoints.index(pointStart)
-                indexStop = self._posTouchPoints.index(pointStop)
-                if not((indexStart, indexStop) in self._lines or (indexStop, indexStart) in self._lines):
-                    return False
-            else:
+            indexStart, indexStop = solution
+            if not((indexStart, indexStop) in self._lines or (indexStop, indexStart) in self._lines):
                 return False
-
         return True
 
     def _getClosestTouchPoint(self, pos):
@@ -86,11 +83,9 @@ class HandlerDivide(BaseQuestionObject):
         
         return (minPointIndex, minDistance)
 
-    def _getNextMoveDirection(self, pos):
-        pass
-
-    def _getAngleBetweenMouseAndPoint(self, pos):
-        pass
+    def _isNextMoveOnXAxis(self, deltaPos):
+        direction = degrees(atan2(deltaPos[1], deltaPos[0]))
+        return -45 <= direction < 45 or (135 <= direction < 180 or -180 > direction >= -135)
 
     def _doesLineExist(self, pointFrom, pointTo):
         indexLine = None
@@ -144,9 +139,15 @@ class HandlerDivide(BaseQuestionObject):
                         distanceToPoint[tempDistance] = self._posTouchPoints.index((x,y))
 
         distance.sort()
-        output = [self._posTouchPoints.index(point0)]
+        output = []
         for distanceKey in distance:
             output.append(distanceToPoint[distanceKey])
+
+        if len(output) > 0:
+            if output[0] != self._posTouchPoints.index(point0):
+                output.insert(0, self._posTouchPoints.index(point0))
+        else:
+            output.append(self._posTouchPoints.index(point0))
         return output
 
     def drawPuzzleElements(self, gameDisplay):
@@ -170,30 +171,63 @@ class HandlerDivide(BaseQuestionObject):
 
         return super().drawPuzzleElements(gameDisplay)
 
+    def _doAddRemoveLineAndReturnNextPoint(self, pointStart, pointEnd):
+        pointsFromLine = self._getPointsOnGridBetweenPoints(pointStart, pointEnd)
+        for indexPoint in range(len(pointsFromLine) - 1):
+            startIndex = pointsFromLine[indexPoint]
+            endIndex = pointsFromLine[indexPoint + 1]
+            if startIndex != endIndex:
+                indexLine = self._doesLineExist(startIndex, endIndex)
+                if indexLine == None:
+                    self._lines.append((startIndex, endIndex))
+                else:
+                    self._lines.pop(indexLine)
+        return pointsFromLine[-1]
+
     def handleTouchEventNonDiagonal(self, event):
+
+        def doGrabDestinationBehaviour(event):
+            pointX, pointY = self._posTouchPoints[self._pointStart]
+
+            deltaX = event.pos[0]
+            deltaX -= (pointX + self._posGridCorner[0])
+            deltaY = event.pos[1]
+            deltaY -= (pointY + self._posGridCorner[1])
+
+            if self._isNextMoveOnXAxis((deltaX, deltaY)):
+                targetPointPos = (event.pos[0], pointY + self._posGridCorner[1])
+            else:
+                targetPointPos = (pointX + self._posGridCorner[0], event.pos[1])
+            self._mouseLineEnd = targetPointPos
+            
+            # Remap to point space
+            targetPointPos = (targetPointPos[0] - self._posGridCorner[0], targetPointPos[1] - self._posGridCorner[1])
+            self._pointStart = self._doAddRemoveLineAndReturnNextPoint(self._posTouchPoints[self._pointStart], targetPointPos)
+
         if event.type == MOUSEBUTTONDOWN:
             indexPoint, distance = self._getClosestTouchPoint(event.pos)
             if indexPoint != None and distance < HandlerDivide.DISTANCE_MIN_GRAB:
+                # Point was grabbed
                 self._pointStart = indexPoint
-
-                # TODO - Convert to point position
-                self._mouseLineStart = event.pos
+                self._mouseLineEnd = (self._posTouchPoints[indexPoint][0] + self._posGridCorner[0],
+                                      self._posTouchPoints[indexPoint][1] + self._posGridCorner[1])
                 return True
-
-        elif event.type == MOUSEMOTION and self._pointStart != None:
-            # Moving the mouse, point selected
-            # TODO - Get direction of mouse cursor
-
-            indexPoint, distance = self._getClosestTouchPoint(event.pos)
-            if indexPoint != None and indexPoint != self._pointStart:
-
-                # TODO - Check if line exists
-                self._lines.append((self._pointStart, indexPoint))
-                self._pointStart = indexPoint
-            pass
-
+        
+        if self._pointStart != None:
+            eventPos = event.pos
+            if event.type == MOUSEBUTTONUP:
+                # On event up, attempt to snap to closest point first
+                indexPoint, distance = self._getClosestTouchPoint(event.pos)
+                if indexPoint != None and distance < HandlerDivide.DISTANCE_MIN_GRAB:
+                    eventPos = (self._posTouchPoints[indexPoint][0] + self._posGridCorner[0],
+                                self._posTouchPoints[indexPoint][1] + self._posGridCorner[1])
+            
+            doGrabDestinationBehaviour(event)
+            if event.type == MOUSEBUTTONUP:
+                self._pointStart = None
+            return True
         return False
-    
+
     def handleTouchEventDiagonal(self, event):
         if event.type == MOUSEBUTTONDOWN or event.type == MOUSEBUTTONUP:
             self._mouseLineEnd = event.pos
@@ -202,18 +236,8 @@ class HandlerDivide(BaseQuestionObject):
                 
                 if event.type == MOUSEBUTTONDOWN:
                     self._pointStart = indexPoint
-                    self._mouseLineStart = event.pos
                 elif self._pointStart != None:
-
-                    pointsFromLine = self._getPointsOnGridBetweenPoints(self._posTouchPoints[self._pointStart], self._posTouchPoints[indexPoint])
-                    for indexPoint in range(len(pointsFromLine) - 1):
-                        startIndex = pointsFromLine[indexPoint]
-                        endIndex = pointsFromLine[indexPoint + 1]
-                        indexLine = self._doesLineExist(startIndex, endIndex)
-                        if indexLine == None:
-                            self._lines.append((startIndex, endIndex))
-                        else:
-                            self._lines.pop(indexLine)
+                    self._doAddRemoveLineAndReturnNextPoint(self._posTouchPoints[self._pointStart], self._posTouchPoints[indexPoint])
             
             if event.type == MOUSEBUTTONUP:
                 self._pointStart = None
@@ -228,11 +252,24 @@ class HandlerDivide(BaseQuestionObject):
         return True
 
     def handleTouchEventPuzzleElements(self, event):
-        if self._allowDiagonalMoves:
-            if self.handleTouchEventDiagonal(event):
+        eventValid = event.type == MOUSEBUTTONUP or event.type == MOUSEMOTION
+        if not(eventValid) and event.type == MOUSEBUTTONDOWN:
+            for region in self._gridAllowedRegion:
+                region : Rect
+                if region.collidepoint(event.pos):
+                    eventValid = True
+                    break
+            if not(eventValid):
+                indexPoint, distance = self._getClosestTouchPoint(event.pos)
+                if distance < HandlerDivide.DISTANCE_MIN_GRAB:
+                    eventValid = True
+
+        if eventValid:
+            if self._allowDiagonalMoves:
+                if self.handleTouchEventDiagonal(event):
+                    return True
+            elif self.handleTouchEventNonDiagonal(event):
                 return True
-        elif self.handleTouchEventNonDiagonal(event):
-            return True
         return super().handleTouchEventPuzzleElements(event)
 
     def _doUnpackedCommand(self, opcode, operands):
@@ -244,10 +281,25 @@ class HandlerDivide(BaseQuestionObject):
             self._sizeGrid = (operands[0].value, operands[1].value)
         elif opcode == OPCODES_LT2.SetBlockSize.value and len(operands) == 1:
             self._sizeBlock = operands[0].value
+
+        # TODO - Colour incorrect!
         elif opcode == OPCODES_LT2.SetLineColor.value and len(operands) == 3:
             self._colourLine = (operands[0].value, operands[1].value, operands[2].value)
         elif opcode == OPCODES_LT2.SetPenColor.value and len(operands) == 3:
             self._colourPen = (operands[0].value, operands[1].value, operands[2].value)
+        elif opcode == OPCODES_LT2.SetGridTypeRange.value and len(operands) == 5:
+            if operands[4].value == 1:
+                minX = min(operands[0].value, operands[2].value)
+                minY = min(operands[1].value, operands[3].value)
+                maxX = max(operands[0].value, operands[2].value)
+                maxY = max(operands[1].value, operands[3].value)
+                # TODO - Sanitisation check
+                self._gridAllowedRegion.append((minX, minY, maxX, maxY))
+            elif operands[4].value == 2:
+                self._forbiddenLines.append(((operands[0].value, operands[1].value), (operands[2].value, operands[3].value)))
+            else:
+                return False
+            return False
         elif opcode == OPCODES_LT2.EnableNaname.value and len(operands) == 0:
             self._allowDiagonalMoves = True
         elif opcode == OPCODES_LT2.AddTouchPoint.value and len(operands) == 2:
@@ -264,4 +316,41 @@ class HandlerDivide(BaseQuestionObject):
         for indexTouchPoint, touchPoint in enumerate(self._posTouchPoints):
             touchPointX, touchPointY = touchPoint
             self._posTouchPoints[indexTouchPoint] = (touchPointX * self._sizeBlock, touchPointY * self._sizeBlock)
+        
+        simplifiedSolutionLines = []
+        for indexLine, line in enumerate(self._solutionLines):
+            point0, point1 = line
+            point0 = (point0[0] * self._sizeBlock, point0[1] * self._sizeBlock)
+            point1 = (point1[0] * self._sizeBlock, point1[1] * self._sizeBlock)
+
+            # TODO - Crash if points given not already in grid
+            subdividedLines = self._getPointsOnGridBetweenPoints(point0, point1)
+            for indexLine in range(len(subdividedLines) - 1):
+                simplifiedSolutionLines.append((subdividedLines[indexLine], subdividedLines[indexLine + 1]))
+
+        simplifiedForbiddenLines = []
+        for indexLine, line in enumerate(self._forbiddenLines):
+            point0, point1 = line
+            point0 = (point0[0] * self._sizeBlock, point0[1] * self._sizeBlock)
+            point1 = (point1[0] * self._sizeBlock, point1[1] * self._sizeBlock)
+
+            # TODO - Crash if points given not already in grid
+            subdividedLines = self._getPointsOnGridBetweenPoints(point0, point1)
+            for indexLine in range(len(subdividedLines) - 1):
+                simplifiedForbiddenLines.append((subdividedLines[indexLine], subdividedLines[indexLine + 1]))
+
+        self._solutionLines = simplifiedSolutionLines
+        self._forbiddenLines = simplifiedForbiddenLines
+
+        def transformPoint(inPoint):
+            inPoint = (inPoint[0] * self._sizeBlock, inPoint[1] * self._sizeBlock)
+            inPoint = (inPoint[0] + self._posGridCorner[0], inPoint[1] + self._posGridCorner[1])
+            return inPoint
+
+        for indexRect, dimensions in enumerate(self._gridAllowedRegion):
+            minX, minY, maxX, maxY = dimensions
+            topLeft = transformPoint((minX, minY))
+            bottomRight = transformPoint((maxX, maxY))
+            self._gridAllowedRegion[indexRect] = Rect(topLeft[0], topLeft[1], bottomRight[0] - topLeft[0], bottomRight[1] - topLeft[1])
+
         return super().doOnComplete()

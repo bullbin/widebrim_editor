@@ -25,7 +25,7 @@ ID_TO_NAZO_HANDLER = {2:HandlerFreeButton,
 
                       10:HandlerTouch,
                       11:"Tile",
-                      13:"Pancake",
+                      13:HandlerPancake,
 
                       16:HandlerDrawInput,
                       20:HandlerDrawInput,

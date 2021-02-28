@@ -17,6 +17,9 @@ class HandlerTouch(BaseQuestionObject):
             sprite.draw(gameDisplay)
         return super().drawPuzzleElements(gameDisplay)
     
+    def _wasAnswerSolution(self):
+        return self.spritesTargetAnimIndex == self.spritesCurrentAnimIndex
+
     def _doUnpackedCommand(self, opcode, operands):
         if opcode == OPCODES_LT2.AddTouchSprite.value and len(operands) == 5:
             touchSprite = getAnimFromPath(PATH_ANI_TOUCH % operands[2].value)

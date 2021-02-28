@@ -32,6 +32,8 @@ class JudgementPopup(FullScreenPopup):
             self._indexImages = JUDGE_INDEX_FAIL
         
         if self.laytonState.getNazoData() != None:
+            if self.laytonState.wasPuzzleSolved:
+                self.laytonState.puzzleLastReward = self.laytonState.getNazoData().idReward
             if self.laytonState.getNazoData().isAltCharacterUsed():
                 self._charCharacter = CHAR_CHARACTER_1
             else:

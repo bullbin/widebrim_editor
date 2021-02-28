@@ -41,6 +41,7 @@ class Layton2GameState():
         self.wasPuzzleSkipped       = False
         self.wasPuzzleSolved        = False
         self.wasPuzzleRestarted     = False
+        self.puzzleLastReward       = None
 
         self.dbPlaceFlag        = PlaceFlag()
         self.dbStoryFlag        = StoryFlag()
