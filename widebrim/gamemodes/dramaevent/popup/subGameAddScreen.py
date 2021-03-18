@@ -21,9 +21,9 @@ class SubGameAddPopup(PrizeWindow2PopupWithCursor):
             tempPromptText = getTxt2String(laytonState, PATH_TEXT_GENERIC % ID_SUB_GAME_2)
         elif idSubGame == 3:
             tempPromptText = getTxt2String(laytonState, PATH_TEXT_GENERIC % ID_SUB_GAME_3)
-            laytonState.anthonyDiaryState.flagEnabled.setSlot(True, 0)
-            laytonState.anthonyDiaryState.flagNew.setSlot(True, 0)
-            laytonState.menuNewFlag.setSlot(True, 6)
+            laytonState.saveSlot.anthonyDiaryState.flagEnabled.setSlot(True, 0)
+            laytonState.saveSlot.anthonyDiaryState.flagNew.setSlot(True, 0)
+            laytonState.saveSlot.menuNewFlag.setSlot(True, 6)
         
         self.promptText = StaticTextHelper(laytonState.fontEvent)
         self.promptText.setText(tempPromptText)

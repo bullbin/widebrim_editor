@@ -11,10 +11,9 @@ def getSubstitutedString(inString):
     while indexChar < len(inString):
         if inString[indexChar] == "<":
             stringKey = ""
-
             while indexChar < len(inString):
                 if inString[indexChar] == ">":
-                    if indexChar < len(inString) - 1 and inString[indexChar + 1] != ">":
+                    if (indexChar == len(inString) - 1) or (indexChar < len(inString) - 1 and inString[indexChar + 1] != ">"):
                         break
                 indexChar += 1
                 stringKey += inString[indexChar]
@@ -33,3 +32,4 @@ def getSubstitutedString(inString):
     if len(output) > 1536:
         return output[:1536]
     return output
+

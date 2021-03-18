@@ -1,8 +1,9 @@
 from ....madhatter.hat_io.binary import BinaryReader
+from ....engine.convenience import initDisplay
 from ....engine.const import RESOLUTION_NINTENDO_DS
 
 from pygame import display, Surface
-display.set_mode((RESOLUTION_NINTENDO_DS[0], RESOLUTION_NINTENDO_DS[1] * 2))
+initDisplay()
 
 # TODO - Restructure to load CWDH first
 
