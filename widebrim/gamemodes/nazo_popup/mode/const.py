@@ -23,6 +23,7 @@ PATH_ANI_PEGSOLITAIRE = "nazo/pegsolitaire/solitaire_gfx.spr"
 PATH_ANI_ROSE = "nazo/rose/rose_gfx.spr"
 PATH_ANI_LAMP = "nazo/lamp/lamp_gfx.spr"
 PATH_ANI_PANCAKE = "nazo/pancake/pancake_gfx.spr"
+PATH_ANI_COUPLE = "nazo/couple/couple_gfx.spr"
 
 PATH_ANI_SLIDE2_NUMBERS = "nazo/common/counter_number.spr"
 PATH_ANI_SLIDE2 = "nazo/slide/%s"

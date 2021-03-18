@@ -1,19 +1,22 @@
 from .base import BaseQuestionObject
-from .tile2 import HandlerTile2
+
 from .freeButton import HandlerFreeButton
+from .onOff import HandlerOnOff
+from .traceButton import HandlerTraceButton
+from .traceOnly import HandlerTraceOnly as HandlerTrace
 from .divide import HandlerDivide
 from .touch import HandlerTouch
-from .onOff2 import HandlerOnOff2
-from .traceButton import HandlerTraceButton
+from .tile import HandlerTile
+from .pancake_short import HandlerShortbrimPancake as HandlerPancake
 from .drawInput import HandlerDrawInput
 from .knight_short import HandlerShortbrimKnight as HandlerKnight
-from .skate_short import HandlerShortbrimSkate as HandlerSkate
-from .onOff import HandlerOnOff
-from .pegSolitaire_short import HandlerShortbrimPegSolitaire as HandlerPegSolitaire
-from .slide2_short import HandlerShortbrimSlide2 as HandlerSlide2
-from .traceOnly import HandlerTraceOnly
-from .traceOnly import HandlerTraceOnly as HandlerTrace
+from .onOff2 import HandlerOnOff2
 from .rose_short import HandlerShortbrimRose as HandlerRose
+from .slide2_short import HandlerShortbrimSlide2 as HandlerSlide2
+from .tile2 import HandlerTile2
+from .skate_short import HandlerShortbrimSkate as HandlerSkate
+from .pegSolitaire_short import HandlerShortbrimPegSolitaire as HandlerPegSolitaire
+from .couple import HandlerCouple
 from .lamp_short import HandlerShortbrimLamp as HandlerLamp
 from .bridge import HandlerBridge
-from .pancake_short import HandlerShortbrimPancake as HandlerPancake
+from .traceOnly import HandlerTraceOnly
