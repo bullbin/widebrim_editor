@@ -1,4 +1,4 @@
-from ....madhatter.hat_io.asset_image import Animation
+from ....madhatter.hat_io.asset_image import Animation, getTransparentLaytonPaletted
 from ...const import TIME_FRAMECOUNT_TO_MILLISECONDS
 from ...convenience import initDisplay
 
@@ -75,7 +75,12 @@ class AnimatedImageObject():
         # TODO - Break dependencies on original file so it can be reused (or implement multi-animation support)
 
         def convertPilRgbaToPygame(imageIn):
-            return pygame.image.fromstring(imageIn.tobytes("raw", "RGBA"), imageIn.size, "RGBA").convert_alpha()
+            targetImage = imageIn
+            if imageIn.mode == "P":
+                targetImage = getTransparentLaytonPaletted(imageIn)
+            else:
+                targetImage = imageIn.convert("RGBA")
+            return pygame.image.fromstring(targetImage.tobytes("raw", "RGBA"), imageIn.size, "RGBA").convert_alpha()
 
         output = AnimatedImageObject()
         output.setVariables(assetData.variables)
