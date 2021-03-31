@@ -99,6 +99,7 @@ class PrizeWindow2PopupWithCursor(FadingPopupAnimBackground):
             if prizeWindow2Pos != None:
                 prizeWindow2.setPos((prizeWindow2Pos[0], prizeWindow2Pos[1] + RESOLUTION_NINTENDO_DS[1]))
 
+        # TODO - What if bgAnim invalid (None)? Set types on everything
         FadingPopupAnimBackground.__init__(self, laytonState, screenController, None, prizeWindow2)
 
         self._cursorWait = eventStorage.getAssetCursorWait()

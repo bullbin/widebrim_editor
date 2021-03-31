@@ -5,9 +5,10 @@ from ..madhatter.hat_io.asset_image import AnimatedImage
 from ..madhatter.hat_io.asset import LaytonPack
 from ..engine.anim.image_anim import AnimatedImageObject
 from ..engine.const import PATH_PACK_TXT2, PATH_PACK_TXT
-from pygame import image
+from typing import Optional
+from pygame import image, Surface
 
-def getImageFromPath(laytonState, pathBg):
+def getImageFromPath(laytonState, pathBg) -> Optional[Surface]:
 
     def fetchBgxImage(path):
         # TODO - Fix unwanted behaviour with reading null-terminated strings, where a null character is left at the end
@@ -40,7 +41,7 @@ def getImageFromPath(laytonState, pathBg):
             return image.fromstring(bg.convert("RGB").tobytes("raw", "RGB"), bg.size, "RGB").convert()
     return None
 
-def getPackedString(pathPack, nameString):
+def getPackedString(pathPack, nameString) -> str:
     # TODO - Maybe decoding using substiter
     # TODO - sp... substituter
     textPack = LaytonPack()
@@ -51,25 +52,34 @@ def getPackedString(pathPack, nameString):
     except:
         return ""
 
-def getTxtString(laytonState, nameString):
+def getTxtString(laytonState, nameString) -> str:
     return getPackedString(PATH_PACK_TXT % laytonState.language.value, nameString)
 
-def getTxt2String(laytonState, nameString):
+def getTxt2String(laytonState, nameString) -> str:
     return getPackedString(PATH_PACK_TXT2 % laytonState.language.value, nameString)
 
-def getAnimFromPath(inPath):
+def getAnimFromPath(inPath, spawnAnimName=None, pos=(0,0)) -> Optional[AnimatedImageObject]:
     if ".spr" in inPath:
-        inPath = inPath.split("spr")[0] + "arc"
-    tempAsset = FileInterface.getData(PATH_ANI % inPath)
-    if tempAsset != None:
-        tempImage = AnimatedImageObject.fromMadhatter(AnimatedImage.fromBytesArc(tempAsset))
+        inPath = inPath.split(".spr")[0] + ".arc"
+    elif ".sbj" in inPath:
+        inPath = inPath.split(".sbj")[0] + ".arj"
+    
+    if (tempAsset := FileInterface.getData(PATH_ANI % inPath)) != None:
+        if ".arj" in inPath:
+            tempImage = AnimatedImage.fromBytesArj(tempAsset)
+        else:
+            tempImage = AnimatedImage.fromBytesArc(tempAsset)
+
+        tempImage = AnimatedImageObject.fromMadhatter(tempImage)
+        tempImage.setPos(pos)
+        if type(spawnAnimName) == str:
+            tempImage.setAnimationFromName(spawnAnimName)
         return tempImage
     return tempAsset
 
-def getAnimFromPathWithAttributes(inPath, spawnAnimName="gfx", posVariable="pos"):
-    tempImage = getAnimFromPath(inPath)
+def getAnimFromPathWithAttributes(inPath, spawnAnimName="gfx", posVariable="pos") -> Optional[AnimatedImageObject]:
+    tempImage = getAnimFromPath(inPath, spawnAnimName=spawnAnimName)
     if tempImage != None:
-        tempImage.setAnimationFromName(spawnAnimName)
         if tempImage.getVariable(posVariable) != None:
             tempImage.setPos((tempImage.getVariable(posVariable)[0],
                             tempImage.getVariable(posVariable)[1] + RESOLUTION_NINTENDO_DS[1]))

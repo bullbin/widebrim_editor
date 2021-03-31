@@ -15,6 +15,7 @@ PATH_DB_GOAL_INF    = "goal_inf.dlz"
 PATH_DB_NZ_LST      = "nz_lst.dlz"
 PATH_DB_CHP_INF     = "chp_inf.dlz"
 PATH_DB_TM_DEF      = "tm_def.dlz"
+PATH_DB_SM_INF      = "sm_inf.dlz"
 PATH_DB_RC_ROOT     = "/data_lt2/rc/%s"
 PATH_DB_RC_ROOT_LANG    = "/data_lt2/rc/%s/%s"
 
@@ -48,14 +49,10 @@ PATH_PACK_PUZZLE    = "q%i_param.gds"
 
 PATH_PROGRESSION_DB = "/data_lt2/place/data.plz"
 
-PATH_PLACE_A = "/data_lt2/place/plc_data1.plz"
-PATH_PLACE_B = "/data_lt2/place/plc_data2.plz"
-
 PATH_NAZO_A = "/data_lt2/nazo/%s/nazo1.plz"
 PATH_NAZO_B = "/data_lt2/nazo/%s/nazo2.plz"
 PATH_NAZO_C = "/data_lt2/nazo/%s/nazo3.plz"
 
-PATH_PACK_PLACE = "n_place%i_%i.dat"
 PATH_PACK_NAZO  = "n%i.dat"
 
 PATH_PLACE_BG   = "map/main%i.bgx"
@@ -74,6 +71,9 @@ PATH_TEXT_GOAL = "goal_%i.txt"
 PATH_TEXT_GENERIC = "tx_%i.txt"
 PATH_TEXT_PLACE_NAME = "p_%i.txt"
 PATH_TEXT_ITEM  = "item_%i.txt"
+PATH_TEXT_CAM = "cam_%i.txt"
+PATH_TEXT_HERB = "herb_%i.txt"
+PATH_TEXT_HAM   = "ham_%i.txt"
 
 class LANGUAGES(Enum):
     French      = "fr"

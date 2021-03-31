@@ -6,3 +6,4 @@ from .photoPieceAddScreen import PhotoPieceAddPopup
 from .stockScreen import StockPopup
 from .nazobaListScreen import NazobaListPopup
 from .subGameAddScreen import SubGameAddPopup
+from .subItemAddScreen import SubItemAddPopup

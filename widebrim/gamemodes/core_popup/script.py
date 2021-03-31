@@ -216,6 +216,9 @@ class ScriptPlayer(ScreenLayerNonBlocking):
             # TODO - 2 unks stored in state, probably used in tea mode
             self.laytonState.setGameMode(GAMEMODES.EventTea)
             self.laytonState.setGameModeNext(GAMEMODES.DramaEvent)
+        
+        elif opcode == OPCODES_LT2.SetSubItem.value:
+            self.laytonState.puzzleLastReward = operands[0].value
 
         elif opcode == OPCODES_LT2.ReleaseItem.value:
             self.laytonState.saveSlot.storyItemFlag.setSlot(False, operands[0].value)

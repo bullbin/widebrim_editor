@@ -13,14 +13,36 @@ from ...engine_ext.utils import getAnimFromPath
 from ...engine.file import FileInterface
 from ...engine.const import RESOLUTION_NINTENDO_DS
 from .const import PATH_PRIZE_WINDOW, PATH_CURSOR_WAIT, PATH_ITEM_ICON, PATH_PIECE_ICON, POS_ITEM_ICON_Y
+from .const import POS_ITEM_ICON_Y_ALT, PATH_ANIM_REWARD_0, PATH_ANIM_REWARD_1, PATH_ANIM_REWARD_2, PATH_ANIM_REWARD_3
 
 class EventStorage():
     def __init__(self):
         self.__prizeWindow2 = None
-        self.__rewardWindow = None
+        self.__animItem     = None
         self.__cursor_wait  = None
         self.__item_icon    = None
         self.__piece_icon   = None
+    
+    def loadItemAnimById(self, idReward):
+        if idReward >= 0:
+            if idReward < 20:
+                self.__animItem = getAnimFromPath(PATH_ANIM_REWARD_2)
+            elif idReward < 40:
+                self.__animItem = getAnimFromPath(PATH_ANIM_REWARD_3)
+            elif idReward < 60:
+                self.__animItem = getAnimFromPath(PATH_ANIM_REWARD_1)
+            else:
+                self.__animItem = getAnimFromPath(PATH_ANIM_REWARD_0)
+            
+            if self.__animItem != None:
+                if idReward < 40:
+                    self.__animItem.setPos((0, POS_ITEM_ICON_Y + RESOLUTION_NINTENDO_DS[1]))
+                else:
+                    self.__animItem.setPos((0, POS_ITEM_ICON_Y_ALT + RESOLUTION_NINTENDO_DS[1]))
+        return self.__animItem != None
+    
+    def getAssetItemAnim(self):
+        return self.__animItem
 
     def getAssetPrizeWindow2(self):
         if self.__prizeWindow2 == None:

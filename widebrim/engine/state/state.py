@@ -1,5 +1,8 @@
+from typing import Optional
+
 from ...madhatter.hat_io.asset_sav import Layton2SaveSlot
-from ...madhatter.hat_io.asset_dlz.ev_inf2 import EventInfoList
+from ...madhatter.hat_io.asset_dlz.ev_inf2 import DlzEntryEvInf2, EventInfoList
+from ...madhatter.hat_io.asset_dlz.sm_inf import DlzEntrySubmapInfo, SubmapInfo
 from ...madhatter.hat_io.asset_placeflag import PlaceFlag
 from ...madhatter.hat_io.asset_storyflag import StoryFlag
 from ...madhatter.hat_io.asset_autoevent import AutoEvent
@@ -10,7 +13,7 @@ from ...madhatter.hat_io.asset_dlz.tm_def import TimeDefinitionInfo
 from ...madhatter.hat_io.asset import LaytonPack, File
 from ...madhatter.hat_io.asset_dat.nazo import NazoData
 
-from ..const import LANGUAGES, EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_EV_INF2, PATH_PROGRESSION_DB, PATH_DB_RC_ROOT, PATH_DB_GOAL_INF, PATH_DB_NZ_LST, PATH_DB_TM_DEF, PATH_DB_RC_ROOT_LANG, PATH_DB_CHP_INF, PATH_PUZZLE_SCRIPT
+from ..const import LANGUAGES, EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_EV_INF2, PATH_DB_SM_INF, PATH_PROGRESSION_DB, PATH_DB_RC_ROOT, PATH_DB_GOAL_INF, PATH_DB_NZ_LST, PATH_DB_TM_DEF, PATH_DB_RC_ROOT_LANG, PATH_DB_CHP_INF, PATH_PUZZLE_SCRIPT
 from ..const import PATH_NAZO_A, PATH_NAZO_B, PATH_NAZO_C, PATH_PACK_NAZO
 from ..exceptions import FileInvalidCritical
 from ..file import FileInterface
@@ -41,7 +44,7 @@ class Layton2GameState():
         self.wasPuzzleSkipped       = False
         self.wasPuzzleSolved        = False
         self.wasPuzzleRestarted     = False
-        self.puzzleLastReward       = None
+        self.puzzleLastReward       = -1
 
         self.dbPlaceFlag        = PlaceFlag()
         self.dbStoryFlag        = StoryFlag()
@@ -74,6 +77,7 @@ class Layton2GameState():
         self._dbTeaEventInfo    = None
         self._dbTeaTalk         = None
         self._dbNazoList        = None
+        self._dbSubmapInfo      = None
 
         # TODO - Add to const
         try:
@@ -87,7 +91,7 @@ class Layton2GameState():
         except:
             raise FileInvalidCritical()
 
-        self.entryEvInfo    = None
+        self.entryEvInfo : Optional[DlzEntryEvInf2] = None
         self.entryNzList    = None
         self._entryNzData    = None
 
@@ -141,7 +145,7 @@ class Layton2GameState():
             return self._dbTimeDef.getEntry(indexEntry)
         return None
 
-    def getEventInfoEntry(self, idEvent):
+    def getEventInfoEntry(self, idEvent) -> Optional[DlzEntryEvInf2]:
         if self._dbEventInfo == None:
             # TODO : Load event info
             print("Bad: Event Info should have been loaded sooner!")
@@ -151,7 +155,6 @@ class Layton2GameState():
         indexEntry = self._dbEventInfo.searchForEntry(idEvent)
         if indexEntry != None:
             return self._dbEventInfo.getEntry(indexEntry)
-
         return None
     
     def setEventId(self, idEvent):
@@ -278,6 +281,7 @@ class Layton2GameState():
         pass
 
     def loadChapterInfoDb(self):
+        # TODO - What if this returns None
         self._dbChapterInfo = ChapterInfo()
         self._dbChapterInfo.load(FileInterface.getData(PATH_DB_RC_ROOT % PATH_DB_CHP_INF))
 
@@ -315,4 +319,26 @@ class Layton2GameState():
             # TODO - Does this use calculated ID?
             if entry.idEvent == self._idEvent:
                 return entry
+        return None
+    
+    def loadSubmapInfo(self):
+        if self._dbSubmapInfo == None:
+            if (submapData := FileInterface.getData(PATH_DB_RC_ROOT % PATH_DB_SM_INF)) != None:
+                self._dbSubmapInfo = SubmapInfo()
+                self._dbSubmapInfo.load(submapData)
+                return True
+        return False
+
+    def unloadSubmapInfo(self):
+        del self._dbSubmapInfo
+        self._dbSubmapInfo = None
+
+    def getSubmapInfoEntry(self, indexEventViewed) -> Optional[DlzEntrySubmapInfo]:
+        if indexEventViewed == 0 or self.saveSlot.eventViewed.getSlot(indexEventViewed):
+            if self._dbSubmapInfo == None:
+                self.loadSubmapInfo()
+                print("Bad: Goal Info should have been loaded sooner!")
+
+            if self._dbSubmapInfo != None:
+                return self._dbSubmapInfo.searchForEntry(indexEventViewed, self.saveSlot.roomIndex, self.saveSlot.chapter)
         return None

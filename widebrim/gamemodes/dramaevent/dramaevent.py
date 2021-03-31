@@ -1,3 +1,8 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from widebrim.engine.state.state import Layton2GameState
+
 from ...engine.state.enum_mode import GAMEMODES
 from ...engine.anim.image_anim import AnimatedImageObject
 from ...engine.anim.fader import Fader
@@ -311,7 +316,7 @@ class CharacterController():
                 self._baseAnimName = self.imageCharacter.animActive.name
 
 class EventPlayer(ScriptPlayer):
-    def __init__(self, laytonState, screenController):
+    def __init__(self, laytonState : Layton2GameState, screenController):
 
         def substituteEventPath(inPath, inPathA, inPathB, inPathC):
 
@@ -339,6 +344,9 @@ class EventPlayer(ScriptPlayer):
         # TODO - Search for language image as well as non-language image
 
         ScriptPlayer.__init__(self, laytonState, screenController, GdScript())
+
+        # TODO - Type checking
+        self.laytonState : Layton2GameState
 
         self.laytonState.setGameMode(GAMEMODES.Room)
         self._packEventTalk = LaytonPack()
@@ -533,9 +541,12 @@ class EventPlayer(ScriptPlayer):
             # TODO - Not accurate, but required to get fading looking correct
             self._makeInactive()
             self.screenController.fadeOut(callback=self._spriteOffAllCharacters)
-
+    
         elif opcode == OPCODES_LT2.DoSubItemAddScreen.value:
-            self._popup = PlaceholderPopup()
+            if self.laytonState.puzzleLastReward != -1:
+                # TODO - This is a hack, when is the correct image loaded?
+                self._sharedImageHandler.loadItemAnimById(self.laytonState.puzzleLastReward)
+                self._popup = SubItemAddPopup(self.laytonState, self.screenController, self._sharedImageHandler)
 
         elif opcode == OPCODES_LT2.DoStockScreen.value:
             # TODO - This will still execute even if entryNzLst was empty, right. Come up as ID 0
@@ -558,8 +569,10 @@ class EventPlayer(ScriptPlayer):
             if operands[0].value != 2:
                 self._popup = ItemAddPopup(self.laytonState, self.screenController, self._sharedImageHandler, operands[0].value)
         
-        elif opcode == OPCODES_LT2.SetSubItem.value:
-            self._popup = PlaceholderPopup()
+        elif opcode == OPCODES_LT2.SetSubItem.value and len(operands) == 1:
+            # TODO - Load correct reward window asset
+            super()._doUnpackedCommand(opcode, operands)
+            self._sharedImageHandler.loadItemAnimById(operands[0].value)
         
         elif opcode == OPCODES_LT2.DoSubGameAddScreen.value:
             self._popup = SubGameAddPopup(self.laytonState, self.screenController, self._sharedImageHandler, operands[0].value)
@@ -610,6 +623,20 @@ class EventPlayer(ScriptPlayer):
         elif opcode == OPCODES_LT2.DoDiaryAddScreen.value:
             # Stubbed, but don't want an error
             pass
+    
+        elif opcode == OPCODES_LT2.EventSelect.value and len(operands) == 3:
+            # TODO - Test, think this is on last event
+            if operands[0].value == 0:
+                countPuzzle = operands[1].value
+                targetEventId = operands[2].value
+                solved, _encountered = self.laytonState.saveSlot.getSolvedAndEncounteredPuzzleCount()
+                if solved >= countPuzzle:
+                    if (eventEntry := self.laytonState.getEventInfoEntry(targetEventId)) != None:
+                        if eventEntry.indexEventViewedFlag != None:
+                            if not(self.laytonState.saveSlot.eventViewed.getSlot(eventEntry.indexEventViewedFlag)):
+                                self.laytonState.setGameMode(GAMEMODES.DramaEvent)
+                                self.laytonState.saveSlot.eventViewed.setSlot(True, eventEntry.indexEventViewedFlag)
+                                self.laytonState.setEventId(targetEventId)
 
         else:
             return super()._doUnpackedCommand(opcode, operands)

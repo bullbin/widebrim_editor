@@ -94,6 +94,7 @@ class StaticTextHelper():
             gameDisplay.blit(buffer, (self._pos[0], yBias))
             yBias += self._yBias
     
+    # TODO - Isn't this X centered...?
     def drawYCentered(self, gameDisplay):
         yBias = self._pos[1]
         for indexBuffer, buffer in enumerate(self._outputLineSurfaces[0:self._workingLineSurfaceIndex + 1]):

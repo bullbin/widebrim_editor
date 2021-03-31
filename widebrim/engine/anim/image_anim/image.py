@@ -18,6 +18,7 @@ class AnimationSequence(Animation):
     def reset(self):
         self._indexFrame = 0
         self._elapsedFrame = 0
+        self.isActive   = True
     
     def getActiveKeyframe(self):
         if self.isActive and self._indexFrame < len(self.keyframes):
@@ -145,6 +146,12 @@ class AnimatedImageObject():
         self._setAnimationFromActive()
         return not(self.animActive == None)
     
+    def setCurrentAnimationLoopStatus(self, isLooping : bool) -> bool:
+        if self.animActive != None:
+            self.animActive.isLooping = isLooping
+            return True
+        return False
+
     def setDimensions(self, dimensions):
         self._dimensions = dimensions
     

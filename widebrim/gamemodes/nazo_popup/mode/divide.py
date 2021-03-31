@@ -335,6 +335,7 @@ class HandlerDivide(BaseQuestionObject):
             point1 = (point1[0] * self._sizeBlock, point1[1] * self._sizeBlock)
 
             # TODO - Crash if points given not already in grid
+            # TODO - Crash on The Ant's Journey
             subdividedLines = self._getPointsOnGridBetweenPoints(point0, point1)
             for indexLine in range(len(subdividedLines) - 1):
                 simplifiedForbiddenLines.append((subdividedLines[indexLine], subdividedLines[indexLine + 1]))

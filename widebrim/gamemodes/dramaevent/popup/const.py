@@ -14,6 +14,9 @@ POS_STOCK_SCREEN_NAZO_ICON  = (0x74, 0x3c)
 POS_LOST_SCREEN_PIECE_ICON  = (0, 0x38)
 POS_PHOTO_PIECE_PIECE_ICON  = (0x74, 0x3a)
 
+ID_CAM_PART_FOUND       = 0xc9
+ID_HERB_ELEMENT_FOUND   = 0xca
+ID_HAM_ELEMENT_FOUND    = 0xcb
 ID_STOCK_SCREEN         = 0xcc
 ID_ITEM_ADD             = 0xcd
 ID_SUB_GAME_1           = 0xce
@@ -24,6 +27,7 @@ ID_SUB_GAME_2           = 0xd3
 ID_PHOTO_NEW_FOUND      = 0xd4
 ID_NAMING_HAM           = 0xd7
 ID_LOST_SCREEN          = 0xd8
+ID_DIARY_ELEMENT_FOUND  = 0xdc
 ID_SUB_GAME_3           = 0xdb
 ID_PHOTO_ALL_FOUND      = 0xde
 ID_PHOTO_NEARLY_FOUND   = 0x640
@@ -37,5 +41,11 @@ PATH_BG_NAZOBA_MAIN     = "event/nazobamemo_bg.bgx"
 PATH_BG_NAZOBA_SUB      = "event/?/nazobamemo_sub.bgx"
 
 COUNT_NAZOBA_PER_PAGE   = 8
+
+ANIM_NAME_TEA = "s%d"
+
+TEXT_INVALID_PART = "cam_%i:NO DATA"
+TEXT_INVALID_HERB = "herb_%i:NO DATA"
+TEXT_INVALID_HAM  = "ham_%i:NO DATA"
 
 STRIDE_NAZOBA_TEXT      = 0x16
