@@ -234,7 +234,7 @@ class CharacterController():
         else:
             self.imageName = None
 
-        self._visibility = characterVisible
+        self._visibilityFader = Fader(0, initialActiveState=True)
         self._drawLocation = (0,0)
 
         self._characterIsFlipped = False
@@ -246,6 +246,7 @@ class CharacterController():
         
         self.slot = 0
         self.setCharacterSlot(characterSlot)
+        self.setVisibility(characterVisible)
 
     def update(self, gameClockDelta):
         if self.imageCharacter != None:
@@ -255,16 +256,25 @@ class CharacterController():
                 self.imageCharacter.draw(self._characterFlippedSurface)
                 if self._characterIsFlipped:
                     self._characterFlippedSurface = flip(self._characterFlippedSurface, True, False)
+            
+        self._visibilityFader.update(gameClockDelta)
+        self._characterFlippedSurface.set_alpha(round(255 * self._visibilityFader.getStrength()))
 
     def draw(self, gameDisplay):
-        if self._visibility and self.imageCharacter != None:
+        if self.getVisibility() and self.imageCharacter != None:
             gameDisplay.blit(self._characterFlippedSurface, self._drawLocation)
 
     def setVisibility(self, isVisible):
-        self._visibility = isVisible
+        self._visibilityFader.setDuration(0)
+        self._visibilityFader.setInvertedState(not(isVisible))
     
+    def setVisibilityFading(self, isVisible, callback):
+        self._visibilityFader.setDuration(250)
+        self._visibilityFader.setCallback(callback)
+        self._visibilityFader.setInvertedState(not(isVisible))
+
     def getVisibility(self):
-        return self._visibility
+        return self._visibilityFader.getStrength() > 0
     
     def setCharacterTalkingState(self, isTalking):
         if isTalking != self._isCharacterTalking:
@@ -496,8 +506,14 @@ class EventPlayer(ScriptPlayer):
                 self.characters[operands[0].value].setVisibility(False)
 
         elif opcode == OPCODES_LT2.DoSpriteFade.value:
+
+            def callbackCharacterFinishFading():
+                self._makeActive()
+
             if isCharacterSlotValid(operands[0].value):
-                self.characters[operands[0].value].setVisibility(operands[1].value >= 0)
+                # TODO - Duration?
+                self.characters[operands[0].value].setVisibilityFading(operands[1].value >= 0, callbackCharacterFinishFading)
+                self._makeInactive()
 
         elif opcode == OPCODES_LT2.DrawChapter.value:
             

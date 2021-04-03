@@ -40,7 +40,7 @@ class TObjPopup(FadingPopupAnimBackground):
             useHalfOffset = (countLines % 2 == 0)
             
             # 4 is the yBias here
-            yOffset = -(linesAbove + 4) * self.laytonState.fontEvent.dimensions[1]
+            yOffset = -linesAbove * (self.laytonState.fontEvent.dimensions[1] + 4)
             if useHalfOffset:
                 yOffset += self.laytonState.fontEvent.dimensions[1] // 2
             

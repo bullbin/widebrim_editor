@@ -5,7 +5,7 @@ from widebrim.engine.anim.button import AnimatedButton, NullButton
 from pygame.constants import BLEND_RGB_SUB, MOUSEBUTTONDOWN
 
 from pygame.event import Event
-from widebrim.madhatter.hat_io.asset_dat.place import Exit, PlaceData, EventEntry, TObjEntry
+from widebrim.madhatter.hat_io.asset_dat.place import Exit, HintCoin, PlaceData, EventEntry, TObjEntry
 from widebrim.madhatter.hat_io.asset import LaytonPack
 from widebrim.engine.file import FileInterface
 from widebrim.engine.const import PATH_PACK_PLACE_NAME, PATH_TEXT_GOAL, PATH_TEXT_PLACE_NAME, RESOLUTION_NINTENDO_DS
@@ -62,6 +62,8 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
         self.__animBackground   : List[Optional[AnimatedImageObject]]   = []
         self.__animEvent        : List[Optional[AnimatedImageObject]]   = []
+        self.__animEventDraw    : List[bool]                            = []
+
         self.__animMapArrow     : Optional[AnimatedImageObject]         = None
         self.__enableMapArrow   : bool                                  = False
         self.__animMapIcon      : Optional[AnimatedImageObject]         = getAnimFromPath(PATH_ANIM_MAPICON)
@@ -91,6 +93,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
         self.__faderEventAnim       : Fader                     = Fader(500, initialActiveState=False)
         self.__positionEventAnim    : Optional[AnimJumpHelper]  = None
         self.__targetExit           : Optional[Exit]            = None
+        self.__currentTsMapIndex : Optional[int]                = None
         
         self.__faderTiming          : Fader                     = Fader(500, initialActiveState=False)
         self.__hasTransitionedCompleted : bool                  = False
@@ -102,6 +105,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
         self.__textRoomTitle        : Optional[Surface]         = None
         self.__posObjective     = (0,0)
         self.__posRoomTitle     = (0,0)
+        self.__currentMapPos    = (0,0)
 
         # Disgustingly inaccurate
         self.__imageExitOff : List[Optional[Surface]] = []
@@ -136,8 +140,12 @@ class RoomPlayer(ScreenLayerNonBlocking):
         if self.__enableMapArrow and self.__animMapArrow != None:
             self.__animMapArrow.draw(gameDisplay)
         
-        for anim in self.__animMemberParty + self.__animBackground + self.__animEvent:
+        for anim in self.__animMemberParty + self.__animBackground:
             if anim != None:
+                anim.draw(gameDisplay)
+        
+        for anim, canDraw in zip(self.__animEvent, self.__animEventDraw):
+            if anim != None and canDraw:
                 anim.draw(gameDisplay)
 
         if self.__animNumberIcon != None:
@@ -153,20 +161,21 @@ class RoomPlayer(ScreenLayerNonBlocking):
         
         if self.__animMapIcon != None:
             if self.__targetExit != None and not(self.__hasTransitionedCompleted):
-                x = ((1 - self.__faderTiming.getStrength()) * self.__placeData.posMap[0]) + (self.__faderTiming.getStrength() * self.__targetExit.posTransition[0])
-                y = ((1 - self.__faderTiming.getStrength()) * self.__placeData.posMap[1]) + (self.__faderTiming.getStrength() * self.__targetExit.posTransition[1])
+                if self.__placeData.bgMapId != self.__currentTsMapIndex:
+                    targetPos = self.__targetExit.posTransition
+                else:
+                    targetPos = self.__placeData.posMap
+
+                x = ((1 - self.__faderTiming.getStrength()) * self.__currentMapPos[0]) + (self.__faderTiming.getStrength() * targetPos[0])
+                y = ((1 - self.__faderTiming.getStrength()) * self.__currentMapPos[1]) + (self.__faderTiming.getStrength() * targetPos[1])
+
+                self.__animMapIcon.setPos((round(x), round(y)))
+                self.__animMapIcon.draw(gameDisplay)
 
                 if self.__faderTiming.getStrength() == 1.0:
                     self.__hasTransitionedCompleted = True
-
-                    self.__animMapIcon.setPos(self.__targetExit.posTransition)
-                    self.__animMapIcon.draw(gameDisplay)
-
                     # Trying to minimise jump at end of transition
                     self.__doRoomTransition()
-                else:
-                    self.__animMapIcon.setPos((ceil(x), ceil(y)))
-                    self.__animMapIcon.draw(gameDisplay)
             else:
                 self.__animMapIcon.draw(gameDisplay)
         
@@ -258,7 +267,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
             boundaryTestPos = (event.pos[0], event.pos[1] - RESOLUTION_NINTENDO_DS[1])
 
-            # TODO - Hide touch cursor on MOUSEBUTTONDOWN
+            # Hide touch cursor on press, in case something else is spawned
             if self.__animTouchIcon != None and event.type == MOUSEBUTTONDOWN:
                 self.__animTouchIcon.setPos(POS_TOUCH_ICON)
 
@@ -278,12 +287,41 @@ class RoomPlayer(ScreenLayerNonBlocking):
             else:
                 # TODO - Event handling is not very accurate; just reuses code from previous room handler
                 if event.type == MOUSEBUTTONDOWN and (objEvent := getPressedEvent(boundaryTestPos)) != None:
-                    self.__startEventSpawn(objEvent)
-                    return True
+                    # TODO - Check photo flags
+                    canSpawnEvent = True
+                    if (eventInfo := self.laytonState.getEventInfoEntry(objEvent.idEvent)) != None:
+                        # TODO - Fix this awful syntax, add convenience functions (similar code used elsewhere)
+                        if eventInfo.typeEvent != 1 or not(self.laytonState.saveSlot.eventViewed.getSlot(eventInfo.indexEventViewedFlag)):
+                            if eventInfo.typeEvent == 4 and (nzLstEntry := self.laytonState.getNazoListEntry(eventInfo.dataPuzzle)) != None:
+                                if (puzzleData := self.laytonState.saveSlot.puzzleData.getPuzzleData(nzLstEntry.idExternal - 1)) != None and puzzleData.wasSolved:
+                                    canSpawnEvent = False
+                            
+                            # TODO - Unk tea interaction, check if image attached
+                            if canSpawnEvent:
+                                self.__startEventSpawn(objEvent)
+                                return True
                 
-                # TODO - Hint coins checked here
+                if event.type == MOUSEBUTTONDOWN and self.__placeData != None:
+                    for indexHint in range(self.__placeData.getCountHintCoin()):
+                        if (hintCoin := self.__placeData.getObjHintCoin(indexHint)) != None:
+                            hintCoin : HintCoin
+                            if wasBoundingCollided(hintCoin.bounding, boundaryTestPos):
+                                if not(self.laytonState.saveSlot.roomHintData.getRoomHintData(self.laytonState.getPlaceNum()).hintsFound[indexHint]):
+                                    self.laytonState.saveSlot.roomHintData.getRoomHintData(self.laytonState.getPlaceNum()).hintsFound[indexHint] = True
+                                    # TODO - Coin flip anim, this is just ported from old room handler
+                                    self.laytonState.saveSlot.hintCoinEncountered += 1
+                                    self.laytonState.saveSlot.hintCoinAvailable += 1
+                                    print("Found a hint coin!")
 
-                # TODO - TObj checked here
+                                    if indexHint == 0 and self.laytonState.getPlaceNum() == 3:
+                                        # Hardcoded behaviour to force the event after encountering first hint coin to play out
+                                        self.laytonState.setGameMode(GAMEMODES.DramaEvent)
+                                        self.laytonState.setEventId(10080)
+                                        self.__disableInteractivity()
+                                        self.screenController.fadeOut(callback=self.doOnKill)
+
+                                    return True
+
                 if event.type == MOUSEBUTTONDOWN and self.__placeData != None:
                     for indexTObj in range(self.__placeData.getCountObjText()):
                         if (tObj := self.__placeData.getObjText(indexTObj)) != None:
@@ -350,11 +388,10 @@ class RoomPlayer(ScreenLayerNonBlocking):
             
         else:
             # TODO - This doesn't work
-            if (evInf := self.laytonState.getEventInfoEntry(idEvent)) != None:
-                if evInf.typeEvent != 0:
-                    if (puzzleEntry := self.laytonState.saveSlot.puzzleData.getPuzzleData(evInf.dataPuzzle - 1)) != None:
-                        if puzzleEntry.wasSolved:
-                            isExclamation = False
+            if (evInf := self.laytonState.getEventInfoEntry(idEvent)) != None and evInf.dataPuzzle != None:
+                if (nzLstEntry := self.laytonState.getNazoListEntry(evInf.dataPuzzle)) != None:
+                    if (puzzleData := self.laytonState.saveSlot.puzzleData.getPuzzleData(nzLstEntry.idExternal - 1)) != None and puzzleData.wasSolved:
+                        isExclamation = False
         
         # TODO - can boundings be backwards?
         boundingCenterX = objEvent.bounding.x + (objEvent.bounding.width // 2)
@@ -395,36 +432,59 @@ class RoomPlayer(ScreenLayerNonBlocking):
             self.screenController.fadeOut(callback=self.doOnKill)
             return
         
-        print("Attempting seamless transition...")
         self.__targetExit = objExit
-        self.screenController.fadeOutMain(duration=100, callback=self.__moveLaytonIcon)
+        # No evidence behind this but looks better
+        self.__prepareNextPlace()
+        self.__loadRoomData()
+
+        if self.__targetExit.posTransition == (0,0):
+            self.screenController.fadeOutMain(duration=100, callback=self.__doRoomTransition)
+        else:
+            # TODO - Issue if room data invalid...
+            self.screenController.fadeOutMain(duration=100, callback=self.__moveLaytonIcon)
 
     def __moveLaytonIcon(self):
-        self.__hasTransitionedCompleted = False
-        distanceX = self.__targetExit.posTransition[0] - self.__placeData.posMap[0]
-        distanceY = self.__targetExit.posTransition[1] - self.__placeData.posMap[1]
-        distance = sqrt(distanceX ** 2 + distanceY ** 2)
-        duration = (distance / RoomPlayer.LAYTON_TRANSITION_PIXELS_PER_SECOND) * 1000
+        # Different map - use transition position
+        # Same map - use pos from place
+
+        if self.__placeData != None:
+            if self.__placeData.bgMapId != self.__currentTsMapIndex:
+                targetPos = self.__targetExit.posTransition
+            else:
+                targetPos = self.__placeData.posMap
+
+            self.__hasTransitionedCompleted = False
+            distanceX = targetPos[0] - self.__currentMapPos[0]
+            distanceY = targetPos[1] - self.__currentMapPos[1]
+            distance = sqrt(distanceX ** 2 + distanceY ** 2)
+            duration = (distance / RoomPlayer.LAYTON_TRANSITION_PIXELS_PER_SECOND) * 1000
+        else:
+            # TODO - This shouldn't happen, but what's the best way to safeguard? Throw error?
+            duration = 1
 
         self.__faderTiming.setDuration(duration)
         self.__faderTiming.setActiveState(True)
 
-    def __doRoomTransition(self):
-        currentTsMapIndex = self.__placeData.bgMapId
+    def __prepareNextPlace(self):
+        self.__currentTsMapIndex = self.__placeData.bgMapId
+        self.__currentMapPos = self.__placeData.posMap
         self.laytonState.setPlaceNum(self.__targetExit.spawnData)
+
+    def __doRoomTransition(self):
+
+        def loadRoomAfterFullFade():
+            self.__loadRoom()
+            self.screenController.fadeIn(callback=self.__enableInteractivity)
+
         if self.__hasAutoEvent():
             self.screenController.fadeOutSub(callback=self.doOnKill)
             self.laytonState.setGameMode(GAMEMODES.DramaEvent)
         else:
-            print("Loading room data...")
+            # TODO - will be loaded twice, sorries
             if self.__loadRoomData():
-                if self.__placeData.bgMapId != currentTsMapIndex:
-                    print("Room data was different, killing gamemode...")
-                    self.laytonState.setGameMode(GAMEMODES.Room)
-                    # TODO - Bugfix, fadeOut causes infinite loop?
-                    self.screenController.fadeOutSub(callback=self.doOnKill)
+                if self.__placeData.bgMapId != self.__currentTsMapIndex:
+                    self.screenController.fadeOutSub(callback=loadRoomAfterFullFade)
                 else:
-                    print("Room data needs refreshing, starting...")
                     self.__loadRoom()
                     self.screenController.fadeInMain(callback=self.__enableInteractivity)
 
@@ -477,6 +537,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
             self.__animBackground   = []
             self.__animEvent        = []
+            self.__animEventDraw    = []
             self.__buttonsExit      = []
 
             # Remove trace of last state
@@ -517,9 +578,23 @@ class RoomPlayer(ScreenLayerNonBlocking):
                 if objEvent.idImage != 0:
                     if (eventAsset := getAnimFromPath(PATH_EXT_EVENT % (objEvent.idImage & 0xff), spawnAnimName="gfx")) != None:
                         eventAsset.setPos((objEvent.bounding.x, objEvent.bounding.y + RESOLUTION_NINTENDO_DS[1]))
-                    self.__animEvent.append(eventAsset)   
+                    self.__animEvent.append(eventAsset)
+
+                    if (eventInfo := self.laytonState.getEventInfoEntry(objEvent.idEvent)) != None:
+                        # TODO - Fix this awful syntax, add convenience functions (similar code used elsewhere)
+                        if eventInfo.typeEvent == 1 and self.laytonState.saveSlot.eventViewed.getSlot(eventInfo.indexEventViewedFlag):
+                            self.__animEventDraw.append(False)
+                        elif eventInfo.typeEvent == 4 and (nzLstEntry := self.laytonState.getNazoListEntry(eventInfo.dataPuzzle)) != None:
+                                if (puzzleData := self.laytonState.saveSlot.puzzleData.getPuzzleData(nzLstEntry.idExternal - 1)) != None and puzzleData.wasSolved:
+                                    self.__animEventDraw.append(False)
+                                else:
+                                    self.__animEventDraw.append(True)
+                        else:
+                            self.__animEventDraw.append(True)
+
                 else:
                     self.__animEvent.append(None)
+                    self.__animEventDraw.append(False)
             
             # TODO - Exits, and first strange function
             for indexExit in range(self.__placeData.getCountExits()):

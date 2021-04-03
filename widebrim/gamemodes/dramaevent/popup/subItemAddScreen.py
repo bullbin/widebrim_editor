@@ -73,7 +73,7 @@ class SubItemAddPopup(PrizeWindow2PopupWithCursor):
                 indexItem = self.laytonState.puzzleLastReward - 40
                 if indexItem < len(self.laytonState.saveSlot.minigameHamsterState.countItems):
                     self.laytonState.saveSlot.minigameHamsterState.countItems[indexItem] += 1
-                if self.__itemIcon != None and self.__itemIcon.setAnimationFromName(self.laytonState.puzzleLastReward - 39):
+                if self.__itemIcon != None and self.__itemIcon.setAnimationFromName(str(self.laytonState.puzzleLastReward - 39)):
                     centerCurrentAnimFrame(self.__itemIcon)
                 
                 textPopup = getTextForPopup(PATH_TEXT_HAM, TEXT_INVALID_HAM, ID_HAM_ELEMENT_FOUND, self.laytonState.puzzleLastReward - 40)
