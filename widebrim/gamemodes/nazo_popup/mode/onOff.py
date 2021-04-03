@@ -16,6 +16,9 @@ class OnOffButton(StaticButton):
     
     def getEnabledState(self):
         return not(self._isHidden)
+    
+    def reset(self):
+        self._isHidden = True
 
     def draw(self, gameDisplay):
         if not(self._isHidden):

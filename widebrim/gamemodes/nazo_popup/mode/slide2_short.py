@@ -335,7 +335,8 @@ class HandlerShortbrimSlide2(BaseQuestionObject):
 
         elif event.type == MOUSEBUTTONUP:
             if self.activeTile != None and self.activeTileTempPlace != (0,0):
-                self.countMoves += 1
+                if self.activeTileTempOffset != (0,0):
+                    self.countMoves += 1
                 # Apply shape place!
                 self.applyShapeOffset(self.shapes[self.activeTile])
                 self.activeTileCurrentMouseDirection = None

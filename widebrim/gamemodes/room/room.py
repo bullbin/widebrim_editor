@@ -1,6 +1,7 @@
 from __future__ import annotations
 from math import ceil, sqrt
 from typing import List, Optional, TYPE_CHECKING, Union
+from widebrim.engine.anim.image_anim.imageAsNumber import StaticImageAsNumericalFont
 from widebrim.engine.anim.button import AnimatedButton, NullButton
 from pygame.constants import BLEND_RGB_SUB, MOUSEBUTTONDOWN
 
@@ -73,6 +74,12 @@ class RoomPlayer(ScreenLayerNonBlocking):
         self.__animNumberIcon : Optional[AnimatedImageObject]       = getAnimFromPath(PATH_ANIM_SOLVED_TEXT % self.laytonState.language.value)
         if self.__animNumberIcon != None and self.__animNumberIcon.setAnimationFromIndex(1):
             self.__animNumberIcon.setPos(POS_SOLVED_TEXT)
+        self.__animNumberFont : Optional[StaticImageAsNumericalFont]    = None
+        if (animNumberFont := getAnimFromPath(PATH_ANIM_NUM_MAP_NUMBER)) != None:
+            solved, encountered = self.laytonState.saveSlot.getSolvedAndEncounteredPuzzleCount()
+            self.__animNumberFont = StaticImageAsNumericalFont(animNumberFont, text=solved)
+            self.__animNumberFont.setStride(animNumberFont.getDimensions()[0])
+            self.__animNumberFont.setPos((72,11))
 
         self.__animEventStart : Optional[AnimatedImageObject] = getAnimFromPath(PATH_ANIM_ICON_BUTTONS)
         self.__animTouchIcon : Optional[AnimatedImageObject] = getAnimFromPath(PATH_ANIM_TOUCH_ICON, pos=POS_TOUCH_ICON)
@@ -150,6 +157,8 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
         if self.__animNumberIcon != None:
             self.__animNumberIcon.draw(gameDisplay)
+        if self.__animNumberFont != None:
+            self.__animNumberFont.drawBiased(gameDisplay)
 
         # TODO - Check first touch, draw over everything if needed
         # Once touched, clear flag, play SFX and free anim object
@@ -387,7 +396,6 @@ class RoomPlayer(ScreenLayerNonBlocking):
             isExclamation = False
             
         else:
-            # TODO - This doesn't work
             if (evInf := self.laytonState.getEventInfoEntry(idEvent)) != None and evInf.dataPuzzle != None:
                 if (nzLstEntry := self.laytonState.getNazoListEntry(evInf.dataPuzzle)) != None:
                     if (puzzleData := self.laytonState.saveSlot.puzzleData.getPuzzleData(nzLstEntry.idExternal - 1)) != None and puzzleData.wasSolved:
@@ -412,7 +420,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
         self.__faderEventAnim.setCallback(self.__killActiveRoomPlayerEvent)
 
         # Warning: VERY high level
-        self.laytonState.setEventId(idEvent)
+        self.laytonState.setEventIdBranching(idEvent)
         self.laytonState.setGameMode(GAMEMODES.DramaEvent)
 
     def __startExit(self, objExit : Exit):
@@ -422,7 +430,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
             if objExit.canTriggerExclamationPopup():
                 self.__startEventSpawn(objExit)
             else:
-                self.laytonState.setEventId(objExit.spawnData)
+                self.laytonState.setEventIdBranching(objExit.spawnData)
                 self.laytonState.setGameMode(GAMEMODES.DramaEvent)
                 self.screenController.fadeOut(callback=self.doOnKill)
             return
@@ -437,6 +445,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
         self.__prepareNextPlace()
         self.__loadRoomData()
 
+        # TODO - Probably always move the hat
         if self.__targetExit.posTransition == (0,0):
             self.screenController.fadeOutMain(duration=100, callback=self.__doRoomTransition)
         else:

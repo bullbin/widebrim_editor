@@ -56,7 +56,7 @@ class SubItemAddPopup(PrizeWindow2PopupWithCursor):
                 # TODO - Const the menu slots
                 self.laytonState.saveSlot.menuNewFlag.setSlot(True, 4)
 
-                if self.__itemIcon != None and self.__itemIcon.setAnimationFromName(ANIM_NAME_TEA % self.laytonState.puzzleLastReward - 19):
+                if self.__itemIcon != None and self.__itemIcon.setAnimationFromName(ANIM_NAME_TEA % (self.laytonState.puzzleLastReward - 19)):
                     centerCurrentAnimFrame(self.__itemIcon)
 
                 textPopup = getTextForPopup(PATH_TEXT_HERB, TEXT_INVALID_HERB, ID_HERB_ELEMENT_FOUND, self.laytonState.puzzleLastReward - 20)

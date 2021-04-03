@@ -98,6 +98,9 @@ class Layton2GameState():
         self.__isTimeStarted = False
         self.__timeStarted = 0
 
+        # Not accurate, but used to centralise event behaviour between room and event
+        self._wasLastEventIdBranching = False
+
     def timeGetStartedState(self):
         return self.__isTimeStarted
 
@@ -165,9 +168,18 @@ class Layton2GameState():
         entry = self.getEventInfoEntry(idEvent)
         self._idEvent = idEvent
         self.entryEvInfo = entry
+        self._wasLastEventIdBranching = False
+        return True
+    
+    def setEventIdBranching(self, idEvent):
+        self.setEventId(idEvent)
+        self._wasLastEventIdBranching = True
         return True
     
     def getEventId(self):
+
+        if not(self._wasLastEventIdBranching):
+            return self._idEvent
 
         def getOffsetIdWasViewed():
             if self.entryEvInfo.indexEventViewedFlag != None:
@@ -214,13 +226,10 @@ class Layton2GameState():
             # Drama Event
             if self.entryEvInfo.typeEvent == 5:
                 return getOffsetIdLimit()
-            elif self.entryEvInfo.typeEvent == 3: # Seems to be autoevents, which do not have any branching available
-                if getOffsetIdWasViewed() != self._idEvent:
-                    self.clearEventId()
-                return self._idEvent
-            else:
-                # TODO - Research remaining types 0,1,2,3,4
+            elif self.entryEvInfo.typeEvent == 2:
                 return getOffsetIdWasViewed()
+            else:
+                return self._idEvent
     
     def clearEventId(self):
         self._idEvent = -1

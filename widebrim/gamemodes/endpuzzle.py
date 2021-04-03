@@ -16,17 +16,11 @@ class EndPuzzlePlayer(EventPlayer):
                 if not(puzzleState.wasSolved):
                     wasSkipped = True
 
-            # There's special behaviour for puzzle 135 (sword puzzle)
-            if baseEventId.dataPuzzle == 0x87:
-                if wasSkipped:
-                    baseEventId = baseEventId.idEvent + 3
-                else:
-                    baseEventId = baseEventId.idEvent + 4
+            # TODO - Had to remove special behaviour for puzzle 135 (sword puzzle), swaps 4 and 3. Causes last event to miss, dunno why
+            if wasSkipped:
+                baseEventId = baseEventId.idEvent + 4
             else:
-                if wasSkipped:
-                    baseEventId = baseEventId.idEvent + 4
-                else:
-                    baseEventId = baseEventId.idEvent + 3
+                baseEventId = baseEventId.idEvent + 3
                 
             laytonState.setEventId(baseEventId)
             EventPlayer.__init__(self, laytonState, screenController)

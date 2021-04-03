@@ -4,7 +4,7 @@ from ..engine.state.enum_mode import GAMEMODES
 class EventTeaPlayer(ScreenLayerNonBlocking):
     def __init__(self, laytonState, screenController):
         ScreenLayerNonBlocking.__init__(self)
-        laytonState.setGameModeNext(GAMEMODES.DramaEvent)
+        laytonState.setGameMode(laytonState.getGameModeNext())
 
         baseEventId = laytonState.entryEvInfo
         if baseEventId != None:

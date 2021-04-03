@@ -146,7 +146,7 @@ class HandlerShortbrimPegSolitaire(BaseQuestionObject):
             if self.activeTile != None:
                 self.updateMouseOffset(event.pos)
                 tempPos = screenPosToTile(event.pos)
-                if self.isSpaceAvailable(tempPos):
+                if self.isSpaceAvailable(tempPos) and not self.isSpacePopulated(tempPos):
                     deltaPos = (tempPos[0] - self.tilesPopulated[self.activeTile][0], tempPos[1] - self.tilesPopulated[self.activeTile][1])
                     deltaAbsPos = (abs(deltaPos[0]), abs(deltaPos[1]))
                     if deltaAbsPos == (2,0) or deltaAbsPos == (0,2):  # Check if moving 2 spaces

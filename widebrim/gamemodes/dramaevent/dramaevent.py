@@ -203,13 +203,12 @@ class TextWindow(Popup):
 
 class CharacterController():
 
-    SLOT_OFFSET = {0:48,     1:128,
-                   2:208,     3:31,
-                   4:90,    5:128,
-                   6:0}
-    SLOT_LEFT  = [0,3,4]    # Verified against game binary
-    # Left side characters need flipping
-
+    # Verified against game binary
+    SLOT_OFFSET = {0:0x30,     1:0x80,
+                   2:0xd0,     3:0x20,
+                   4:0x58,     5:0xa7,
+                   6:0xe0}
+    SLOT_LEFT  = [0,3,4]    # Left side characters need flipping
     SLOT_RIGHT = [2,5,6]
 
     def __init__(self, laytonState, characterIndex, characterInitialAnimIndex=0, characterVisible=False, characterSlot=0):
@@ -611,8 +610,14 @@ class EventPlayer(ScriptPlayer):
             self._makeInactive()
             self._popup = SaveButtonPopup(self.laytonState, self.screenController, self._sharedImageHandler, switchPopupToSaveScreen, callbackKillPopup)
             # TODO - Not accurate. Research required
-            if operands[0].value != -1:
+            if operands[0].value > 0:
                 self.laytonState.saveSlot.idImmediateEvent = operands[0].value
+        
+        elif opcode == OPCODES_LT2.HukamaruClear.value:
+            # TODO - Not accurate, but required to get fading looking correct.
+            # TODO - Still not fully correct...
+            self._makeInactive()
+            self.screenController.fadeOut(callback=self._spriteOffAllCharacters)
         
         elif opcode == OPCODES_LT2.DoPhotoPieceAddScreen.value:
             self.laytonState.saveSlot.photoPieceFlag.setSlot(True, operands[0].value)

@@ -158,6 +158,11 @@ class HandlerShortbrimRose(BaseQuestionObject):
     def _wasAnswerSolution(self):
         return True
 
+    def _doReset(self):
+        self.activeRoses = {}
+        self.activeTileMap = {}
+        self.generateOverlaySurface()
+
     def addElement(self, tilePos):
         tilesUnoccluded = self.generateRoseMask(tilePos)
         self.activeRoses[tilePos] = tilesUnoccluded
