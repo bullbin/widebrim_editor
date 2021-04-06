@@ -1,10 +1,9 @@
-from ...engine_ext.utils import getAnimFromPathWithAttributes
+from ...engine_ext.utils import getAnimFromPathWithAttributes, getButtonFromPath
 from ...engine_ext.utils import getImageFromPath
 from .const import PATH_ANIM_SENRO, PATH_ANIM_TRAIN, PATH_ANIM_WAKU, PATH_BG_TITLE, PATH_BUTTON_NEW_GAME, PATH_BUTTON_CONTINUE, PATH_BUTTON_BONUS
 from ...engine.const import RESOLUTION_NINTENDO_DS
 from ...engine.state.layer import ScreenLayerNonBlocking
 from ...engine.state.enum_mode import GAMEMODES
-from ...engine.anim.button import AnimatedButton
 
 class TitlePlayerBottomScreenOverlay(ScreenLayerNonBlocking):
     def __init__(self, laytonState, screenController, saveData, routineTitleScreen, routineContinue, routineBonus, routineTerminate):
@@ -49,16 +48,16 @@ class MenuScreen(TitlePlayerBottomScreenOverlay):
             self.routineTerminate()
 
         if MenuScreen.BUTTON_BONUS == None:
-            MenuScreen.BUTTON_BONUS = AnimatedButton(getAnimFromPathWithAttributes(PATH_BUTTON_BONUS % laytonState.language.value), "on", "off", callback=routineBonus)
+            MenuScreen.BUTTON_BONUS = getButtonFromPath(laytonState, PATH_BUTTON_BONUS, callback=routineBonus)
 
         if MenuScreen.BUTTON_NEW == None:
             if self.isActive:
-                MenuScreen.BUTTON_NEW = AnimatedButton(getAnimFromPathWithAttributes(PATH_BUTTON_NEW_GAME % laytonState.language.value), "on", "off", callback=callbackOnNewGame)
+                MenuScreen.BUTTON_NEW = getButtonFromPath(laytonState, PATH_BUTTON_NEW_GAME, callback=callbackOnNewGame)
             else:
-                MenuScreen.BUTTON_NEW = AnimatedButton(getAnimFromPathWithAttributes(PATH_BUTTON_NEW_GAME % laytonState.language.value, posVariable="pos2"), "on", "off", callback=callbackOnNewGame)
+                MenuScreen.BUTTON_NEW = getButtonFromPath(laytonState, PATH_BUTTON_NEW_GAME, namePosVariable="pos2", callback=callbackOnNewGame)
 
         if MenuScreen.BUTTON_CONT == None:
-            MenuScreen.BUTTON_CONT = AnimatedButton(getAnimFromPathWithAttributes(PATH_BUTTON_CONTINUE % laytonState.language.value), "on", "off", callback=routineContinue)
+            MenuScreen.BUTTON_CONT = getButtonFromPath(laytonState, PATH_BUTTON_CONTINUE, callback=routineContinue)
     
     def update(self, gameClockDelta):
 

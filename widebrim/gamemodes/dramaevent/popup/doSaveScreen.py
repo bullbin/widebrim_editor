@@ -2,9 +2,8 @@ from .utils import PrizeWindow2PopupWithCursor
 
 from .const import PATH_ANIM_BUTTON_YES, PATH_ANIM_BUTTON_NO, ID_SAVE_NOT_COMPLETE, POS_TEXT_SAVE_Y
 from ....engine.const import RESOLUTION_NINTENDO_DS, PATH_TEXT_GENERIC
-from ....engine.anim.button import AnimatedButton
 from ....engine.anim.font.static import generateImageFromString
-from ....engine_ext.utils import getAnimFromPathWithAttributes, getTxt2String
+from ....engine_ext.utils import getButtonFromPath, getTxt2String
 
 from pygame import BLEND_RGB_SUB
 
@@ -29,8 +28,10 @@ class SaveButtonPopup(PrizeWindow2PopupWithCursor):
         # TODO - What is the pos name here?
         self._prompt = generateImageFromString(laytonState.fontEvent, getTxt2String(laytonState, PATH_TEXT_GENERIC % ID_SAVE_NOT_COMPLETE))
         self._promptPos = ((RESOLUTION_NINTENDO_DS[0] - self._prompt.get_width()) // 2, POS_TEXT_SAVE_Y + RESOLUTION_NINTENDO_DS[1])
-        self.buttonYes = AnimatedButton(getAnimFromPathWithAttributes(PATH_ANIM_BUTTON_YES % laytonState.language.value, posVariable="win_p"), "on", "off", callback=callbackOnYes)
-        self.buttonNo = AnimatedButton(getAnimFromPathWithAttributes(PATH_ANIM_BUTTON_NO % laytonState.language.value, posVariable="win_p"), "on", "off", callback=callbackOnNo)
+
+        # TODO - Handle if None
+        self.buttonYes = getButtonFromPath(laytonState, PATH_ANIM_BUTTON_YES, namePosVariable="win_p", callback=callbackOnYes)
+        self.buttonNo = getButtonFromPath(laytonState, PATH_ANIM_BUTTON_NO, namePosVariable="win_p", callback=callbackOnNo)
     
     def updateForegroundElements(self, gameClockDelta):
         self.buttonYes.update(gameClockDelta)

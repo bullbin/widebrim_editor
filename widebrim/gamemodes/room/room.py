@@ -1,28 +1,25 @@
 from __future__ import annotations
-from math import ceil, sqrt
+from math import sqrt
 from typing import List, Optional, TYPE_CHECKING, Union
 from widebrim.engine.anim.image_anim.imageAsNumber import StaticImageAsNumericalFont
-from widebrim.engine.anim.button import AnimatedButton, NullButton
+from widebrim.engine.anim.button import NullButton
 from pygame.constants import BLEND_RGB_SUB, MOUSEBUTTONDOWN
 
-from pygame.event import Event
-from widebrim.madhatter.hat_io.asset_dat.place import Exit, HintCoin, PlaceData, EventEntry, TObjEntry
-from widebrim.madhatter.hat_io.asset import LaytonPack
-from widebrim.engine.file import FileInterface
 from widebrim.engine.const import PATH_PACK_PLACE_NAME, PATH_TEXT_GOAL, PATH_TEXT_PLACE_NAME, RESOLUTION_NINTENDO_DS
-from widebrim.engine.anim.image_anim.image import AnimatedImageObject
 from widebrim.engine.state.enum_mode import GAMEMODES
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
-    from widebrim.madhatter.hat_io.asset_dat.place import BgAni
+    from widebrim.engine.anim.button import AnimatedButton
+    from widebrim.madhatter.hat_io.asset_dat.place import Exit, HintCoin, PlaceData, EventEntry, TObjEntry, BgAni
+    from widebrim.engine.anim.image_anim.image import AnimatedImageObject
     from pygame import Surface
 
 from widebrim.engine.anim.fader import Fader
 from widebrim.engine.state.layer import ScreenLayerNonBlocking
 from widebrim.engine.exceptions import FileInvalidCritical
 from widebrim.engine.anim.font.static import generateImageFromString
-from widebrim.engine_ext.utils import getAnimFromPath, getTxt2String
+from widebrim.engine_ext.utils import getAnimFromPath, getPackedData, getPackedString, getTxt2String, getButtonFromPath
 from .const import *
 from .animJump import AnimJumpHelper
 from .tobjPopup import TObjPopup
@@ -76,7 +73,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
             self.__animNumberIcon.setPos(POS_SOLVED_TEXT)
         self.__animNumberFont : Optional[StaticImageAsNumericalFont]    = None
         if (animNumberFont := getAnimFromPath(PATH_ANIM_NUM_MAP_NUMBER)) != None:
-            solved, encountered = self.laytonState.saveSlot.getSolvedAndEncounteredPuzzleCount()
+            solved, _encountered = self.laytonState.saveSlot.getSolvedAndEncounteredPuzzleCount()
             self.__animNumberFont = StaticImageAsNumericalFont(animNumberFont, text=solved)
             self.__animNumberFont.setStride(animNumberFont.getDimensions()[0])
             self.__animNumberFont.setPos((72,11))
@@ -89,9 +86,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
         self.__placeData : Optional[PlaceData] = None
 
         self.__inMoveMode : bool = False
-        self.__btnMoveMode : Optional[AnimatedButton] = None
-        if (moveModeButton := getAnimFromPath(PATH_BTN_MOVEMODE, pos=(230,350))) != None:
-            self.__btnMoveMode = AnimatedButton(moveModeButton, "on", "off", callback=self.__startMoveMode)
+        self.__btnMoveMode : Optional[AnimatedButton] = getButtonFromPath(laytonState, PATH_BTN_MOVEMODE, callback=self.__startMoveMode)
         
         self.__tObjWindow           : Optional[TObjPopup]       = None
 
@@ -510,22 +505,15 @@ class RoomPlayer(ScreenLayerNonBlocking):
     def __loadRoomData(self) -> bool:
 
         def getPlaceData():
-            if self.laytonState.getPlaceNum() < 40:
-                packPlaceData = FileInterface.getData(PATH_PLACE_A)
-            else:
-                packPlaceData = FileInterface.getData(PATH_PLACE_B)
-            
-            if packPlaceData == None:
-                raise FileInvalidCritical()
-            else:
-                try:
-                    packPlace = LaytonPack()
-                    packPlace.load(packPlaceData)
-                except:
-                    raise FileInvalidCritical()
-
             namePlace = PATH_PACK_PLACE % (self.laytonState.getPlaceNum(), self.laytonState.saveSlot.roomSubIndex)
-            return packPlace.getFile(namePlace)
+            if self.laytonState.getPlaceNum() < 40:
+                output = getPackedData(PATH_PLACE_A, namePlace)
+            else:
+                output = getPackedData(PATH_PLACE_B, namePlace)
+            
+            if output == None:
+                raise FileInvalidCritical()
+            return output
 
         self.__calculateRoom()
         if (tempPlaceData := getPlaceData()) != None:
@@ -558,11 +546,10 @@ class RoomPlayer(ScreenLayerNonBlocking):
             self.__textObjective = generateImageFromString(self.laytonState.fontEvent, getTxt2String(self.laytonState, PATH_TEXT_GOAL % self.laytonState.saveSlot.goal))
             self.__posObjective = (RoomPlayer.POS_CENTER_TEXT_OBJECTIVE[0] - self.__textObjective.get_width() // 2, RoomPlayer.POS_CENTER_TEXT_OBJECTIVE[1])
             
-            if (jitenPackData := FileInterface.getData(PATH_PACK_PLACE_NAME % self.laytonState.language.value)) != None:
-                jitenPack = LaytonPack()
-                jitenPack.load(jitenPackData)
+            # Is there a NO ROOM or similar fail string?
+            if (objectiveText := getPackedString(PATH_PACK_PLACE_NAME % self.laytonState.language.value, PATH_TEXT_PLACE_NAME % self.laytonState.getPlaceNum())) != "":
                 # TODO - String substituter
-                self.__textRoomTitle = generateImageFromString(self.laytonState.fontEvent, jitenPack.getFile(PATH_TEXT_PLACE_NAME % self.laytonState.getPlaceNum()).decode('ascii'))
+                self.__textRoomTitle = generateImageFromString(self.laytonState.fontEvent, objectiveText)
                 self.__posRoomTitle = (RoomPlayer.POS_CENTER_TEXT_ROOM_TITLE[0] - self.__textRoomTitle.get_width() // 2, RoomPlayer.POS_CENTER_TEXT_ROOM_TITLE[1])
 
             self.screenController.setBgMain(PATH_PLACE_BG % self.__placeData.bgMainId)

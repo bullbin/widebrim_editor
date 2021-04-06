@@ -1,7 +1,6 @@
-from widebrim.engine.anim.button import AnimatedButton
 from .base import BaseQuestionObject
 from ....engine.const import RESOLUTION_NINTENDO_DS
-from ....engine_ext.utils import getAnimFromPath, getAnimFromPathWithAttributes
+from ....engine_ext.utils import getAnimFromPath, getAnimFromPathWithAttributes, getButtonFromPath
 from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
 from pygame import MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION, draw, Surface
 from random import randint
@@ -48,27 +47,13 @@ class HandlerTraceButton(BaseQuestionObject):
         super().__init__(laytonState, screenController, callbackOnTerminate)
 
         self.__buttons = []
-
-        # TODO - From base
-        def getButtonObject(pathAnim, posButton, callback=None):
-            if "?" in pathAnim:
-                pathAnim = pathAnim.replace("?", laytonState.language.value)
-            elif "%s" in pathAnim:
-                pathAnim = pathAnim % laytonState.language.value
-
-            image = getAnimFromPathWithAttributes(pathAnim)
-            if image != None:
-                image.setPos(posButton)
-                # TODO - Default parameters are on/off
-                return AnimatedButton(image, "on", "off", callback=callback)
-            return None
         
         def addIfNotNone(button):
             if button != None:
                 self.__buttons.append(button)
         
-        addIfNotNone(getButtonObject(PATH_ANI_BTN_LEFT, POS_BTN_LEFT, callback=self._callbackOnLeft))
-        addIfNotNone(getButtonObject(PATH_ANI_BTN_RIGHT, POS_BTN_RIGHT, callback=self._callbackOnRight))
+        addIfNotNone(getButtonFromPath(laytonState, PATH_ANI_BTN_LEFT, POS_BTN_LEFT, callback=self._callbackOnLeft))
+        addIfNotNone(getButtonFromPath(laytonState, PATH_ANI_BTN_RIGHT, POS_BTN_RIGHT, callback=self._callbackOnRight))
 
         self._traceZones = [[],[],[],[]]
         self._colourLine = (0,0,0)

@@ -1,11 +1,17 @@
+from __future__ import annotations
+from typing import Callable, Optional, TYPE_CHECKING
+if TYPE_CHECKING:
+    from widebrim.engine.state.state import Layton2GameState
+
+from widebrim.engine.anim.button import AnimatedButton
 from ..madhatter.hat_io.asset_image import StaticImage
-from ..engine.const import PATH_BG_ROOT, PATH_ANI, RESOLUTION_NINTENDO_DS
+from ..engine.const import PATH_BG_ROOT, PATH_ANI, PATH_FACE_ROOT, RESOLUTION_NINTENDO_DS
 from ..engine.file import FileInterface
 from ..madhatter.hat_io.asset_image import AnimatedImage
 from ..madhatter.hat_io.asset import LaytonPack
 from ..engine.anim.image_anim import AnimatedImageObject
 from ..engine.const import PATH_PACK_TXT2, PATH_PACK_TXT
-from typing import Optional
+
 from pygame import image, Surface
 
 def getImageFromPath(laytonState, pathBg) -> Optional[Surface]:
@@ -41,12 +47,15 @@ def getImageFromPath(laytonState, pathBg) -> Optional[Surface]:
             return image.fromstring(bg.convert("RGB").tobytes("raw", "RGB"), bg.size, "RGB").convert()
     return None
 
+def getPackedData(pathPack, nameItem) -> Optional[bytes]:
+    pack = LaytonPack()
+    pack.load(FileInterface.getData(pathPack))
+    return pack.getFile(nameItem)
+
 def getPackedString(pathPack, nameString) -> str:
     # TODO - Maybe decoding using substiter
     # TODO - sp... substituter
-    textPack = LaytonPack()
-    textPack.load(FileInterface.getData(pathPack))
-    tempString = textPack.getFile(nameString)
+    tempString = getPackedData(pathPack, nameString)
     try:
         return tempString.decode('shift-jis')
     except:
@@ -58,7 +67,49 @@ def getTxtString(laytonState, nameString) -> str:
 def getTxt2String(laytonState, nameString) -> str:
     return getPackedString(PATH_PACK_TXT2 % laytonState.language.value, nameString)
 
+def getButtonFromPath(laytonState : Layton2GameState, inPath : str, callback : Optional[Callable] = None, animOff : str="off", animOn : str="on", pos=(0,0), namePosVariable=None) -> Optional[AnimatedButton]:
+    """Returns an image-based button from path. Note that by default, this button will be offset onto the bottom screen already.
+
+    Args:
+        laytonState (Layton2GameState): Game state
+        inPath (str): Path to image asset, relative from master animation path
+        callback (Optional[Callable], optional): Callback when button is pressed. Defaults to None.
+        animOff (str, optional): Name of animation when button is idle. Defaults to "off".
+        animOn (str, optional): Name of animation when button is targetted. Defaults to "on".
+        pos (tuple, optional): Position. Defaults to (0,0) and overriden by variable.
+        namePosVariable ([type], optional): Name of variable storing position. Defaults to None, 'pos' will be used instead.
+
+    Returns:
+        Optional[AnimatedButton]: Image-based button
+    """
+
+    # TODO - Support click image
+    if "?" in inPath:
+        inPath = inPath.replace("?", laytonState.language.value)
+    elif "%s" in inPath:
+        inPath = inPath.replace("%s", laytonState.language.value)
+    
+    if (anim := getAnimFromPathWithAttributes(inPath)) != None:
+        anim : AnimatedImageObject
+        anim.setPos((pos[0], pos[1] + RESOLUTION_NINTENDO_DS[1]))
+        # Verified behaviour
+        if namePosVariable == None:
+            namePosVariable = "pos"
+
+        if anim.getVariable(namePosVariable) != None:
+            anim.setPos((anim.getVariable(namePosVariable)[0],
+                         anim.getVariable(namePosVariable)[1] + RESOLUTION_NINTENDO_DS[1]))
+        
+        return AnimatedButton(anim, animOn, animOff, callback=callback)
+    return None
+
 def getAnimFromPath(inPath, spawnAnimName=None, pos=(0,0)) -> Optional[AnimatedImageObject]:
+
+    def functionGetAnimationFromName(name):
+        name = name.split(".")[0] + ".arc"
+        resolvedPath = PATH_FACE_ROOT % name
+        return FileInterface.getData(resolvedPath)
+
     if ".spr" in inPath:
         inPath = inPath.split(".spr")[0] + ".arc"
     elif ".sbj" in inPath:
@@ -66,9 +117,9 @@ def getAnimFromPath(inPath, spawnAnimName=None, pos=(0,0)) -> Optional[AnimatedI
     
     if (tempAsset := FileInterface.getData(PATH_ANI % inPath)) != None:
         if ".arj" in inPath:
-            tempImage = AnimatedImage.fromBytesArj(tempAsset)
+            tempImage = AnimatedImage.fromBytesArj(tempAsset, functionGetFileByName=functionGetAnimationFromName)
         else:
-            tempImage = AnimatedImage.fromBytesArc(tempAsset)
+            tempImage = AnimatedImage.fromBytesArc(tempAsset, functionGetFileByName=functionGetAnimationFromName)
 
         tempImage = AnimatedImageObject.fromMadhatter(tempImage)
         tempImage.setPos(pos)

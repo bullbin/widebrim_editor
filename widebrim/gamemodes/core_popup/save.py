@@ -1,11 +1,9 @@
 from ...engine.anim.font.static import generateImageFromString
-from ...engine.anim.button import AnimatedButton, NullButton
+from ...engine.anim.button import NullButton
 from ...engine.config import PATH_SAVE
 from ...engine.const import PATH_TEXT_GENERIC, PATH_PACK_PLACE_NAME, PATH_TEXT_PLACE_NAME, RESOLUTION_NINTENDO_DS
-from ...engine.file import FileInterface
-from ...engine_ext.utils import getAnimFromPathWithAttributes, getTxtString, getTxt2String, getPackedString
+from ...engine_ext.utils import getButtonFromPath, getTxt2String, getPackedString
 # TODO - Bugfix, buttons can be pressed during fading operation
-from ...madhatter.hat_io.asset import LaytonPack
 from ...madhatter.hat_io.asset_sav import Layton2SaveFile
 
 from .const import PATH_BG_FILELOAD, PATH_BG_FILESAVE, PATH_ANI_BTN_BACK, ID_SAVE_EMPTY
@@ -122,8 +120,8 @@ class SaveLoadScreenPopup(MainScreenPopup):
                                 callback=callbackOnSlotAccessed))
             self.slotIndexSlot.append(indexSlot)
                 
-        # TODO - Make class variable
-        self.buttonBack = AnimatedButton(getAnimFromPathWithAttributes(PATH_ANI_BTN_BACK % laytonState.language.value), "on", "off", callback=callbackOnTerminate)
+        # TODO - Make class variable, can also fail if None returned
+        self.buttonBack = getButtonFromPath(laytonState, PATH_ANI_BTN_BACK, callback=callbackOnTerminate) 
 
         if mode == SaveLoadScreenPopup.MODE_LOAD:
             screenController.setBgMain(PATH_BG_FILELOAD % (laytonState.language.value, bgIndex + 1))

@@ -1,8 +1,6 @@
 from .base import BaseQuestionObject
-from ....engine.const import RESOLUTION_NINTENDO_DS
 from .const import PATH_ANI_FREEBUTTON
-from ....engine.anim.button import AnimatedButton
-from ....engine_ext.utils import getAnimFromPath
+from ....engine_ext.utils import getButtonFromPath
 from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
 
 class  HandlerFreeButton(BaseQuestionObject):
@@ -11,13 +9,12 @@ class  HandlerFreeButton(BaseQuestionObject):
         self.buttons = []
         self.solutions = []
         self.indexButtonPress = None
+        self.laytonState = laytonState
     
     def _doUnpackedCommand(self, opcode, operands):
         if opcode == OPCODES_LT2.AddOnOffButton.value and len(operands) == 5:
-            buttonAnim = getAnimFromPath(PATH_ANI_FREEBUTTON % operands[2].value)
-            if buttonAnim != None and len(self.buttons) < 24:
-                buttonAnim.setPos((operands[0].value, operands[1].value + RESOLUTION_NINTENDO_DS[1]))
-                self.buttons.append(AnimatedButton(buttonAnim, "on", "off", callback=self._startJudgement))
+            if len(self.buttons) < 24:
+                self.buttons.append(getButtonFromPath(self.laytonState, PATH_ANI_FREEBUTTON % operands[2].value, pos=(operands[0].value, operands[1].value), callback=self._startJudgement))
                 self.solutions.append(operands[3].value == 1)
         else:
             return super()._doUnpackedCommand(opcode, operands)
@@ -36,17 +33,20 @@ class  HandlerFreeButton(BaseQuestionObject):
 
     def drawPuzzleElements(self, gameDisplay):
         for button in self.buttons:
-            button.draw(gameDisplay)
+            if button != None:
+                button.draw(gameDisplay)
         return super().drawPuzzleElements(gameDisplay)
     
     def updatePuzzleElements(self, gameClockDelta):
         for button in self.buttons:
-            button.update(gameClockDelta)
+            if button != None:
+                button.update(gameClockDelta)
         return super().updatePuzzleElements(gameClockDelta)
     
     def handleTouchEventPuzzleElements(self, event):
         for indexButton, button in enumerate(self.buttons):
-            self.indexButtonPress = indexButton
-            if button.handleTouchEvent(event):
-                return True
+            if button != None:
+                self.indexButtonPress = indexButton
+                if button.handleTouchEvent(event):
+                    return True
         return super().handleTouchEventPuzzleElements(event)

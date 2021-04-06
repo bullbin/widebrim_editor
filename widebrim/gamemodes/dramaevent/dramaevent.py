@@ -1,24 +1,23 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+from widebrim.engine_ext.utils import getAnimFromPath, getAnimFromPathWithAttributes
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
 
 from ...engine.state.enum_mode import GAMEMODES
-from ...engine.anim.image_anim import AnimatedImageObject
 from ...engine.anim.fader import Fader
 from ...engine.anim.font.scrolling import ScrollingFontHelper
 from ...engine.exceptions import FileInvalidCritical
 from ...engine.file import FileInterface
 from ..core_popup.script import ScriptPlayer
 
-from ...engine.const import RESOLUTION_NINTENDO_DS, PATH_FACE_ROOT, PATH_BODY_ROOT, PATH_CHAP_ROOT
+from ...engine.const import RESOLUTION_NINTENDO_DS, PATH_BODY_ROOT, PATH_CHAP_ROOT
 from ...engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C
 from ...engine.const import PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, PATH_PACK_TALK, PATH_EVENT_BG, PATH_PLACE_BG, PATH_EVENT_ROOT, PATH_ANI, PATH_NAME_ROOT
 
 from ...madhatter.hat_io.asset import LaytonPack
 from ...madhatter.hat_io.asset_script import GdScript
 from ...madhatter.hat_io.asset_sav import FlagsAsArray
-from ...madhatter.hat_io.asset_image import AnimatedImage
 from ...madhatter.typewriter.stringsLt2 import OPCODES_LT2
 
 from .storage import EventStorage
@@ -33,12 +32,9 @@ from ...madhatter.hat_io.binary import BinaryReader
 from pygame import Surface, MOUSEBUTTONUP
 from pygame.transform import flip
 
-def functionGetAnimationFromName(name):
-    name = name.split(".")[0] + ".arc"
-    resolvedPath = PATH_FACE_ROOT % name
-    return FileInterface.getData(resolvedPath)
-
 # TODO - During fading, the main screen doesn't actually seem to be updated.
+
+# TODO - Remove references to LaytonPack, we're beyond that now
 
 # TODO - Set up preparations for many hardcoded event IDs which are called for various tasks in binary
 #        aka nazoba hell, since there's so much back and forth to spawn the extra handler due to memory constraints on NDS
@@ -110,10 +106,8 @@ class PlaceholderPopup(Popup):
 class TextWindow(Popup):
 
     # TODO - Improve redundancy, although these are all critical assets
-    dataWindow = FileInterface.getData(PATH_ANI % (PATH_EVENT_ROOT % "twindow.arc"))
-    madhatterImage = AnimatedImage.fromBytesArc(dataWindow, functionGetFileByName=functionGetAnimationFromName)
-    SPRITE_WINDOW = AnimatedImageObject.fromMadhatter(madhatterImage)
-    SPRITE_WINDOW.setPos((0, SPRITE_WINDOW.getVariable("pos")[1] + RESOLUTION_NINTENDO_DS[1]))
+    # TODO - Wo
+    SPRITE_WINDOW = getAnimFromPathWithAttributes(PATH_EVENT_ROOT % "twindow.arc")
 
     DICT_SLOTS = {0:"LEFT",
                   2:"RIGHT",
@@ -216,22 +210,10 @@ class CharacterController():
         self._baseAnimName = "Create an Animation"
         self._isCharacterTalking = False
 
-        dataCharacter = FileInterface.getData(PATH_BODY_ROOT % characterIndex)
-        if dataCharacter != None:
-            madhatterImage = AnimatedImage.fromBytesArc(dataCharacter, functionGetFileByName=functionGetAnimationFromName)
-            self.imageCharacter = AnimatedImageObject.fromMadhatter(madhatterImage)
+        self.imageCharacter = getAnimFromPath(PATH_BODY_ROOT % characterIndex)
+        if self.imageCharacter != None:
             self.setCharacterAnimationFromIndex(characterInitialAnimIndex)
-        else:
-            self.imageCharacter = None
-        
-        dataName = FileInterface.getData(PATH_ANI % (PATH_NAME_ROOT % (laytonState.language.value, characterIndex)))
-        if dataName != None:
-            dataName = AnimatedImage.fromBytesArc(dataName, functionGetFileByName=functionGetAnimationFromName)
-            self.imageName = AnimatedImageObject.fromMadhatter(dataName)
-            self.imageName.setAnimationFromName("gfx")
-            self.imageName.setPos((self.imageName.getVariable("pos")[0], RESOLUTION_NINTENDO_DS[1] + self.imageName.getVariable("pos")[1]))
-        else:
-            self.imageName = None
+        self.imageName = getAnimFromPathWithAttributes(PATH_NAME_ROOT % (laytonState.language.value, characterIndex))
 
         self._visibilityFader = Fader(0, initialActiveState=True)
         self._drawLocation = (0,0)

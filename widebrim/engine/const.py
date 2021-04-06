@@ -30,7 +30,7 @@ PATH_NAME_ROOT      = "eventchr/%s/chr%i_n.arc"
 PATH_EVENT_ROOT     = "event/%s"
 
 PATH_FACE_ROOT      = "/data_lt2/ani/sub/%s"
-PATH_BODY_ROOT      = "/data_lt2/ani/eventchr/chr%i.arc"
+PATH_BODY_ROOT      = "eventchr/chr%i.arc"
 
 PATH_EVENT_SCRIPT   = "/data_lt2/event/ev_d%i.plz"
 PATH_EVENT_SCRIPT_A = "/data_lt2/event/ev_d%ia.plz"

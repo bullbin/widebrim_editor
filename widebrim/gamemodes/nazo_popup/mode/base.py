@@ -1,14 +1,13 @@
 from ....engine.state.enum_mode import GAMEMODES
 from ....engine.file import FileInterface
 from ....engine.const import PATH_PUZZLE_SCRIPT, PATH_PACK_PUZZLE, PATH_PUZZLE_BG, PATH_PUZZLE_BG_LANGUAGE, PATH_PUZZLE_BG_NAZO_TEXT, RESOLUTION_NINTENDO_DS
-from ....engine_ext.utils import getImageFromPath, getAnimFromPath, getAnimFromPathWithAttributes
+from ....engine_ext.utils import getButtonFromPath, getAnimFromPath
 from ....engine.anim.font.scrolling import ScrollingFontHelper
 from ....engine.anim.image_anim import ImageFontRenderer
-from ....engine.anim.button import AnimatedButton
 from ...core_popup.script import ScriptPlayer
 from ....madhatter.hat_io.asset import LaytonPack
 from ....madhatter.hat_io.asset_script import GdScript
-from .const import PATH_ANI_SUB_TEXT, PATH_ANI_BTN_HINT, PATH_ANI_BTN_MEMO, PATH_ANI_BTN_QUIT, PATH_ANI_BTN_RESTART, PATH_ANI_BTN_SUBMIT
+from .const import PATH_ANI_SUB_TEXT, PATH_ANI_BTN_MEMO, PATH_ANI_BTN_QUIT, PATH_ANI_BTN_RESTART, PATH_ANI_BTN_SUBMIT
 
 from pygame import MOUSEBUTTONDOWN, MOUSEBUTTONUP
 
@@ -208,29 +207,19 @@ class BaseQuestionObject(ScriptPlayer):
         return True
     
     def __getButtons(self):
-        def getButtonObject(pathAnim, callback=None):
-            if "?" in pathAnim:
-                pathAnim = pathAnim.replace("?", self.laytonState.language.value)
-            elif "%s" in pathAnim:
-                pathAnim = pathAnim % self.laytonState.language.value
 
-            image = getAnimFromPathWithAttributes(pathAnim)
-            if image != None:
-                return AnimatedButton(image, "on", "off", callback=callback)
-            return None
-        
         def addIfNotNone(button):
             if button != None:
                 self.__buttons.append(button)
 
         if self.hasQuitButton():
-            addIfNotNone(getButtonObject(PATH_ANI_BTN_QUIT, self.__doQuit))
+            addIfNotNone(getButtonFromPath(self.laytonState, PATH_ANI_BTN_QUIT, callback=self.__doQuit))
         if self.hasMemoButton():
-            addIfNotNone(getButtonObject(PATH_ANI_BTN_MEMO))
+            addIfNotNone(getButtonFromPath(self.laytonState, PATH_ANI_BTN_MEMO))
         if self.hasRestartButton():
-            addIfNotNone(getButtonObject(PATH_ANI_BTN_RESTART, callback=self._doReset))
+            addIfNotNone(getButtonFromPath(self.laytonState, PATH_ANI_BTN_RESTART, callback=self._doReset))
         if self.hasSubmitButton():
-            addIfNotNone(getButtonObject(PATH_ANI_BTN_SUBMIT, callback=self._doOnJudgementPress))
+            addIfNotNone(getButtonFromPath(self.laytonState, PATH_ANI_BTN_SUBMIT, callback=self._doOnJudgementPress))
 
     def __doQuit(self):
         self.laytonState.wasPuzzleSkipped = True

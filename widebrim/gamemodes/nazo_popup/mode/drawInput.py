@@ -23,8 +23,7 @@
 # TODO - Skip if tesseract unusable
 
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
-from ....engine_ext.utils import getAnimFromPathWithAttributes
-from ....engine.anim.button import AnimatedButton
+from ....engine_ext.utils import getButtonFromPath
 from .base import BaseQuestionObject
 from .const import PATH_BG_DRAWINPUT
 from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
@@ -292,27 +291,14 @@ class HandlerDrawInput(BaseQuestionObject):
         self._inAnswerMode = False
 
         self.__buttons = []
-
-        # TODO - From base
-        def getButtonObject(pathAnim, callback=None):
-            if "?" in pathAnim:
-                pathAnim = pathAnim.replace("?", laytonState.language.value)
-            elif "%s" in pathAnim:
-                pathAnim = pathAnim % laytonState.language.value
-
-            image = getAnimFromPathWithAttributes(pathAnim)
-            if image != None:
-                # TODO - Default parameters are on/off
-                return AnimatedButton(image, "on", "off", callback=callback)
-            return None
         
         def addIfNotNone(button):
             if button != None:
                 self.__buttons.append(button)
         
-        addIfNotNone(getButtonObject(PATH_ANI_BTN_DRAWINPUT_SUBMIT, callback=self._doOnSubmitAnswer))
-        addIfNotNone(getButtonObject(PATH_ANI_BTN_BACK, callback=self._doOnLeaveEntry))
-        addIfNotNone(getButtonObject(PATH_ANI_BTN_CLEAR, callback=self._doOnClearAnswer))
+        addIfNotNone(getButtonFromPath(laytonState, PATH_ANI_BTN_DRAWINPUT_SUBMIT, callback=self._doOnSubmitAnswer))
+        addIfNotNone(getButtonFromPath(laytonState, PATH_ANI_BTN_BACK, callback=self._doOnLeaveEntry))
+        addIfNotNone(getButtonFromPath(laytonState, PATH_ANI_BTN_CLEAR, callback=self._doOnClearAnswer))
     
     def _doUnpackedCommand(self, opcode, operands):
         if opcode == OPCODES_LT2.SetAnswerBox.value and len(operands) == 4:

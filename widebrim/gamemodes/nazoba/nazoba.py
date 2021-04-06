@@ -12,8 +12,8 @@ from widebrim.engine.string import getSubstitutedString
 
 from widebrim.engine.state.layer import ScreenLayerNonBlocking
 from widebrim.engine.state.enum_mode import GAMEMODES
-from widebrim.engine.anim.button import AnimatedButton, NullButton
-from widebrim.engine_ext.utils import getAnimFromPath, getTxt2String
+from widebrim.engine.anim.button import NullButton
+from widebrim.engine_ext.utils import getButtonFromPath, getTxt2String
 from .const import *
 
 # Overlay_Nazoba
@@ -134,24 +134,11 @@ class NazobaPlayer(ScreenLayerNonBlocking):
             self._cacheNextNames()
 
     def __getButtons(self):
-        # TODO - From base
-        # TODO - Make static method to AnimatedButton
-        def getButtonObject(pathAnim, animNameOn, animNameOff, pos, callback=None):
-            if "?" in pathAnim:
-                pathAnim = pathAnim.replace("?", self.laytonState.language.value)
-            elif "%s" in pathAnim:
-                pathAnim = pathAnim % self.laytonState.language.value
 
-            image = getAnimFromPath(pathAnim)
-            if image != None:
-                image.setPos((pos[0], pos[1] + RESOLUTION_NINTENDO_DS[1]))
-                return AnimatedButton(image, animNameOn, animNameOff, callback=callback)
-            return None
-        
         def addIfNotNone(button):
             if button != None:
                 self.__buttons.append(button)
 
-        addIfNotNone(getButtonObject(PATH_ANI_BTN_NAZOBA, NAME_ANI_BACK_ON, NAME_ANI_BACK_OFF, POS_ANI_BACK, callback=self.__callbackStartTermination))
-        addIfNotNone(getButtonObject(PATH_ANI_BTN_NAZOBA, NAME_ANI_NEXT_ON, NAME_ANI_NEXT_OFF, POS_ANI_NEXT, callback=self.__callbackIncrementPage))
-        addIfNotNone(getButtonObject(PATH_ANI_BTN_NAZOBA, NAME_ANI_PREV_ON, NAME_ANI_PREV_OFF, POS_ANI_PREV, callback=self.__callbackDecrementPage))
+        addIfNotNone(getButtonFromPath(self.laytonState, PATH_ANI_BTN_NAZOBA, animOn=NAME_ANI_BACK_ON, animOff=NAME_ANI_BACK_OFF, pos=POS_ANI_BACK, callback=self.__callbackStartTermination))
+        addIfNotNone(getButtonFromPath(self.laytonState, PATH_ANI_BTN_NAZOBA, animOn=NAME_ANI_NEXT_ON, animOff=NAME_ANI_NEXT_OFF, pos=POS_ANI_NEXT, callback=self.__callbackIncrementPage))
+        addIfNotNone(getButtonFromPath(self.laytonState, PATH_ANI_BTN_NAZOBA, animOn=NAME_ANI_PREV_ON, animOff=NAME_ANI_PREV_OFF, pos=POS_ANI_PREV, callback=self.__callbackDecrementPage))

@@ -6,9 +6,7 @@ if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
 
-from widebrim.engine.anim.button import AnimatedButton
-from widebrim.engine_ext.utils import getAnimFromPathWithAttributes
-
+from widebrim.engine_ext.utils import getButtonFromPath
 from widebrim.gamemodes.core_popup.utils import FullScreenPopup
 from ....engine.anim.font.scrolling import ScrollingFontHelper
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
@@ -25,18 +23,6 @@ class QuestionEndPopup(FullScreenPopup):
         self.__buttons = []
         self.__isOnButtonScreen = False
         self._callbackOnTerminate = callbackOnTerminate
-
-        # TODO - From base
-        def getButtonObject(pathAnim, callback=None):
-            if "?" in pathAnim:
-                pathAnim = pathAnim.replace("?", laytonState.language.value)
-            elif "%s" in pathAnim:
-                pathAnim = pathAnim % laytonState.language.value
-
-            image = getAnimFromPathWithAttributes(pathAnim)
-            if image != None:
-                return AnimatedButton(image, "on", "off", callback=callback)
-            return None
         
         def addIfNotNone(button):
             if button != None:
@@ -69,9 +55,9 @@ class QuestionEndPopup(FullScreenPopup):
             self._textScroller.setText(laytonState.getNazoData().getTextIncorrect())
             screenController.fadeInMain()
 
-            addIfNotNone(getButtonObject(PATH_ANI_TRY_AGAIN, callback=self.__callbackOnTryAgain))
-            addIfNotNone(getButtonObject(PATH_ANI_VIEW_HINT))
-            addIfNotNone(getButtonObject(PATH_ANI_QUIT, callback=self.__callbackOnQuit))
+            addIfNotNone(getButtonFromPath(laytonState, PATH_ANI_TRY_AGAIN, callback=self.__callbackOnTryAgain))
+            addIfNotNone(getButtonFromPath(laytonState, PATH_ANI_VIEW_HINT))
+            addIfNotNone(getButtonFromPath(laytonState, PATH_ANI_QUIT, callback=self.__callbackOnQuit))
         
     def update(self, gameClockDelta):
         if not(self.screenController.getFadingStatus()):
