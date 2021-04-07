@@ -231,7 +231,7 @@ class BaseQuestionObject(ScriptPlayer):
 
         # Set backgrounds
         if nazoData != None and nzLstEntry != None:
-            if nazoData.flagUseLanguageBackground:
+            if nazoData.isBgPromptLanguageDependent():
                 self.screenController.setBgMain(PATH_PUZZLE_BG_LANGUAGE % nazoData.bgMainId)
             else:
                 self.screenController.setBgMain(PATH_PUZZLE_BG % nazoData.bgMainId)

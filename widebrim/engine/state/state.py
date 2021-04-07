@@ -21,6 +21,7 @@ from ..file import FileInterface
 from ...engine.anim.font.nftr_decode import NftrTiles
 
 from time import time
+from math import floor
 
 from .enum_mode import GAMEMODES
 
@@ -100,6 +101,7 @@ class Layton2GameState():
 
         # Not accurate, but used to centralise event behaviour between room and event
         self._wasLastEventIdBranching = False
+        self.timeStartTimer()
 
     def timeGetStartedState(self):
         return self.__isTimeStarted
@@ -113,8 +115,11 @@ class Layton2GameState():
             # TODO - Access method which changes the header time and save slot time simulataneously
             # This is only used to verify whether the save was tampered with which isn't that accuracy anyway
             # TODO - Is the padding after the time variable actually where the counting time is stored?
-            self.saveSlot.timeElapsed = max(round(time() - self.__timeStarted), 0) + self.saveSlot.timeElapsed
+            self.saveSlot.timeElapsed = self.timeGetRunningTime()
             self.__timeStarted = time()
+
+    def timeGetRunningTime(self):
+        return max(floor(time() - self.__timeStarted), 0) + self.saveSlot.timeElapsed
 
     def setMovieNum(self, movieNum):
         self._idMovieNum = movieNum
@@ -351,3 +356,36 @@ class Layton2GameState():
             if self._dbSubmapInfo != None:
                 return self._dbSubmapInfo.searchForEntry(indexEventViewed, self.saveSlot.roomIndex, self.saveSlot.chapter)
         return None
+    
+    # TODO - Merge into madhatter, simpler
+    def isAnthonyDiaryEnabled(self) -> bool:
+        for indexFlag in range(16):
+            if self.saveSlot.anthonyDiaryState.flagEnabled.getSlot(indexFlag):
+                return True
+        return False
+    
+    def isCameraAvailable(self) -> bool:
+        return int.from_bytes(self.saveSlot.minigameCameraState.getCameraAvailableBytes(), byteorder = 'little') != 0
+    
+    def isCameraAssembled(self) -> bool:
+        # Don't know best way to do this yet :(
+        return False
+    
+    def isHamsterUnlocked(self) -> bool:
+        return self.saveSlot.minigameHamsterState.isEnabled
+    
+    def isHamsterCompleted(self) -> bool:
+        return self.saveSlot.minigameHamsterState.level == 0
+    
+    def isTeaEnabled(self) -> bool:
+        for indexElement in range(self.saveSlot.minigameTeaState.flagElements.getLength()):
+            if self.saveSlot.minigameTeaState.flagElements.getSlot(indexElement):
+                return True
+        return False
+
+    def isTeaCompleted(self) -> bool:
+        # TODO - More to this, maybe reserved bit elsewhere
+        for indexElement in range(self.saveSlot.minigameTeaState.flagCorrect.getLength()):
+            if not(self.saveSlot.minigameTeaState.flagCorrect.getSlot(indexElement)):
+                return False
+        return True

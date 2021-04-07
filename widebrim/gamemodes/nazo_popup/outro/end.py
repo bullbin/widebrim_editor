@@ -41,12 +41,15 @@ class QuestionEndPopup(FullScreenPopup):
             # TODO - Set reward flag
             entryPuzzle.wasSolved = True
             screenController.setBgMain(PATH_BG_PASS % laytonState.getNazoData().getBgSubIndex())
-            if laytonState.getNazoData().isBgLanguageDependent():
-                screenController.setBgSub(PATH_BG_ANSWER_LANG % laytonState.getNazoData().getBgMainIndex())
-            else:
-                screenController.setBgSub(PATH_BG_ANSWER % laytonState.getNazoData().getBgMainIndex())
             self._textScroller.setText(laytonState.getNazoData().getTextCorrect())
-            screenController.fadeIn()
+            if laytonState.getNazoData().hasAnswerBg():
+                if laytonState.getNazoData().isBgAnswerLanguageDependent():
+                    screenController.setBgSub(PATH_BG_ANSWER_LANG % laytonState.getNazoData().getBgMainIndex())
+                else:
+                    screenController.setBgSub(PATH_BG_ANSWER % laytonState.getNazoData().getBgMainIndex())
+                screenController.fadeIn()
+            else:
+                screenController.fadeInMain()
         else:
             if not(entryPuzzle.wasSolved):
                 entryPuzzle.incrementDecayStage()

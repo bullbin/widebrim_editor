@@ -62,6 +62,7 @@ class JudgementPopup(FullScreenPopup):
             self._waitingToSetBgAndEnd = False
             self.screenController.setBgSub(self._getFramePath())
             if callable(self._callback):
+                # TODO - Is this meant to call out too soon??
                 self.screenController.fadeOutMain(0)
                 self._callback()
                 self._callback = None
@@ -153,7 +154,10 @@ class OutroLayer(FullScreenPopup):
                     picaratsGained = self.laytonState.getNazoData().getPicaratStage(entryPuzzle.levelDecay)
                     self.laytonState.saveSlot.picarats += picaratsGained
                     # TODO - Picarats add screen
-            self.screenController.fadeOut(callback=self._switchToModeEnd)
+            if self.laytonState.getNazoData().hasAnswerBg():
+                self.screenController.fadeOut(callback=self._switchToModeEnd)
+            else:
+                self.screenController.fadeOutMain(callback=self._switchToModeEnd)
         else:
             self.screenController.fadeOutMain(callback=self._switchToModeEnd)
 

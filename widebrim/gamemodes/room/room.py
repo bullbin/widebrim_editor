@@ -4,6 +4,7 @@ from typing import List, Optional, TYPE_CHECKING, Union
 from widebrim.engine.anim.image_anim.imageAsNumber import StaticImageAsNumericalFont
 from widebrim.engine.anim.button import NullButton
 from pygame.constants import BLEND_RGB_SUB, MOUSEBUTTONDOWN
+from widebrim.madhatter.hat_io.asset_dat.place import PlaceData, EventEntry
 
 from widebrim.engine.const import PATH_PACK_PLACE_NAME, PATH_TEXT_GOAL, PATH_TEXT_PLACE_NAME, RESOLUTION_NINTENDO_DS
 from widebrim.engine.state.enum_mode import GAMEMODES
@@ -11,7 +12,7 @@ if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
     from widebrim.engine.anim.button import AnimatedButton
-    from widebrim.madhatter.hat_io.asset_dat.place import Exit, HintCoin, PlaceData, EventEntry, TObjEntry, BgAni
+    from widebrim.madhatter.hat_io.asset_dat.place import Exit, HintCoin, TObjEntry, BgAni
     from widebrim.engine.anim.image_anim.image import AnimatedImageObject
     from pygame import Surface
 
@@ -87,6 +88,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
         self.__inMoveMode : bool = False
         self.__btnMoveMode : Optional[AnimatedButton] = getButtonFromPath(laytonState, PATH_BTN_MOVEMODE, callback=self.__startMoveMode)
+        self.__btnMenuMode : Optional[AnimatedButton] = getButtonFromPath(laytonState, PATH_BTN_MENU_ICON, callback=self.__startMenuMode)
         
         self.__tObjWindow           : Optional[TObjPopup]       = None
 
@@ -207,6 +209,10 @@ class RoomPlayer(ScreenLayerNonBlocking):
         else:
             if self.__btnMoveMode != None:
                 self.__btnMoveMode.draw(gameDisplay)
+            if self.__btnMenuMode != None:
+                self.__btnMenuMode.draw(gameDisplay)
+
+        # TODO - Method to do this None check, its excessive. Also order of drawing and updating
 
         if self.__animTouchIcon != None:
             self.__animTouchIcon.draw(gameDisplay)
@@ -228,8 +234,11 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
         self.__faderTiming.update(gameClockDelta)
 
-        if not(self.__inMoveMode) and self.__btnMoveMode != None:
-            self.__btnMoveMode.update(gameClockDelta)
+        if not(self.__inMoveMode):
+            if self.__btnMoveMode != None:
+                self.__btnMoveMode.update(gameClockDelta)
+            if self.__btnMenuMode != None:
+                self.__btnMenuMode.update(gameClockDelta)
         
         if self.__animTouchIcon != None:
             self.__animTouchIcon.update(gameClockDelta)
@@ -334,16 +343,16 @@ class RoomPlayer(ScreenLayerNonBlocking):
                                 self.__startTObj(tObj.idChar, tObj.idTObj, False)
                                 return True
                 
-                if self.__btnMoveMode.handleTouchEvent(event):
+                if self.__btnMoveMode != None and self.__btnMoveMode.handleTouchEvent(event):
                     return True
-
-                # TODO - Bag checked here
+                
+                if self.__btnMenuMode != None and self.__btnMenuMode.handleTouchEvent(event):
+                    return True
                 
                 if event.type == MOUSEBUTTONDOWN and (objExit := getPressedExit(boundaryTestPos, immediateOnly=True)) != None:
                     self.__startExit(objExit)
                     return True
                 
-                # TODO - Draw touch cursor
                 if self.__animTouchIcon != None and event.type == MOUSEBUTTONDOWN and event.pos[1] >= RESOLUTION_NINTENDO_DS[1]:
                     if self.__animTouchIcon.setAnimationFromIndex(1) and self.__animTouchIcon.getActiveFrame != None:
                         width, height = self.__animTouchIcon.getDimensions()
@@ -359,6 +368,12 @@ class RoomPlayer(ScreenLayerNonBlocking):
     
     def __startMoveMode(self):
         self.__inMoveMode = not(self.__inMoveMode)
+    
+    def __startMenuMode(self):
+        self.__disableInteractivity()
+        self.laytonState.setGameMode(GAMEMODES.Menu)
+        # TODO - Is next gamemode room?
+        self.screenController.fadeOut(callback=self.doOnKill)
 
     def __callbackExitFromButton(self):
         self.__startExit(self.__placeData.getExit(self.__highlightedIndexExit))

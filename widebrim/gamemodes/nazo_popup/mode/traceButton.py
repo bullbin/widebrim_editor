@@ -52,8 +52,8 @@ class HandlerTraceButton(BaseQuestionObject):
             if button != None:
                 self.__buttons.append(button)
         
-        addIfNotNone(getButtonFromPath(laytonState, PATH_ANI_BTN_LEFT, POS_BTN_LEFT, callback=self._callbackOnLeft))
-        addIfNotNone(getButtonFromPath(laytonState, PATH_ANI_BTN_RIGHT, POS_BTN_RIGHT, callback=self._callbackOnRight))
+        addIfNotNone(getButtonFromPath(laytonState, PATH_ANI_BTN_LEFT, pos=POS_BTN_LEFT, callback=self._callbackOnLeft))
+        addIfNotNone(getButtonFromPath(laytonState, PATH_ANI_BTN_RIGHT, pos=POS_BTN_RIGHT, callback=self._callbackOnRight))
 
         self._traceZones = [[],[],[],[]]
         self._colourLine = (0,0,0)

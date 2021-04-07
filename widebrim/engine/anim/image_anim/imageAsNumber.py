@@ -97,7 +97,7 @@ class StaticImageAsNumericalFont(StaticImageAsFont):
         if usePadding == True:
             self._usePadding = True
         else:
-            self.usePadding = False
+            self._usePadding = False
         return usePadding == True
 
     def _getText(self):
