@@ -113,7 +113,6 @@ class BagPlayer(ScreenLayerNonBlocking):
         self.screenController.fadeOut(callback=self.doOnKill)
     
     def __callbackOnStartCamera(self):
-        # TODO - Camera is meant to return immediately to camera assembly game, not exit from event.
         self.__disableInteractivity()
         self.laytonState.saveSlot.menuNewFlag.setSlot(False, 2)
         if self.laytonState.isCameraAssembled():
@@ -201,46 +200,31 @@ class BagPlayer(ScreenLayerNonBlocking):
                     x += 0x1c
 
     def __drawTopScreen(self, gameDisplay):
-        # TODO - define a function to set everything at once and draw
+        def drawText(renderer : StaticImageAsNumericalFont, pos, value : int, usePadding : bool = False, maxNum : int =999):
+            renderer.setUsePadding(usePadding)
+            renderer.setPos(pos)
+            renderer.setMaxNum(maxNum)
+            renderer.setText(value)
+            renderer.drawBiased(gameDisplay)
+
         if self.__rendererStaticNumber2 != None:
             solved, encountered = self.laytonState.saveSlot.getSolvedAndEncounteredPuzzleCount()
-            self.__rendererStaticNumber2.setMaxNum(999)
-            self.__rendererStaticNumber2.setPos((0x3f,0x2d))
-            self.__rendererStaticNumber2.setText(solved)
-            self.__rendererStaticNumber2.drawBiased(gameDisplay)
-            self.__rendererStaticNumber2.setPos((0x3f,0x71))
-            self.__rendererStaticNumber2.setText(encountered)
-            self.__rendererStaticNumber2.drawBiased(gameDisplay)
-
-            self.__rendererStaticNumber2.setMaxNum(9999)
-            self.__rendererStaticNumber2.setPos((0xbf,0x20))
-            self.__rendererStaticNumber2.setText(self.laytonState.saveSlot.picarats)
-            self.__rendererStaticNumber2.drawBiased(gameDisplay)
+            drawText(self.__rendererStaticNumber2, (0x3f,0x2d), solved)
+            drawText(self.__rendererStaticNumber2, (0x3f,0x71), encountered)
+            drawText(self.__rendererStaticNumber2, (0xbf,0x20), self.laytonState.saveSlot.picarats, maxNum=9999)
 
         if self.__rendererStaticNumber != None:
-            self.__rendererStaticNumber.setUsePadding(False)
-            self.__rendererStaticNumber.setMaxNum(999)
-            self.__rendererStaticNumber.setPos((0xce,0x55))
-            self.__rendererStaticNumber.setText(self.laytonState.saveSlot.hintCoinAvailable)
-            self.__rendererStaticNumber.drawBiased(gameDisplay)
-            self.__rendererStaticNumber.setPos((0xe8,0x55))
-            self.__rendererStaticNumber.setText(self.laytonState.saveSlot.hintCoinEncountered)
-            self.__rendererStaticNumber.drawBiased(gameDisplay)
+            drawText(self.__rendererStaticNumber, (0xce,0x55), self.laytonState.saveSlot.hintCoinAvailable)
+            drawText(self.__rendererStaticNumber, (0xe8,0x55), self.laytonState.saveSlot.hintCoinEncountered)
 
-            self.__rendererStaticNumber.setMaxNum(99)
-            self.__rendererStaticNumber.setUsePadding(True)
             seconds = self.laytonState.timeGetRunningTime()
             hours = seconds // (60 * 60)
             minutes = (seconds // 60) % 60
             if hours >= 100:
                 minutes = 59
 
-            self.__rendererStaticNumber.setPos((0xa7,0x83))
-            self.__rendererStaticNumber.setText(hours)
-            self.__rendererStaticNumber.drawBiased(gameDisplay)
-            self.__rendererStaticNumber.setPos((0xd2,0x83))
-            self.__rendererStaticNumber.setText(minutes)
-            self.__rendererStaticNumber.drawBiased(gameDisplay)
+            drawText(self.__rendererStaticNumber, (0xa7,0x83), hours, usePadding=True, maxNum=99)
+            drawText(self.__rendererStaticNumber, (0xd2,0x83), minutes, usePadding=True, maxNum=99)
     
         # TODO - Generate name place. Should be stored in the save, but not in widebrim
         # Couldn't this lead to some issues in game if the bag was forced to load before room? not possible
@@ -251,6 +235,3 @@ class BagPlayer(ScreenLayerNonBlocking):
                 if button.handleTouchEvent(event):
                     return True
         return super().handleTouchEvent(event)
-
-        #laytonState.setGameMode(GAMEMODES.Room)
-        #self._canBeKilled = True

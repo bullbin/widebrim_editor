@@ -590,11 +590,21 @@ class EventPlayer(ScriptPlayer):
                 self.screenController.fadeOut(callback=spawnSaveScreenAndTerminateCharacters)
 
             self._makeInactive()
-            self._popup = SaveButtonPopup(self.laytonState, self.screenController, self._sharedImageHandler, switchPopupToSaveScreen, callbackKillPopup)
-            # TODO - Not accurate. Research required
-            if operands[0].value > 0:
+
+            if operands[0].value == 0:
+                self.laytonState.saveSlot.chapter = COMPLETE_CHAPTER
+                self.laytonState.saveSlot.storyFlag.setSlot(False, COMPLETE_STORY_FLAG)
+                self.laytonState.saveSlot.roomIndex = COMPLETE_PLACE_NUM
+                self.laytonState.saveSlot.idImmediateEvent = -1
+
+                if self.laytonState.hasAllStoryPuzzlesBeenSolved() and (eventEntry := self.laytonState.getEventInfoEntry(ID_EVENT_ALL_STORY_PUZZLES_SOLVED)) != None:
+                    if eventEntry.indexEventViewedFlag != None:
+                        self.laytonState.saveSlot.eventViewed.setSlot(True, eventEntry.indexEventViewedFlag)
+            else:
                 self.laytonState.saveSlot.idImmediateEvent = operands[0].value
-        
+            
+            self._popup = SaveButtonPopup(self.laytonState, self.screenController, self._sharedImageHandler, switchPopupToSaveScreen, callbackKillPopup, saveIsComplete=operands[0].value == 0)
+            
         elif opcode == OPCODES_LT2.HukamaruClear.value:
             # TODO - Not accurate, but required to get fading looking correct.
             # TODO - Still not fully correct...

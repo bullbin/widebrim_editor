@@ -19,6 +19,12 @@ class HandlerOnOff2(BaseQuestionObject):
 
         self._isValid = False
     
+    def _wasAnswerSolution(self):
+        for solution in self._tilesSolution:
+            if solution not in self._tilesSelected:
+                return False
+        return len(self._tilesSelected) == len(self._tilesSolution)
+    
     def _doUnpackedCommand(self, opcode, operands):
         if opcode == OPCODES_LT2.SetTileOnOff2Info.value and len(operands) == 10:
             self._posCorner = (operands[0].value, operands[1].value + RESOLUTION_NINTENDO_DS[1])

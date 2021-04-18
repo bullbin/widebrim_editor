@@ -1,5 +1,4 @@
 from pygame import Surface, BLEND_RGB_MULT
-from ...config import TIME_FRAMERATE
 from ...const import RESOLUTION_NINTENDO_DS, TIME_FRAMECOUNT_TO_MILLISECONDS
 from .const import BLEND_MAP
 from ...string import getSubstitutedString
@@ -9,7 +8,7 @@ from ...convenience import initDisplay
 initDisplay()
 
 class ScrollingFontHelper():
-    def __init__(self, font, yBias = 4):
+    def __init__(self, font, yBias = 4, durationPerCharacter=TIME_FRAMECOUNT_TO_MILLISECONDS):
         self._font = font
         self._yBias = font.dimensions[1] + yBias
         self._xMax = font.dimensions[0]
@@ -30,7 +29,12 @@ class ScrollingFontHelper():
         self._durationCarried = 0
         self._durationWaiting = 0
 
+        self.setDurationPerCharacter(durationPerCharacter)
         self._isWaitingForTap = False
+    
+    def setDurationPerCharacter(self, duration : float):
+        if self._durationPerChar >= 0:
+            self._durationPerChar = duration
 
     def setPos(self, pos):
         self._pos = pos

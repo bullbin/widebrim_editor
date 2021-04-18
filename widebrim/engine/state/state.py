@@ -8,6 +8,7 @@ from ...madhatter.hat_io.asset_storyflag import StoryFlag
 from ...madhatter.hat_io.asset_autoevent import AutoEvent
 from ...madhatter.hat_io.asset_dlz.goal_inf import GoalInfo
 from ...madhatter.hat_io.asset_dlz.nz_lst import NazoList
+from ...madhatter.hat_io.asset_dlz.ht_event import HerbteaEvent
 from ...madhatter.hat_io.asset_dlz.chp_inf import ChapterInfo
 from ...madhatter.hat_io.asset_dlz.tm_def import TimeDefinitionInfo
 from ...madhatter.hat_io.asset import LaytonPack, File
@@ -50,6 +51,15 @@ class Layton2GameState():
         self.dbPlaceFlag        = PlaceFlag()
         self.dbStoryFlag        = StoryFlag()
         self.dbAutoEvent        = AutoEvent()
+
+        self.dlzHerbteaEvent    = HerbteaEvent()
+
+        # TODO - Convert to constants
+        if (herbteaData := FileInterface.getData("/data_lt2/rc/ht_event.dlz")) != None:
+            try:
+                self.dlzHerbteaEvent.load(herbteaData)
+            except:
+                pass
 
         # Safe to assume always loaded
         try:
@@ -98,6 +108,8 @@ class Layton2GameState():
 
         self.__isTimeStarted = False
         self.__timeStarted = 0
+
+        self._roomLoadBehaviour = 0
 
         # Not accurate, but used to centralise event behaviour between room and event
         self._wasLastEventIdBranching = False
@@ -387,5 +399,21 @@ class Layton2GameState():
         # TODO - More to this, maybe reserved bit elsewhere
         for indexElement in range(self.saveSlot.minigameTeaState.flagCorrect.getLength()):
             if not(self.saveSlot.minigameTeaState.flagCorrect.getSlot(indexElement)):
+                return False
+        return True
+    
+    def getRoomLoadBehaviour(self) -> int:
+        return self._roomLoadBehaviour
+    
+    def setRoomLoadBehaviour(self, value : int) -> bool:
+        if 0 <= value <= 2:
+            self._roomLoadBehaviour = value
+            return True
+        return False
+    
+    def hasAllStoryPuzzlesBeenSolved(self) -> bool:
+        for indexExternalPuzzle in range(1, 0x8a):
+            indexPuzzleData = indexExternalPuzzle - 1
+            if (puzzleData := self.saveSlot.puzzleData.getPuzzleData(indexPuzzleData)) != None and not(puzzleData.wasSolved):
                 return False
         return True

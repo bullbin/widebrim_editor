@@ -174,4 +174,4 @@ class IntroLayer(FullScreenPopup):
         fontRenderer = StaticTextHelper(self.laytonState.fontEvent)
         fontRenderer.setText(self.laytonState.getNazoData().textName)
         fontRenderer.setPos((0, posYTitleText))
-        fontRenderer.drawYCentered(self.bgTitleScreen)
+        fontRenderer.drawXCentered(self.bgTitleScreen)

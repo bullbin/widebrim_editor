@@ -1,6 +1,8 @@
 from ..engine.state.layer import ScreenLayerNonBlocking
 from ..engine.state.enum_mode import GAMEMODES
 
+# TODO - Set tea as completed to prevent room allowing spawning it again
+
 class EventTeaPlayer(ScreenLayerNonBlocking):
     def __init__(self, laytonState, screenController):
         ScreenLayerNonBlocking.__init__(self)

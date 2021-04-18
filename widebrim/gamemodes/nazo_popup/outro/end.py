@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 from widebrim.engine_ext.utils import getButtonFromPath
 from widebrim.gamemodes.core_popup.utils import FullScreenPopup
 from ....engine.anim.font.scrolling import ScrollingFontHelper
-from widebrim.engine.const import RESOLUTION_NINTENDO_DS
+from widebrim.engine.const import RESOLUTION_NINTENDO_DS, TIME_FRAMECOUNT_TO_MILLISECONDS
 from .const import *
 from ...nazo_popup.mode.base import BaseQuestionObject
 
@@ -19,6 +19,7 @@ class QuestionEndPopup(FullScreenPopup):
 
         # TODO - cleanup all these variables lmao
         self.laytonState = laytonState
+        self.screenController = screenController
 
         self.__buttons = []
         self.__isOnButtonScreen = False
@@ -28,39 +29,36 @@ class QuestionEndPopup(FullScreenPopup):
             if button != None:
                 self.__buttons.append(button)
 
-        # TODO - FPS access in scroller, this is 2 chars per frame
-        self._textScroller = ScrollingFontHelper(laytonState.fontQ, yBias=2)
+        self._textScroller = ScrollingFontHelper(laytonState.fontQ, yBias=2, durationPerCharacter=TIME_FRAMECOUNT_TO_MILLISECONDS * 2)
         self._textScroller.setPos((BaseQuestionObject.POS_QUESTION_TEXT[0],
                                    BaseQuestionObject.POS_QUESTION_TEXT[1] + RESOLUTION_NINTENDO_DS[1]))
 
-        self.screenController = screenController
-        entryPuzzle = laytonState.saveSlot.puzzleData.getPuzzleData(laytonState.getCurrentNazoListEntry().idExternal - 1)
-
-        if laytonState.wasPuzzleSolved:
-            # TODO - When is encountered flag set?
-            # TODO - Set reward flag
-            entryPuzzle.wasSolved = True
-            screenController.setBgMain(PATH_BG_PASS % laytonState.getNazoData().getBgSubIndex())
-            self._textScroller.setText(laytonState.getNazoData().getTextCorrect())
-            if laytonState.getNazoData().hasAnswerBg():
-                if laytonState.getNazoData().isBgAnswerLanguageDependent():
-                    screenController.setBgSub(PATH_BG_ANSWER_LANG % laytonState.getNazoData().getBgMainIndex())
+        if (entryPuzzle := laytonState.saveSlot.puzzleData.getPuzzleData(laytonState.getCurrentNazoListEntry().idExternal - 1)) != None:
+            if laytonState.wasPuzzleSolved:
+                # TODO - When is encountered flag set?
+                # TODO - Set reward flag
+                entryPuzzle.wasSolved = True
+                screenController.setBgMain(PATH_BG_PASS % laytonState.getNazoData().getBgSubIndex())
+                self._textScroller.setText(laytonState.getNazoData().getTextCorrect())
+                if laytonState.getNazoData().hasAnswerBg():
+                    if laytonState.getNazoData().isBgAnswerLanguageDependent():
+                        screenController.setBgSub(PATH_BG_ANSWER_LANG % laytonState.getNazoData().getBgMainIndex())
+                    else:
+                        screenController.setBgSub(PATH_BG_ANSWER % laytonState.getNazoData().getBgMainIndex())
+                    screenController.fadeIn()
                 else:
-                    screenController.setBgSub(PATH_BG_ANSWER % laytonState.getNazoData().getBgMainIndex())
-                screenController.fadeIn()
+                    screenController.fadeInMain()
             else:
+                if not(entryPuzzle.wasSolved):
+                    entryPuzzle.incrementDecayStage()
+
+                screenController.setBgMain(PATH_BG_FAIL % laytonState.getNazoData().getBgSubIndex())
+                self._textScroller.setText(laytonState.getNazoData().getTextIncorrect())
                 screenController.fadeInMain()
-        else:
-            if not(entryPuzzle.wasSolved):
-                entryPuzzle.incrementDecayStage()
 
-            screenController.setBgMain(PATH_BG_FAIL % laytonState.getNazoData().getBgSubIndex())
-            self._textScroller.setText(laytonState.getNazoData().getTextIncorrect())
-            screenController.fadeInMain()
-
-            addIfNotNone(getButtonFromPath(laytonState, PATH_ANI_TRY_AGAIN, callback=self.__callbackOnTryAgain))
-            addIfNotNone(getButtonFromPath(laytonState, PATH_ANI_VIEW_HINT))
-            addIfNotNone(getButtonFromPath(laytonState, PATH_ANI_QUIT, callback=self.__callbackOnQuit))
+                addIfNotNone(getButtonFromPath(laytonState, PATH_ANI_TRY_AGAIN, callback=self.__callbackOnTryAgain))
+                addIfNotNone(getButtonFromPath(laytonState, PATH_ANI_VIEW_HINT))
+                addIfNotNone(getButtonFromPath(laytonState, PATH_ANI_QUIT, callback=self.__callbackOnQuit))
         
     def update(self, gameClockDelta):
         if not(self.screenController.getFadingStatus()):
@@ -73,7 +71,6 @@ class QuestionEndPopup(FullScreenPopup):
         else:
             self._textScroller.draw(gameDisplay)
 
-    # TODO - same as base
     def __callbackOnQuit(self):
         self.laytonState.wasPuzzleSkipped = True
         self.screenController.fadeOut(callback=self._callbackOnTerminate)

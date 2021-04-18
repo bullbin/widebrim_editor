@@ -1,8 +1,10 @@
+from widebrim.engine.const import RESOLUTION_NINTENDO_DS
+from widebrim.engine_ext.utils import getAnimFromPathWithAttributes
 from ...engine.state.layer import ScreenLayerNonBlocking
 from ...madhatter.hat_io.asset_sav import Layton2SaveFile
 from ...engine.anim.fader import Fader
 from ...engine.state.enum_mode import GAMEMODES
-from .const import PATH_BG_TITLE_SUB
+from .const import PATH_ANIM_TITLE, PATH_BG_TITLE_SUB
 from ...engine.config import PATH_SAVE
 from .main_title import MenuScreen
 from ...gamemodes.core_popup.save import SaveLoadScreenPopup
@@ -37,6 +39,10 @@ class TitlePlayer(ScreenLayerNonBlocking):
         except FileNotFoundError:
             pass
 
+        self.__animTitleScreen = getAnimFromPathWithAttributes(PATH_ANIM_TITLE % laytonState.language.value)
+        # TODO - Isolate screens properly, removes bugs in future and simplifies this mess
+        if self.__animTitleScreen != None:
+            self.__animTitleScreen.setPos((self.__animTitleScreen.getPos()[0], self.__animTitleScreen.getPos()[1] - RESOLUTION_NINTENDO_DS[1]))
         self.popup = None
 
         # Callbacks for exiting title screen
@@ -95,13 +101,18 @@ class TitlePlayer(ScreenLayerNonBlocking):
 
     def update(self, gameClockDelta):
         self.logoAlphaFader.update(gameClockDelta)
+        if self.__animTitleScreen != None and self.__animTitleScreen.getActiveFrame() != None:
+            self.__animTitleScreen.getActiveFrame().set_alpha(round(255 * self.logoAlphaFader.getStrength()))
+
         if self.popup != None:
             self.popup.update(gameClockDelta)
     
     def draw(self, gameDisplay):
+        if self.__animTitleScreen != None:
+            self.__animTitleScreen.draw(gameDisplay)
         if self.popup != None:
             self.popup.draw(gameDisplay)
-
+        
     def handleTouchEvent(self, event):
         if self.popup != None and not(self.screenController.getFadingStatus()):
             self.popup.handleTouchEvent(event)

@@ -31,6 +31,7 @@ PATH_ANIM_TOUCH_ICON = "map/touch_icon.spr"
 POS_TOUCH_ICON = (-32,-32)
 
 PATH_ANIM_TEAEVENT_ICON = "map/teaevent_icon.spr"
+POS_TEAEVENT_ICON_Y_OFFSET = -0xe
 
 PATH_ANIM_SOLVED_TEXT = "map/%s/toketa_nazo.sbj"
 POS_SOLVED_TEXT = (2,6)
@@ -55,3 +56,8 @@ PATH_PLACE_MAP  = "map/map%i.bgx"
 PATH_ANIM_BGANI      = "bgani/%s"
 PATH_EXT_EXIT       = "map/exit_%i.arc"
 PATH_EXT_EVENT      = "eventobj/obj_%i.arc"
+
+LIMIT_ID_PUZZLE_START   = 20000
+LIMIT_ID_TEA_START      = 30000
+COUNT_HERBTEA           = 0x18
+COUNT_HERBTEA_LIMIT     = 0x15

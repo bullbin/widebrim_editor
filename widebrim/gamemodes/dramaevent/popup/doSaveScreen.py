@@ -1,6 +1,6 @@
 from .utils import PrizeWindow2PopupWithCursor
 
-from .const import PATH_ANIM_BUTTON_YES, PATH_ANIM_BUTTON_NO, ID_SAVE_NOT_COMPLETE, POS_TEXT_SAVE_Y
+from .const import ID_SAVE_COMPLETE, PATH_ANIM_BUTTON_YES, PATH_ANIM_BUTTON_NO, ID_SAVE_NOT_COMPLETE, POS_TEXT_SAVE_Y
 from ....engine.const import RESOLUTION_NINTENDO_DS, PATH_TEXT_GENERIC
 from ....engine.anim.font.static import generateImageFromString
 from ....engine_ext.utils import getButtonFromPath, getTxt2String
@@ -11,7 +11,7 @@ from pygame import BLEND_RGB_SUB
 # TODO - Add text support
 
 class SaveButtonPopup(PrizeWindow2PopupWithCursor):
-    def __init__(self, laytonState, screenController, eventStorage, callbackOnDoSave, callbackOnSkipSave):
+    def __init__(self, laytonState, screenController, eventStorage, callbackOnDoSave, callbackOnSkipSave, saveIsComplete=False):
         self._callbackOnDoSave = callbackOnDoSave
         self._callbackOnSkippedSave = callbackOnSkipSave
 
@@ -26,7 +26,12 @@ class SaveButtonPopup(PrizeWindow2PopupWithCursor):
         PrizeWindow2PopupWithCursor.__init__(self, laytonState, screenController, eventStorage)
 
         # TODO - What is the pos name here?
-        self._prompt = generateImageFromString(laytonState.fontEvent, getTxt2String(laytonState, PATH_TEXT_GENERIC % ID_SAVE_NOT_COMPLETE))
+        if saveIsComplete:
+            promptId = ID_SAVE_NOT_COMPLETE
+        else:
+            promptId = ID_SAVE_COMPLETE
+
+        self._prompt = generateImageFromString(laytonState.fontEvent, getTxt2String(laytonState, PATH_TEXT_GENERIC % promptId))
         self._promptPos = ((RESOLUTION_NINTENDO_DS[0] - self._prompt.get_width()) // 2, POS_TEXT_SAVE_Y + RESOLUTION_NINTENDO_DS[1])
 
         # TODO - Handle if None

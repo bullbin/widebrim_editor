@@ -1,10 +1,12 @@
 from __future__ import annotations
 from math import sqrt
-from typing import List, Optional, TYPE_CHECKING, Union
+from random import randint
+from typing import List, Optional, TYPE_CHECKING, Tuple, Union
+from widebrim.madhatter.hat_io.asset_dlz.ev_inf2 import DlzEntryEvInf2
 from widebrim.engine.anim.image_anim.imageAsNumber import StaticImageAsNumericalFont
 from widebrim.engine.anim.button import NullButton
 from pygame.constants import BLEND_RGB_SUB, MOUSEBUTTONDOWN
-from widebrim.madhatter.hat_io.asset_dat.place import PlaceData, EventEntry
+from widebrim.madhatter.hat_io.asset_dat.place import PlaceData, Exit
 
 from widebrim.engine.const import PATH_PACK_PLACE_NAME, PATH_TEXT_GOAL, PATH_TEXT_PLACE_NAME, RESOLUTION_NINTENDO_DS
 from widebrim.engine.state.enum_mode import GAMEMODES
@@ -12,7 +14,7 @@ if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
     from widebrim.engine.anim.button import AnimatedButton
-    from widebrim.madhatter.hat_io.asset_dat.place import Exit, HintCoin, TObjEntry, BgAni
+    from widebrim.madhatter.hat_io.asset_dat.place import HintCoin, TObjEntry, BgAni, EventEntry
     from widebrim.engine.anim.image_anim.image import AnimatedImageObject
     from pygame import Surface
 
@@ -24,6 +26,9 @@ from widebrim.engine_ext.utils import getAnimFromPath, getPackedData, getPackedS
 from .const import *
 from .animJump import AnimJumpHelper
 from .tobjPopup import TObjPopup
+
+# TODO - Tea event flag check against 0xffff
+# TODO - Room behaviour reset to 0 in tea handler
 
 class RoomPlayer(ScreenLayerNonBlocking):
     
@@ -62,6 +67,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
         self.__animBackground   : List[Optional[AnimatedImageObject]]   = []
         self.__animEvent        : List[Optional[AnimatedImageObject]]   = []
         self.__animEventDraw    : List[bool]                            = []
+        self.__eventTeaFlag     : List[int]                             = []
 
         self.__animMapArrow     : Optional[AnimatedImageObject]         = None
         self.__enableMapArrow   : bool                                  = False
@@ -79,6 +85,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
             self.__animNumberFont.setStride(animNumberFont.getDimensions()[0])
             self.__animNumberFont.setPos((72,11))
 
+        self.__animTeaEventIcon : Optional[AnimatedImageObject] = getAnimFromPath(PATH_ANIM_TEAEVENT_ICON, spawnAnimName="gfx")
         self.__animEventStart : Optional[AnimatedImageObject] = getAnimFromPath(PATH_ANIM_ICON_BUTTONS)
         self.__animTouchIcon : Optional[AnimatedImageObject] = getAnimFromPath(PATH_ANIM_TOUCH_ICON, pos=POS_TOUCH_ICON)
         if self.__animTouchIcon != None and self.__animTouchIcon.setAnimationFromIndex(1):
@@ -148,9 +155,18 @@ class RoomPlayer(ScreenLayerNonBlocking):
             if anim != None:
                 anim.draw(gameDisplay)
         
-        for anim, canDraw in zip(self.__animEvent, self.__animEventDraw):
+        indexEventObj = 0
+        for anim, canDraw, herbteaIndex in zip(self.__animEvent, self.__animEventDraw, self.__eventTeaFlag):
             if anim != None and canDraw:
                 anim.draw(gameDisplay)
+                
+                if self.__animTeaEventIcon != None and (eventData := self.__placeData.getObjEvent(indexEventObj)) != None:
+                    eventData : EventEntry
+                    if eventData.idEvent >= LIMIT_ID_TEA_START or herbteaIndex != None:
+                        x = eventData.bounding.x + ((eventData.bounding.width - self.__animTeaEventIcon.getDimensions()[0]) // 2)
+                        self.__animTeaEventIcon.setPos((x, anim.getPos()[1] + POS_TEAEVENT_ICON_Y_OFFSET))
+                        self.__animTeaEventIcon.draw(gameDisplay)
+            indexEventObj += 1
 
         if self.__animNumberIcon != None:
             self.__animNumberIcon.draw(gameDisplay)
@@ -227,6 +243,9 @@ class RoomPlayer(ScreenLayerNonBlocking):
             if anim != None:
                 anim.update(gameClockDelta)
         
+        if self.__animTeaEventIcon != None:
+            self.__animTeaEventIcon.update(gameClockDelta)
+
         if self.__targetEvent != None:
             self.__faderEventAnim.update(gameClockDelta)
             if self.__animEventStart != None:
@@ -256,12 +275,12 @@ class RoomPlayer(ScreenLayerNonBlocking):
                     return True
             return False
         
-        def getPressedEvent(pos) -> Optional[EventEntry]:
+        def getPressedEventIndex(pos) -> Optional[int]:
             if self.__placeData != None:
                 for indexObjEvent in range(self.__placeData.getCountObjEvents()):
                     objEvent : EventEntry = self.__placeData.getObjEvent(indexObjEvent)
                     if wasBoundingCollided(objEvent.bounding, pos):
-                        return objEvent
+                        return indexObjEvent
             return None
         
         def getPressedExit(pos, immediateOnly = False) -> Optional[Exit]:
@@ -299,8 +318,10 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
             else:
                 # TODO - Event handling is not very accurate; just reuses code from previous room handler
-                if event.type == MOUSEBUTTONDOWN and (objEvent := getPressedEvent(boundaryTestPos)) != None:
+                if event.type == MOUSEBUTTONDOWN and (objEventIndex := getPressedEventIndex(boundaryTestPos)) != None:
                     # TODO - Check photo flags
+                    objEvent = self.__placeData.getObjEvent(objEventIndex)
+                    idHerbtea = self.__eventTeaFlag[objEventIndex]
                     canSpawnEvent = True
                     if (eventInfo := self.laytonState.getEventInfoEntry(objEvent.idEvent)) != None:
                         # TODO - Fix this awful syntax, add convenience functions (similar code used elsewhere)
@@ -311,7 +332,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
                             
                             # TODO - Unk tea interaction, check if image attached
                             if canSpawnEvent:
-                                self.__startEventSpawn(objEvent)
+                                self.__startEventSpawn((objEvent, idHerbtea))
                                 return True
                 
                 if event.type == MOUSEBUTTONDOWN and self.__placeData != None:
@@ -392,15 +413,19 @@ class RoomPlayer(ScreenLayerNonBlocking):
         self.laytonState.setEventId(10080)
         self.screenController.fadeOut(callback=self.doOnKill)
 
-    def __startEventSpawn(self, objEvent : Union[EventEntry, Exit]):
+    def __startEventSpawn(self, objEvent : Union[Tuple[EventEntry, Optional[int]], Exit]):
         self.__targetEvent = objEvent
         self.__disableInteractivity()
         
         isExclamation = True
-        if type(objEvent) == EventEntry:
-            idEvent = objEvent.idEvent
-        else:
+        if type(objEvent) == Exit:
             idEvent = objEvent.spawnData
+        else:
+            objEvent, idHerbtea = objEvent
+            if idHerbtea != None:
+                idEvent = 30000 + (10 * idHerbtea)
+            else:
+                idEvent = objEvent.idEvent
 
         if 20000 > idEvent or 30000 <= idEvent:
             isExclamation = False
@@ -485,6 +510,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
         self.__faderTiming.setActiveState(True)
 
     def __prepareNextPlace(self):
+        self.laytonState.setRoomLoadBehaviour(0)
         self.__currentTsMapIndex = self.__placeData.bgMapId
         self.__currentMapPos = self.__placeData.posMap
         self.laytonState.setPlaceNum(self.__targetExit.spawnData)
@@ -550,6 +576,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
             self.__animBackground   = []
             self.__animEvent        = []
             self.__animEventDraw    = []
+            self.__eventTeaFlag     = []
             self.__buttonsExit      = []
 
             # Remove trace of last state
@@ -562,9 +589,9 @@ class RoomPlayer(ScreenLayerNonBlocking):
             self.__posObjective = (RoomPlayer.POS_CENTER_TEXT_OBJECTIVE[0] - self.__textObjective.get_width() // 2, RoomPlayer.POS_CENTER_TEXT_OBJECTIVE[1])
             
             # Is there a NO ROOM or similar fail string?
-            if (objectiveText := getPackedString(PATH_PACK_PLACE_NAME % self.laytonState.language.value, PATH_TEXT_PLACE_NAME % self.laytonState.getPlaceNum())) != "":
+            if (titleText := getPackedString(PATH_PACK_PLACE_NAME % self.laytonState.language.value, PATH_TEXT_PLACE_NAME % self.__placeData.idNamePlace)) != "":
                 # TODO - String substituter
-                self.__textRoomTitle = generateImageFromString(self.laytonState.fontEvent, objectiveText)
+                self.__textRoomTitle = generateImageFromString(self.laytonState.fontEvent, titleText)
                 self.__posRoomTitle = (RoomPlayer.POS_CENTER_TEXT_ROOM_TITLE[0] - self.__textRoomTitle.get_width() // 2, RoomPlayer.POS_CENTER_TEXT_ROOM_TITLE[1])
 
             self.screenController.setBgMain(PATH_PLACE_BG % self.__placeData.bgMainId)
@@ -581,9 +608,10 @@ class RoomPlayer(ScreenLayerNonBlocking):
                         anim.setPos((anim.getPos()[0], anim.getPos()[1] + RESOLUTION_NINTENDO_DS[1]))
                         self.__animBackground.append(anim)
                         
-            # TODO - Seems to have tea stuff heree
             for indexObjEvent in range(self.__placeData.getCountObjEvents()):
+                self.__eventTeaFlag.append(None)
                 objEvent = self.__placeData.getObjEvent(indexObjEvent)
+                objEvent : EventEntry
 
                 # TODO - What is the second byte of spawnData used for?
                 if objEvent.idImage != 0:
@@ -592,6 +620,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
                     self.__animEvent.append(eventAsset)
 
                     if (eventInfo := self.laytonState.getEventInfoEntry(objEvent.idEvent)) != None:
+                        eventInfo : DlzEntryEvInf2
                         # TODO - Fix this awful syntax, add convenience functions (similar code used elsewhere)
                         if eventInfo.typeEvent == 1 and self.laytonState.saveSlot.eventViewed.getSlot(eventInfo.indexEventViewedFlag):
                             self.__animEventDraw.append(False)
@@ -602,6 +631,47 @@ class RoomPlayer(ScreenLayerNonBlocking):
                                     self.__animEventDraw.append(True)
                         else:
                             self.__animEventDraw.append(True)
+                        
+                        if self.__animEventDraw[indexObjEvent] and self.laytonState.getRoomLoadBehaviour() != 2:
+                            idEvent = objEvent.idEvent
+                            if LIMIT_ID_PUZZLE_START <= idEvent < LIMIT_ID_TEA_START:
+                                # Event depends on puzzle, so check if puzzle was solved
+                                if (nazoListEntry := self.laytonState.getNazoListEntry(eventInfo.dataPuzzle)) != None:
+                                    if (puzzleData := self.laytonState.saveSlot.puzzleData.getPuzzleData(nazoListEntry.idExternal)) != None:
+                                        if puzzleData.wasSolved:
+                                            idEvent += 2
+
+                            herbteaEntry = self.laytonState.dlzHerbteaEvent.searchForEntry(idEvent)
+                            if herbteaEntry != None and not(self.laytonState.saveSlot.minigameTeaState.flagCorrect.getSlot(herbteaEntry.idHerbteaFlag)):
+                                if self.laytonState.getRoomLoadBehaviour() == 1:
+                                    self.__eventTeaFlag[indexObjEvent] = herbteaEntry.idHerbteaFlag
+                                else:
+                                    countTeaCorrect = 0
+                                    for indexHerbteaFlag in range(COUNT_HERBTEA):
+                                        if self.laytonState.saveSlot.minigameTeaState.flagCorrect.getSlot(indexHerbteaFlag):
+                                            countTeaCorrect += 1
+
+                                    skipRemainingPossibilites = False
+                                    # Random is not accurate. Algorithm is known but simplified, no guarantee random will be same
+                                    if COUNT_HERBTEA_LIMIT < countTeaCorrect:
+                                        # TODO - Probability not certain, bitwise operations complicate things
+                                        if randint(1,2) == 1:
+                                            self.__eventTeaFlag[indexObjEvent] = herbteaEntry.idHerbteaFlag
+                                            self.laytonState.setRoomLoadBehaviour(1)
+                                            skipRemainingPossibilites = True
+
+                                    if not(skipRemainingPossibilites):
+                                        # TODO - Checks if the save slot is completed and modifies probabilities
+                                        if not(self.laytonState.saveSlot.isComplete):
+                                            probability = 5
+                                        else:
+                                            probability = 100
+                                        
+                                        if randint(1,probability) == 1:
+                                            self.__eventTeaFlag[indexObjEvent] = herbteaEntry.idHerbteaFlag
+                                            self.laytonState.setRoomLoadBehaviour(1)
+                                        else:
+                                            self.laytonState.setRoomLoadBehaviour(2)
 
                 else:
                     self.__animEvent.append(None)

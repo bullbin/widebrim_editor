@@ -11,7 +11,6 @@ from .const import PATH_ANI_SUB_TEXT, PATH_ANI_BTN_MEMO, PATH_ANI_BTN_QUIT, PATH
 
 from pygame import MOUSEBUTTONDOWN, MOUSEBUTTONUP
 
-# TODO - Get positions from game. Currently from shortbrim
 # TODO - What happens if the scroller draws too many lines for the top screen? Does it go to the bottom?
 
 # TODO - This is from intro...
