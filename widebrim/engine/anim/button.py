@@ -108,6 +108,8 @@ class StaticButton(NullButton):
         gameDisplay.blit(self._image, self._imageBlitPos)
 
 class AnimatedButton(TargettedButton):
+
+    # TODO - Unify drawables to have a draw method
     def __init__(self, image, animNamePressed, animNameUnpressed, callback=None):
         TargettedButton.__init__(self, callback, None, None)
         self._animNamePressed = animNamePressed

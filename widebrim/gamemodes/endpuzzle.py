@@ -21,9 +21,9 @@ class EndPuzzlePlayer(EventPlayer):
                 baseEventId = baseEventId.idEvent + 4
             else:
                 baseEventId = baseEventId.idEvent + 3
-                
-            laytonState.setEventId(baseEventId)
-            EventPlayer.__init__(self, laytonState, screenController)
+            
+            # Override feature used because unified branching behaviour deviates event flow
+            EventPlayer.__init__(self, laytonState, screenController, overrideId=baseEventId)
         else:
             EventPlayer.__init__(self, laytonState, screenController)
             self._makeInactive()

@@ -45,7 +45,7 @@ class JudgementPopup(FullScreenPopup):
         self._indexWait = 0
         self._indexImage = 0
 
-        self.screenController.fadeIn(callback=self._triggerFadeOutIfLate)
+        self.screenController.fadeIn()
         self._animTimer = Fader(0, initialActiveState=False)
         self._prepareNextFrame()
 
@@ -79,20 +79,25 @@ class JudgementPopup(FullScreenPopup):
                 self._waitingToSetBgAndEnd = True
                 self._isScrollingPopup = False
 
-    def _triggerFadeOutIfLate(self):
-        if self._indexImages[self._indexFrame] == 0:
-            self._doWaitBetweenFades()
+    def _waitBeforePreparingNextFrame(self):
+        self._animTimer.setDurationInFrames(JUDGE_PARAM_WAIT[self._indexWait])
+        self._animTimer.setCallback(self._fadeInAndPrepareNextFrame)
+        self._indexWait += 1
+    
+    def _fadeInAndPrepareNextFrame(self):
+        self.screenController.fadeInMain()
+        self._prepareNextFrame()
+    
+    def _doAfterPause(self):
+        self.screenController.fadeOutMain(callback=self._waitBeforePreparingNextFrame)
+
+    def _startNextTimer(self):
+        self._animTimer.setDurationInFrames(JUDGE_PARAM_DEFAULT[self._indexImage])
+        self._indexImage += 1
+        self._animTimer.setCallback(self._prepareNextFrame)
 
     def _prepareNextFrame(self):
-        if self._indexFrame < len(self._indexImages) - 1:
-            self._indexFrame += 1
-            if self._indexImages[self._indexFrame] == 0:
-                if not(self.screenController.getFadingStatus()):
-                    self._doWaitBetweenFades()
-            else:
-                self._applyFrame()
-                self._startNextTimer()
-        else:
+        if self._indexFrame == len(self._indexImages) - 1:
             self._surfScrollingScreen = getImageFromPath(self.laytonState, self._getFramePath())
             if self._surfScrollingScreen == None:
                 # Missed the frame, so immediately start callback
@@ -102,27 +107,14 @@ class JudgementPopup(FullScreenPopup):
                 self._isScrollingPopup = True
                 self._animTimer.setDuration(250)
                 # TODO - Wait before fade out
-
-    def _doWaitBetweenFades(self):
-        self._animTimer.setDurationInFrames(6)
-        self._animTimer.setCallback(self._doFadeOutFrame)
-
-    def _doFadeOutFrame(self):
-        self.screenController.fadeOutMain(callback=self._doWaitBeforeFadeIn)
-    
-    def _doWaitBeforeFadeIn(self):
-        self._animTimer.setDurationInFrames(JUDGE_PARAM_WAIT[self._indexWait])
-        self._animTimer.setCallback(self._doFadeInFrame)
-        self._indexWait += 1
-
-    def _doFadeInFrame(self):
-        self.screenController.fadeInMain(callback=self._triggerFadeOutIfLate)
-        self._prepareNextFrame()
-
-    def _startNextTimer(self):
-        self._animTimer.setDurationInFrames(JUDGE_PARAM_DEFAULT[self._indexImage])
-        self._indexImage += 1
-        self._animTimer.setCallback(self._prepareNextFrame)
+        else:
+            self._indexFrame += 1
+            if self._indexImages[self._indexFrame] == 0:
+                self._animTimer.setDurationInFrames(6)
+                self._animTimer.setCallback(self._doAfterPause)
+            else:
+                self._applyFrame()
+                self._startNextTimer()
 
     def _getFramePath(self):
         if self._indexImages[self._indexFrame] in INDEX_IMAGE_FINAL:

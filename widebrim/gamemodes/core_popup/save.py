@@ -1,15 +1,18 @@
+from typing import List
 from ...engine.anim.font.static import generateImageFromString
 from ...engine.anim.button import NullButton
 from ...engine.config import PATH_SAVE
 from ...engine.const import PATH_TEXT_GENERIC, PATH_PACK_PLACE_NAME, PATH_TEXT_PLACE_NAME, RESOLUTION_NINTENDO_DS
 from ...engine_ext.utils import getButtonFromPath, getTxt2String, getPackedString
-# TODO - Bugfix, buttons can be pressed during fading operation
 from ...madhatter.hat_io.asset_sav import Layton2SaveFile
 
-from .const import PATH_BG_FILELOAD, PATH_BG_FILESAVE, PATH_ANI_BTN_BACK, ID_SAVE_EMPTY
+from .const import COLOR_SLOT_B, COLOR_SLOT_G, COLOR_SLOT_R, COLOR_UNUSED_SLOT, OFFSET_Y_SLOT_0, PATH_BG_FILELOAD, PATH_BG_FILESAVE, PATH_ANI_BTN_BACK, ID_SAVE_EMPTY, POS_TOP_SLOT_Y
 from .utils import MainScreenPopup
 
 from pygame import Surface, BLEND_RGB_SUB
+
+# TODO - Bugfix, buttons can be pressed during fading operation
+# TODO - Needs rewrite...
 
 class SaveLoadScreenPopup(MainScreenPopup):
 
@@ -48,6 +51,12 @@ class SaveLoadScreenPopup(MainScreenPopup):
         self.surfacePlace   = [None, None, None]
         self.surfaceNameX   = [0,0,0]
         self.surfacePlaceX   = [0,0,0]
+        self.surfaceUnused : Surface = Surface((0xdd,0x25))
+        self.surfaceUnused.fill(COLOR_UNUSED_SLOT)
+        self.surfaceNameTag : List[Surface] = []
+        for r,g,b in zip(COLOR_SLOT_R, COLOR_SLOT_G, COLOR_SLOT_B):
+            self.surfaceNameTag.append(Surface((0x79,0x11)))
+            self.surfaceNameTag[-1].fill((r,g,b))
 
         self.slotButtons = []
         self.slotIndexSlot = []
@@ -136,8 +145,15 @@ class SaveLoadScreenPopup(MainScreenPopup):
         offsetBottom    = SaveLoadScreenPopup.OFFSET_BOTTOM_TEXT + RESOLUTION_NINTENDO_DS[1]
         offsetMiddle    = SaveLoadScreenPopup.OFFSET_MIDDLE_TEXT + RESOLUTION_NINTENDO_DS[1]
         offsetTop       = SaveLoadScreenPopup.OFFSET_TOP_TEXT + RESOLUTION_NINTENDO_DS[1]
+        offsetSlot      = POS_TOP_SLOT_Y + RESOLUTION_NINTENDO_DS[1]
 
         for indexSlot in range(3):
+            if self.saveData.getSlotData(indexSlot).isActive:
+                gameDisplay.blit(self.surfaceNameTag[indexSlot], (0x1d, offsetSlot))
+            else:
+                gameDisplay.blit(self.surfaceUnused, (0x1d, offsetSlot))
+            offsetSlot += OFFSET_Y_SLOT_0
+
             if self.saveData.getSlotData(indexSlot).isActive and self.surfaceName[indexSlot] != None:
                 gameDisplay.blit(self.surfaceName[indexSlot], (self.surfaceNameX[indexSlot], offsetTop), special_flags=BLEND_RGB_SUB)
                 if self.surfacePlace[indexSlot] != None:

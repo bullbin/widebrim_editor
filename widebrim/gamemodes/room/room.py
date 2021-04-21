@@ -788,7 +788,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
                     workingSubRoom = indexSubRoom
                     if checkEventCounter(placeFlagCounterEntry):
                         workingSubRoom = proposedSubRoom
-            
+
             indexSubRoom = workingSubRoom
         
         self.laytonState.saveSlot.roomSubIndex = indexSubRoom

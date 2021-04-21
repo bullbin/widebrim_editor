@@ -45,7 +45,19 @@ class NazobaPlayer(ScreenLayerNonBlocking):
         self._indexButtonActive = 0
         self._prepareNames()
 
-        self.screenController.fadeIn()
+        self.__isInteractive = False
+
+        self.screenController.fadeIn(callback=self.__makeActive)
+    
+    # TODO - These methods are getting frequent - base drawable needs rewrite anyways
+    def __makeActive(self):
+        self.__isInteractive = True
+
+    def __makeInactive(self):
+        self.__isInteractive = False
+
+    def __isActive(self):
+        return self.__isInteractive
 
     def draw(self, gameDisplay):
         super().draw(gameDisplay)
@@ -60,7 +72,7 @@ class NazobaPlayer(ScreenLayerNonBlocking):
                 y += STRIDE_NAZOBA_Y
     
     def handleTouchEvent(self, event):
-        if not(self.screenController.getFadingStatus()):
+        if self.__isActive():
             for button in self.__buttons:
                 if button.handleTouchEvent(event):
                     return True
@@ -117,6 +129,7 @@ class NazobaPlayer(ScreenLayerNonBlocking):
         
     def __callbackStartTermination(self):
         self.laytonState.setGameMode(GAMEMODES.Room)
+        self.__makeInactive()
         self.screenController.fadeOut(callback=self.doOnKill)
 
     def __callbackIncrementPage(self):

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 from widebrim.engine_ext.utils import getAnimFromPath, getAnimFromPathWithAttributes
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
@@ -307,7 +307,7 @@ class CharacterController():
                 self._baseAnimName = self.imageCharacter.animActive.name
 
 class EventPlayer(ScriptPlayer):
-    def __init__(self, laytonState : Layton2GameState, screenController):
+    def __init__(self, laytonState : Layton2GameState, screenController, overrideId : Optional[int] = None):
 
         def substituteEventPath(inPath, inPathA, inPathB, inPathC):
 
@@ -342,7 +342,10 @@ class EventPlayer(ScriptPlayer):
         self.laytonState.setGameMode(GAMEMODES.Room)
         self._packEventTalk = LaytonPack()
 
-        spawnId = self.laytonState.getEventId()
+        if overrideId != None:
+            spawnId = overrideId
+        else:
+            spawnId = self.laytonState.getEventId()
 
         self._idMain = spawnId // 1000
         self._idSub = spawnId % 1000

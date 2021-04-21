@@ -1,14 +1,16 @@
 from __future__ import annotations
 from typing import List, Optional, TYPE_CHECKING
+from widebrim.gamemodes.core_popup.save import SaveLoadScreenPopup
+from widebrim.gamemodes.core_popup.utils import FullScreenPopup
 from widebrim.gamemodes.dramaevent.const import PATH_ITEM_ICON
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
 from widebrim.engine_ext.utils import getAnimFromPath, getAnimFromPathWithAttributes, getButtonFromPath
 from widebrim.engine.anim.image_anim.imageAsNumber import StaticImageAsNumericalFont
+from widebrim.engine.anim.button import AnimatedButton
 
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
-    from widebrim.engine.anim.button import AnimatedButton
     from widebrim.engine.anim.image_anim import AnimatedImageObject
 
 from widebrim.engine.state.layer import ScreenLayerNonBlocking
@@ -26,6 +28,7 @@ class BagPlayer(ScreenLayerNonBlocking):
         self.screenController = screenController
 
         self.__isInteractable : bool = False
+        self.__popup : Optional[FullScreenPopup] = None
 
         # TODO - Buttons draw slightly differently, the tojiru button won't go back to OFF state after being pressed.
         self.__addButton(getButtonFromPath(laytonState, PATH_BTN_RESET, namePosVariable=VARIABLE_DEFAULT_POS))
@@ -33,7 +36,7 @@ class BagPlayer(ScreenLayerNonBlocking):
         self.__addButton(getButtonFromPath(laytonState, PATH_BTN_MEMO, namePosVariable=VARIABLE_DEFAULT_POS, callback=self.__callbackOnStartMemo))
         self.__addButton(getButtonFromPath(laytonState, PATH_BTN_MYSTERY, namePosVariable=VARIABLE_DEFAULT_POS))
         self.__addButton(getButtonFromPath(laytonState, PATH_BTN_PUZZLE, namePosVariable=VARIABLE_DEFAULT_POS))
-        self.__addButton(getButtonFromPath(laytonState, PATH_BTN_SAVE, namePosVariable=VARIABLE_DEFAULT_POS))
+        self.__addButton(getButtonFromPath(laytonState, PATH_BTN_SAVE, namePosVariable=VARIABLE_DEFAULT_POS, callback=self.__callbackOnStartSave))
         
         if (hintCoinAnim := getAnimFromPath(PATH_ANI_MEDAL_ICON, pos=POS_ANI_MEDAL_ICON)) != None:
             indexAnimation = 1
@@ -70,15 +73,35 @@ class BagPlayer(ScreenLayerNonBlocking):
         self.screenController.setBgMain(PATH_BG_MAIN)
         self.screenController.setBgSub(PATH_BG_SUB)
         self.screenController.fadeIn(callback=self.__enableInteractivity)
+
+        self.__drawBottomScreen : bool = True
         self.laytonState.setGameModeNext(GAMEMODES.Menu)
         
     def draw(self, gameDisplay):
         # TODO - Preserve order. But messy
-        for drawable in self.__buttons + self.__anims:
-            drawable.draw(gameDisplay)
-        self.__drawNewButton(gameDisplay)
-        self.__drawItemIcons(gameDisplay)
-        self.__drawTopScreen(gameDisplay)
+        def drawBase():
+            # TODO - Horrible hack. Please please please separate the screens.
+            for drawable in self.__buttons + self.__anims:
+                if not(self.__drawBottomScreen):
+                    if type(drawable) == AnimatedButton:
+                        if drawable.image.getPos()[1] < RESOLUTION_NINTENDO_DS[1]:
+                            drawable.draw(gameDisplay)
+                    else:
+                        if drawable.getPos()[1] < RESOLUTION_NINTENDO_DS[1]:
+                            drawable.draw(gameDisplay)
+                else:
+                    drawable.draw(gameDisplay)
+
+            if self.__drawBottomScreen:
+                self.__drawNewButton(gameDisplay)
+                self.__drawItemIcons(gameDisplay)
+                
+            self.__drawTopScreen(gameDisplay)
+
+        drawBase()
+        if self.__popup != None:
+            self.__popup.draw(gameDisplay)
+
         return super().draw(gameDisplay)
 
     def update(self, gameClockDelta):
@@ -86,6 +109,8 @@ class BagPlayer(ScreenLayerNonBlocking):
             updatable.update(gameClockDelta)
         if self.__animNewButton != None:
             self.__animNewButton.update(gameClockDelta)
+        if self.__popup != None:
+            self.__popup.update(gameClockDelta)
         return super().update(gameClockDelta)
 
     def __enableInteractivity(self):
@@ -101,6 +126,26 @@ class BagPlayer(ScreenLayerNonBlocking):
     def __addAnim(self, anim : Optional[AnimatedImageObject]):
         if anim != None:
             self.__anims.append(anim)
+
+    def __callbackOnStartSave(self):
+
+        def endKillSaveLoad():
+            self.__drawBottomScreen = True
+            self.__popup = None
+            self.screenController.setBgMain(PATH_BG_MAIN)
+            self.screenController.fadeInMain(callback=self.__enableInteractivity)
+
+        def startKillSaveLoad():
+            self.__disableInteractivity()
+            self.screenController.fadeOutMain(callback=endKillSaveLoad)
+
+        def spawnSaveLoad():
+            self.__drawBottomScreen = False
+            self.__popup = SaveLoadScreenPopup(self.laytonState, self.screenController, SaveLoadScreenPopup.MODE_SAVE, 0, callbackOnSlot=startKillSaveLoad, callbackOnTerminate=startKillSaveLoad)
+            self.screenController.fadeInMain(callback=self.__enableInteractivity)
+
+        self.__disableInteractivity()
+        self.screenController.fadeOutMain(callback=spawnSaveLoad)  
 
     def __callbackOnCloseBag(self):
         self.__disableInteractivity()
@@ -231,7 +276,10 @@ class BagPlayer(ScreenLayerNonBlocking):
 
     def handleTouchEvent(self, event):
         if self.__isInteractable:
-            for button in self.__buttons:
-                if button.handleTouchEvent(event):
-                    return True
+            if self.__popup != None:
+                return self.__popup.handleTouchEvent(event)
+            else:
+                for button in self.__buttons:
+                    if button.handleTouchEvent(event):
+                        return True
         return super().handleTouchEvent(event)

@@ -57,6 +57,7 @@ PATH_ANIM_BGANI      = "bgani/%s"
 PATH_EXT_EXIT       = "map/exit_%i.arc"
 PATH_EXT_EVENT      = "eventobj/obj_%i.arc"
 
+# TODO - Duplicated event IDs, but separated in binary too
 LIMIT_ID_PUZZLE_START   = 20000
 LIMIT_ID_TEA_START      = 30000
 COUNT_HERBTEA           = 0x18

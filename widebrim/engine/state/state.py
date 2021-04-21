@@ -195,9 +195,6 @@ class Layton2GameState():
     
     def getEventId(self):
 
-        if not(self._wasLastEventIdBranching):
-            return self._idEvent
-
         def getOffsetIdWasViewed():
             if self.entryEvInfo.indexEventViewedFlag != None:
                 if self.saveSlot.eventViewed.getSlot(self.entryEvInfo.indexEventViewedFlag):
@@ -229,6 +226,9 @@ class Layton2GameState():
 
         if self.entryEvInfo.indexStoryFlag != None:
             self.saveSlot.storyFlag.setSlot(True, self.entryEvInfo.indexStoryFlag)
+        
+        if not(self._wasLastEventIdBranching):
+            return self._idEvent
         
         if self._idEvent >= EVENT_ID_START_TEA:
             # Tea Event

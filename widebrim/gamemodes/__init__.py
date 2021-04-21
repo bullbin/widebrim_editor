@@ -11,3 +11,4 @@ from .startpuzzle import StartPuzzlePlayer
 from .staypuzzle import StayPuzzlePlayer
 from .nazoba import NazobaPlayer
 from .menu import BagPlayer
+from .memo import MemoPlayer
