@@ -20,3 +20,5 @@ from .couple import HandlerCouple
 from .lamp_short import HandlerShortbrimLamp as HandlerLamp
 from .bridge import HandlerBridge
 from .traceOnly import HandlerTraceOnly
+
+# TODO - Handle errors in GdScript gracefully like the game would, eg Divide with too few points to subdivide

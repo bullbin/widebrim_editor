@@ -27,7 +27,6 @@ PATH_NAME_ROOT      = "eventchr/%s/chr%i_n.arc"
 PATH_EVENT_ROOT     = "event/%s"
 
 PATH_FACE_ROOT      = "/data_lt2/ani/sub/%s"
-PATH_BODY_ROOT      = "eventchr/chr%i.arc"
 
 PATH_EVENT_SCRIPT   = "/data_lt2/event/ev_d%i.plz"
 PATH_EVENT_SCRIPT_A = "/data_lt2/event/ev_d%ia.plz"
@@ -55,6 +54,7 @@ PATH_PACK_NAZO  = "n%i.dat"
 PATH_PLACE_BG   = "map/main%i.bgx"
 PATH_PLACE_MAP  = "map/map%i.bgx"
 PATH_EVENT_BG   = "event/sub%i.bgx"
+PATH_EVENT_BG_LANG_DEP = "event/?/sub%i.bgx"
 
 PATH_PUZZLE_BG              = "nazo/q%i.bgx"
 PATH_PUZZLE_BG_LANGUAGE     = "nazo/?/q%i.bgx"

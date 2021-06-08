@@ -26,6 +26,7 @@ GAMEMODE_TO_HANDLER = {GAMEMODES.Reset:ResetHelper,
                        GAMEMODES.Narration:NarrationPlayer,
                        GAMEMODES.Menu:BagPlayer,
                        GAMEMODES.Name:NamePlayer,
+                       GAMEMODES.InfoMode:MysteryPlayer,
                        GAMEMODES.Memo:MemoPlayer,
                        GAMEMODES.EventTea:EventTeaPlayer,
                        GAMEMODES.HamsterName:NamePlayer,
@@ -135,9 +136,14 @@ class FaderLayer(ScreenLayerNonBlocking):
 
         self._faderSurfMain.set_alpha(round(self._faderMain.getStrength() * 255))
         self._faderSurfSub.set_alpha(round(self._faderSub.getStrength() * 255))
+    
+    def __ensureMainIsColor(self, color):
+        if self._faderSurfMain.get_at((0,0)) != color:
+            self._faderSurfMain.fill(color)
 
     def fadeInMain(self, duration=DEFAULT_FADE_TIME, callback=None):
         # TODO - Match callback model
+        self.__ensureMainIsColor((0,0,0))
         if not(self._faderMain.getActiveState()) and self._faderMain.getStrength() == 0:
             if callable(callback):
                 callback()
@@ -152,7 +158,7 @@ class FaderLayer(ScreenLayerNonBlocking):
     def fadeOutMain(self, duration=DEFAULT_FADE_TIME, callback=None):
         # TODO - Add a method that intercepts callbacks to bring flags to blank out screen where necessary.
         # Maybe add a variation of callback which ensures the fader layer has been rendered before operating callback
-
+        self.__ensureMainIsColor((0,0,0))
         if not(self._faderMain.getActiveState()) and self._faderMain.getStrength() == 1:
             if callable(callback):
                 callback()
@@ -163,6 +169,14 @@ class FaderLayer(ScreenLayerNonBlocking):
             self._faderMain.setInvertedState(False)
             return True
         return False
+    
+    def flashMain(self, duration=DEFAULT_FADE_TIME, callback=None):
+        # TODO - Fix callbacks
+        self.__ensureMainIsColor((255,255,255))
+        self._faderMain.setDuration(duration)
+        self._faderMain.setCallback(callback)
+        self._faderMain.setInvertedState(True)
+        return True
     
     def fadeInSub(self, duration=DEFAULT_FADE_TIME, callback=None):
         if not(self._faderSub.getActiveState()) and self._faderSub.getStrength() == 0:
@@ -229,6 +243,9 @@ class ScreenController():
 
     def getFaderIsViewObscured(self):
         return self._faderLayer.isViewObscured
+    
+    def flashMain(self, duration=FaderLayer.DEFAULT_FADE_TIME, callback=None):
+        self._faderLayer.flashMain(duration=duration, callback=callback)
 
     def fadeInMain(self, duration=FaderLayer.DEFAULT_FADE_TIME, callback=None):
         self._faderLayer.fadeInMain(duration=duration, callback=callback)

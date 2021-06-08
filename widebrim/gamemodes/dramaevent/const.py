@@ -6,6 +6,9 @@ COMPLETE_CHAPTER = 0x1ea
 COMPLETE_PLACE_NUM = 0x52
 COMPLETE_STORY_FLAG = 0x3a
 
+PATH_BODY_ROOT          = "eventchr/chr%i.arc"
+PATH_BODY_ROOT_LANG_DEP = "eventchr/?/chr%i.arc"
+
 PATH_PRIZE_WINDOW   = "system/prize_window2.spr"
 PATH_CURSOR_WAIT    = "cursor_wait.spr"
 PATH_ITEM_ICON      = "menu/bag/item_icon.spr"

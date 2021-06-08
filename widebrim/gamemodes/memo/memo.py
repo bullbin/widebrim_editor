@@ -123,6 +123,7 @@ class MemoPlayer(ScreenLayerNonBlocking):
 
     def __callbackOnClose(self):
         self.__makeInactive()
+        self.laytonState.saveSlot.lastMemoPage = self.__pageNumber
         self.laytonState.setGameMode(GAMEMODES.Menu)
         self.screenController.fadeOut(callback=self.doOnKill)
 

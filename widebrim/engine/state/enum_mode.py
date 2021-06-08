@@ -25,7 +25,7 @@ class GAMEMODES(Enum):
     Name        = 18
 
     Jiten0      = 19
-    InfoMode    = 20
+    InfoMode    = 20    # Don't load this mode - it has no means of exiting itself. Triggers Mystery overlay
 
     Staff       = 21
 

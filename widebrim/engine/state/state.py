@@ -106,12 +106,12 @@ class Layton2GameState():
         self.entryNzList    = None
         self._entryNzData    = None
 
-        self.__isTimeStarted = False
-        self.__timeStarted = 0
-
+        self._indexMysteryChanged : int = -1
         self._roomLoadBehaviour = 0
 
         # Not accurate, but used to centralise event behaviour between room and event
+        self.__isTimeStarted = False
+        self.__timeStarted = 0
         self._wasLastEventIdBranching = False
         self.timeStartTimer()
 
@@ -417,3 +417,16 @@ class Layton2GameState():
             if (puzzleData := self.saveSlot.puzzleData.getPuzzleData(indexPuzzleData)) != None and not(puzzleData.wasSolved):
                 return False
         return True
+    
+    def clearMysteryUnlockedIndex(self):
+        self._indexMysteryChanged = -1
+
+    # IndexMystery should be between 1 and 10, but game never checks this
+    def setMysteryUnlockedIndex(self, indexMystery : int, isSolved : bool):
+        if isSolved:
+            self._indexMysteryChanged = indexMystery + 9
+        else:
+            self._indexMysteryChanged = indexMystery - 1
+
+    def getEncodedMysteryIndex(self) -> int:
+        return self._indexMysteryChanged

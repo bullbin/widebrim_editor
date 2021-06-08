@@ -7,3 +7,4 @@ from .stockScreen import StockPopup
 from .nazobaListScreen import NazobaListPopup
 from .subGameAddScreen import SubGameAddPopup
 from .subItemAddScreen import SubItemAddPopup
+from .completeWindowScreen import CompleteWindowPopup

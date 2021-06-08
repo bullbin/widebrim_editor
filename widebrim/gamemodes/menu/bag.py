@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import List, Optional, TYPE_CHECKING
+from widebrim.gamemodes import mystery
 from widebrim.gamemodes.core_popup.save import SaveLoadScreenPopup
 from widebrim.gamemodes.core_popup.utils import FullScreenPopup
 from widebrim.gamemodes.dramaevent.const import PATH_ITEM_ICON
@@ -7,6 +8,7 @@ from widebrim.engine.const import RESOLUTION_NINTENDO_DS
 from widebrim.engine_ext.utils import getAnimFromPath, getAnimFromPathWithAttributes, getButtonFromPath
 from widebrim.engine.anim.image_anim.imageAsNumber import StaticImageAsNumericalFont
 from widebrim.engine.anim.button import AnimatedButton
+from widebrim.gamemodes.mystery import MysteryPlayer
 
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
@@ -34,7 +36,7 @@ class BagPlayer(ScreenLayerNonBlocking):
         self.__addButton(getButtonFromPath(laytonState, PATH_BTN_RESET, namePosVariable=VARIABLE_DEFAULT_POS))
         self.__addButton(getButtonFromPath(laytonState, PATH_BTN_TOJIRU, namePosVariable=VARIABLE_DEFAULT_POS, callback=self.__callbackOnCloseBag))
         self.__addButton(getButtonFromPath(laytonState, PATH_BTN_MEMO, namePosVariable=VARIABLE_DEFAULT_POS, callback=self.__callbackOnStartMemo))
-        self.__addButton(getButtonFromPath(laytonState, PATH_BTN_MYSTERY, namePosVariable=VARIABLE_DEFAULT_POS))
+        self.__addButton(getButtonFromPath(laytonState, PATH_BTN_MYSTERY, namePosVariable=VARIABLE_DEFAULT_POS, callback=self.__callbackOnStartMystery))
         self.__addButton(getButtonFromPath(laytonState, PATH_BTN_PUZZLE, namePosVariable=VARIABLE_DEFAULT_POS))
         self.__addButton(getButtonFromPath(laytonState, PATH_BTN_SAVE, namePosVariable=VARIABLE_DEFAULT_POS, callback=self.__callbackOnStartSave))
         
@@ -75,6 +77,7 @@ class BagPlayer(ScreenLayerNonBlocking):
         self.screenController.fadeIn(callback=self.__enableInteractivity)
 
         self.__drawBottomScreen : bool = True
+        self.__drawTopScreenGraphics    : bool = True
         self.laytonState.setGameModeNext(GAMEMODES.Menu)
         
     def draw(self, gameDisplay):
@@ -82,21 +85,25 @@ class BagPlayer(ScreenLayerNonBlocking):
         def drawBase():
             # TODO - Horrible hack. Please please please separate the screens.
             for drawable in self.__buttons + self.__anims:
-                if not(self.__drawBottomScreen):
-                    if type(drawable) == AnimatedButton:
-                        if drawable.image.getPos()[1] < RESOLUTION_NINTENDO_DS[1]:
+                if type(drawable) == AnimatedButton:
+                    if drawable.image.getPos()[1] < RESOLUTION_NINTENDO_DS[1]:
+                        if self.__drawTopScreenGraphics:
                             drawable.draw(gameDisplay)
-                    else:
-                        if drawable.getPos()[1] < RESOLUTION_NINTENDO_DS[1]:
-                            drawable.draw(gameDisplay)
+                    elif self.__drawBottomScreen:
+                        drawable.draw(gameDisplay)
                 else:
-                    drawable.draw(gameDisplay)
+                    if drawable.getPos()[1] < RESOLUTION_NINTENDO_DS[1]:
+                        if self.__drawTopScreenGraphics:
+                            drawable.draw(gameDisplay)
+                    elif self.__drawBottomScreen:
+                        drawable.draw(gameDisplay)
 
             if self.__drawBottomScreen:
                 self.__drawNewButton(gameDisplay)
                 self.__drawItemIcons(gameDisplay)
-                
-            self.__drawTopScreen(gameDisplay)
+            
+            if self.__drawTopScreenGraphics:
+                self.__drawTopScreen(gameDisplay)
 
         drawBase()
         if self.__popup != None:
@@ -126,6 +133,26 @@ class BagPlayer(ScreenLayerNonBlocking):
     def __addAnim(self, anim : Optional[AnimatedImageObject]):
         if anim != None:
             self.__anims.append(anim)
+
+    def __callbackOnStartMystery(self):
+
+        def killMystery():
+            self.__disableInteractivity()
+            self.__drawBottomScreen = True
+            self.__drawTopScreenGraphics = True
+            self.__popup = None
+            self.screenController.setBgMain(PATH_BG_MAIN)
+            self.screenController.setBgSub(PATH_BG_SUB)
+            self.screenController.fadeIn(callback=self.__enableInteractivity)
+
+        def spawnMystery():
+            self.__drawBottomScreen = False
+            self.__drawTopScreenGraphics = False
+            self.__popup = MysteryPlayer(self.laytonState, self.screenController, killMystery)
+            self.__enableInteractivity()
+
+        self.__disableInteractivity()
+        self.screenController.fadeOut(callback=spawnMystery)  
 
     def __callbackOnStartSave(self):
 

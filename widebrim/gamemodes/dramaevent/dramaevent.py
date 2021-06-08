@@ -4,6 +4,8 @@ from widebrim.engine_ext.utils import getAnimFromPath, getAnimFromPathWithAttrib
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
 
+from widebrim.gamemodes.mystery import MysteryPlayer
+
 from ...engine.state.enum_mode import GAMEMODES
 from ...engine.anim.fader import Fader
 from ...engine.anim.font.scrolling import ScrollingFontHelper
@@ -11,7 +13,7 @@ from ...engine.exceptions import FileInvalidCritical
 from ...engine.file import FileInterface
 from ..core_popup.script import ScriptPlayer
 
-from ...engine.const import RESOLUTION_NINTENDO_DS, PATH_BODY_ROOT, PATH_CHAP_ROOT
+from ...engine.const import PATH_EVENT_BG_LANG_DEP, RESOLUTION_NINTENDO_DS, PATH_CHAP_ROOT
 from ...engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C
 from ...engine.const import PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, PATH_PACK_TALK, PATH_EVENT_BG, PATH_PLACE_BG, PATH_EVENT_ROOT, PATH_ANI, PATH_NAME_ROOT
 
@@ -130,18 +132,22 @@ class TextWindow(Popup):
         else:
             self.characterController = None
 
+        self.isArrowActive = False
         self.isNameActive = False
-        if self.characterController != None and self.characterController.getVisibility() and self.characterController.slot in TextWindow.DICT_SLOTS:
-            self.isArrowActive = True
-            TextWindow.SPRITE_WINDOW.setAnimationFromName(TextWindow.DICT_SLOTS[self.characterController.slot])
-            TextWindow.SPRITE_WINDOW.subAnimation.getActiveFrame().set_alpha(0)
+
+        if self.characterController != None and self.characterController.getVisibility():
             if self.characterController.imageName != None and self.characterController.imageName.getActiveFrame() != None:
                 self.characterController.imageName.getActiveFrame().set_alpha(0)
                 self.isNameActive = True
+        
+        if self.characterController != None and self.characterController.slot in TextWindow.DICT_SLOTS:
+            TextWindow.SPRITE_WINDOW.setAnimationFromName(TextWindow.DICT_SLOTS[self.characterController.slot])
         else:
-            # TODO - This is more a workaround, initial train event and 14180 demonstrate that this does not hold true
-            self.isArrowActive = False
-            TextWindow.SPRITE_WINDOW.setAnimationFromName("gfx")
+            TextWindow.SPRITE_WINDOW.setAnimationFromIndex(1)
+
+        if (TextWindow.SPRITE_WINDOW.subAnimation != None and TextWindow.SPRITE_WINDOW.subAnimation.getActiveFrame() != None):
+            self.isArrowActive = True
+            TextWindow.SPRITE_WINDOW.subAnimation.getActiveFrame().set_alpha(0)
 
         TextWindow.SPRITE_WINDOW.getActiveFrame().set_alpha(0)
 
@@ -152,6 +158,7 @@ class TextWindow(Popup):
     def doWhileActive(self, gameClockDelta):
         self.fader.update(gameClockDelta)
         TextWindow.SPRITE_WINDOW.getActiveFrame().set_alpha(round(self.fader.getStrength() * 255))
+
         if self.isArrowActive:
             TextWindow.SPRITE_WINDOW.subAnimation.getActiveFrame().set_alpha(round(self.fader.getStrength() * 255))
 
@@ -210,7 +217,11 @@ class CharacterController():
         self._baseAnimName = "Create an Animation"
         self._isCharacterTalking = False
 
-        self.imageCharacter = getAnimFromPath(PATH_BODY_ROOT % characterIndex)
+        if characterIndex == 86 or characterIndex == 87:
+            self.imageCharacter = getAnimFromPath((PATH_BODY_ROOT_LANG_DEP % characterIndex).replace("?", laytonState.language.value))
+        else:
+            self.imageCharacter = getAnimFromPath(PATH_BODY_ROOT % characterIndex)
+
         if self.imageCharacter != None:
             self.setCharacterAnimationFromIndex(characterInitialAnimIndex)
         self.imageName = getAnimFromPathWithAttributes(PATH_NAME_ROOT % (laytonState.language.value, characterIndex))
@@ -388,8 +399,11 @@ class EventPlayer(ScriptPlayer):
                     self.laytonState.saveSlot.eventViewed.setSlot(True, self.laytonState.entryEvInfo.indexEventViewedFlag)
 
                 self.screenController.setBgMain(PATH_PLACE_BG % eventData.readU16())
-                # TODO - Game isolates certain range of images which it wants language-specific backgrounds for
-                self.screenController.setBgSub(PATH_EVENT_BG % eventData.readU16())
+                indexSubBg = eventData.readU16()
+                if 0x32 <= indexSubBg <= 0x36:
+                    self.screenController.setBgSub(PATH_EVENT_BG_LANG_DEP % indexSubBg)
+                else:
+                    self.screenController.setBgSub(PATH_EVENT_BG % indexSubBg)
 
                 introBehaviour = eventData.readUInt(1)
                 if introBehaviour == 0 or introBehaviour == 3:
@@ -398,6 +412,7 @@ class EventPlayer(ScriptPlayer):
                 if introBehaviour != 1:
                     self.screenController.fadeIn()
 
+                # TODO - MaybeLoadCharactersFromData - language specific and boundary checks
                 eventData.seek(6)
                 for charIndex in range(8):
                     character = eventData.readUInt(1)
@@ -538,9 +553,16 @@ class EventPlayer(ScriptPlayer):
                 switchToFadeOut()
 
         elif opcode == OPCODES_LT2.DoHukamaruAddScreen.value:
-            # TODO - Not accurate, but required to get fading looking correct
+            # TODO - Quite extreme stalling due to inefficiency loading buttons
+
+            def switchToMystery():
+                self._spriteOffAllCharacters()
+                self._popup = MysteryPlayer(self.laytonState, self.screenController)
+                self.laytonState.clearMysteryUnlockedIndex()
+
             self._makeInactive()
-            self.screenController.fadeOut(callback=self._spriteOffAllCharacters)
+            self.laytonState.setMysteryUnlockedIndex(operands[0].value, False)
+            self.screenController.fadeOut(callback=switchToMystery)
     
         elif opcode == OPCODES_LT2.DoSubItemAddScreen.value:
             if self.laytonState.puzzleLastReward != -1:
@@ -609,10 +631,16 @@ class EventPlayer(ScriptPlayer):
             self._popup = SaveButtonPopup(self.laytonState, self.screenController, self._sharedImageHandler, switchPopupToSaveScreen, callbackKillPopup, saveIsComplete=operands[0].value == 0)
             
         elif opcode == OPCODES_LT2.HukamaruClear.value:
-            # TODO - Not accurate, but required to get fading looking correct.
-            # TODO - Still not fully correct...
+            # TODO - Quite extreme stalling due to inefficiency loading buttons
+            
+            def switchToMystery():
+                self._spriteOffAllCharacters()
+                self._popup = MysteryPlayer(self.laytonState, self.screenController)
+                self.laytonState.clearMysteryUnlockedIndex()
+
             self._makeInactive()
-            self.screenController.fadeOut(callback=self._spriteOffAllCharacters)
+            self.laytonState.setMysteryUnlockedIndex(operands[0].value, True)
+            self.screenController.fadeOut(callback=switchToMystery)
         
         elif opcode == OPCODES_LT2.DoPhotoPieceAddScreen.value:
             self.laytonState.saveSlot.photoPieceFlag.setSlot(True, operands[0].value)
@@ -653,6 +681,9 @@ class EventPlayer(ScriptPlayer):
                                 self.laytonState.setGameMode(GAMEMODES.DramaEvent)
                                 self.laytonState.saveSlot.eventViewed.setSlot(True, eventEntry.indexEventViewedFlag)
                                 self.laytonState.setEventId(targetEventId)
+        
+        elif opcode == OPCODES_LT2.CompleteWindow.value and len(operands) == 2:
+            self._popup = CompleteWindowPopup(self.laytonState, self.screenController, self._sharedImageHandler, operands[0].value, operands[1].value)
 
         else:
             return super()._doUnpackedCommand(opcode, operands)

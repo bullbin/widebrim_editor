@@ -3,7 +3,7 @@ from typing import Callable, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
 
-from widebrim.engine.anim.button import AnimatedButton
+from widebrim.engine.anim.button import AnimatedButton, StaticButton
 from ..madhatter.hat_io.asset_image import StaticImage
 from ..engine.const import PATH_BG_ROOT, PATH_ANI, PATH_FACE_ROOT, RESOLUTION_NINTENDO_DS
 from ..engine.file import FileInterface
@@ -101,6 +101,43 @@ def getButtonFromPath(laytonState : Layton2GameState, inPath : str, callback : O
                          anim.getVariable(namePosVariable)[1] + RESOLUTION_NINTENDO_DS[1]))
         
         return AnimatedButton(anim, animOn, animOff, callback=callback)
+    return None
+
+def getStaticButtonFromAnim(anim : Optional[AnimatedImage], spawnAnimName : str, callback : Optional[Callable] = None, pos=(0,0), namePosVariable=None, clickOffset=(0,0)) -> Optional[StaticButton]:
+    if anim != None:
+        anim : AnimatedImageObject
+        anim.setPos((pos[0], pos[1] + RESOLUTION_NINTENDO_DS[1]))
+        if namePosVariable == None:
+            namePosVariable = "pos"
+
+        if anim.getVariable(namePosVariable) != None:
+            anim.setPos((anim.getVariable(namePosVariable)[0],
+                         anim.getVariable(namePosVariable)[1] + RESOLUTION_NINTENDO_DS[1]))
+        
+        if anim.setAnimationFromName(spawnAnimName):
+            return StaticButton(anim.getPos(), anim.getActiveFrame(), callback=callback, targettedOffset=clickOffset)
+    return None
+
+def getStaticButtonFromPath(laytonState : Layton2GameState, inPath : str, spawnAnimName : str, callback : Optional[Callable] = None, pos=(0,0), namePosVariable=None, clickOffset=(0,0)) -> Optional[StaticButton]:
+    """Returns a surface-based button from path. Note that by default, this button will be offset onto the bottom screen already.
+
+    Args:
+        laytonState (Layton2GameState): Game state
+        inPath (str): Path to image asset, relative from master animation path
+        spawnAnimName (str): Name of animation
+        callback (Optional[Callable], optional): Callback when button is pressed. Defaults to None.
+        pos (tuple, optional): Position. Defaults to (0,0) and overriden by variable.
+        namePosVariable ([type], optional): Name of variable storing position. Defaults to None, 'pos' will be used instead.
+        clickOffset (tuple, optional): Position offset when button is targetted. Defaults to (0,0).
+
+    Returns:
+        Optional[StaticButton]: Surface-based button
+    """
+
+    # TODO - Replace calls to static button to this constructor instead
+    if (button := getButtonFromPath(laytonState, inPath, callback=callback, animOff=spawnAnimName, animOn=spawnAnimName, pos=pos, namePosVariable=namePosVariable)) != None:
+        if button.image.getActiveFrame() != None:
+            return StaticButton(button.image.getPos(), button.image.getActiveFrame(), callback=callback, targettedOffset=clickOffset)
     return None
 
 def getAnimFromPath(inPath, spawnAnimName=None, pos=(0,0)) -> Optional[AnimatedImageObject]:
