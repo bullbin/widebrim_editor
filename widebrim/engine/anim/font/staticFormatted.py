@@ -112,3 +112,16 @@ class StaticTextHelper():
         for indexBuffer, buffer in enumerate(self._outputLineSurfaces[0:self._workingLineSurfaceIndex + 1]):
             gameDisplay.blit(buffer, ((self._pos[0] - (self._outputLineSurfaceTrueWidths[indexBuffer] // 2)), yBias))
             yBias += self._yBias
+    
+    # Movie uses a biasless variant. TODO - More research required
+    def drawXYCenterPointNoBias(self, gameDisplay):
+        countLines = len(self._outputLineSurfaces[0:self._workingLineSurfaceIndex + 1])
+        yActualLength = self._yBias * countLines
+        if countLines % 2 != 0:
+            yActualLength -= (self._yBias - self._font.dimensions[1])
+
+        yBias = (self._pos[1] - (yActualLength // 2))
+        
+        for indexBuffer, buffer in enumerate(self._outputLineSurfaces[0:self._workingLineSurfaceIndex + 1]):
+            gameDisplay.blit(buffer, ((self._pos[0] - (self._outputLineSurfaceTrueWidths[indexBuffer] // 2)), yBias))
+            yBias += self._yBias

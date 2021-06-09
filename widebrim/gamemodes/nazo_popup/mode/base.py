@@ -64,6 +64,7 @@ class BaseQuestionObject(ScriptPlayer):
         # Some wifi check here
         
         # Initialise script
+        # TODO - getPackedData
         packPuzzleScript = LaytonPack()
         packPuzzleScriptData = FileInterface.getData(PATH_PUZZLE_SCRIPT)
         if packPuzzleScriptData != None:
@@ -109,6 +110,8 @@ class BaseQuestionObject(ScriptPlayer):
         pass
 
     def update(self, gameClockDelta):
+        # TODO - Maybe patch update on doOnComplete from script to ensure that unintended blocking behaviour from calling bad commands
+        #        doesn't lead the puzzle handler to start prematurely (even though this would be an invalid state)
         if not(self._isTerminating):
             super().update(gameClockDelta)
             if self.__getPuzzleElementsEnabledState():
@@ -167,6 +170,7 @@ class BaseQuestionObject(ScriptPlayer):
                     self.__isInteractingWithPuzzle = False
                 return True
         return False
+
     def updatePuzzleElements(self, gameClockDelta):
         pass
 

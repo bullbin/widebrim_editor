@@ -47,6 +47,7 @@ class Layton2GameState():
         self.wasPuzzleSolved        = False
         self.wasPuzzleRestarted     = False
         self.puzzleLastReward       = -1
+        self.isInMovieMode          = False
 
         self.dbPlaceFlag        = PlaceFlag()
         self.dbStoryFlag        = StoryFlag()

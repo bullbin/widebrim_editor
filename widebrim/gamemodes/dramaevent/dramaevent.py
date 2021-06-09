@@ -145,7 +145,8 @@ class TextWindow(Popup):
         else:
             TextWindow.SPRITE_WINDOW.setAnimationFromIndex(1)
 
-        if (TextWindow.SPRITE_WINDOW.subAnimation != None and TextWindow.SPRITE_WINDOW.subAnimation.getActiveFrame() != None):
+        # TODO - Needs more research. Hide on name probably valid but not sure exactly how this works
+        if (TextWindow.SPRITE_WINDOW.subAnimation != None and TextWindow.SPRITE_WINDOW.subAnimation.getActiveFrame() != None) and self.isNameActive:
             self.isArrowActive = True
             TextWindow.SPRITE_WINDOW.subAnimation.getActiveFrame().set_alpha(0)
 

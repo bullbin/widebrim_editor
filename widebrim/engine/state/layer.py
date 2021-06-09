@@ -16,6 +16,11 @@ class ScreenLayer():
 
     def draw(self, gameDisplay):
         pass
+
+    def doOnPygameQuit(self):
+        """Called when pygame is ready to terminate. Use this method to free resources or subprocesses which may be left behind.
+        """
+        pass
     
     def handleKeyboardEvent(self, event):
         # Return True if the event was absorbed
@@ -59,6 +64,10 @@ class ScreenCollection(ScreenLayer):
     def draw(self, gameDisplay):
         for layer in self._layers:
             layer.draw(gameDisplay)
+
+    def doOnPygameQuit(self):
+        for layer in self._layers:
+            layer.doOnPygameQuit()
         
     def update(self, gameClockDelta):
         for indexLayer in range(len(self._layers) - 1, -1, -1):

@@ -11,6 +11,10 @@ from ..madhatter.hat_io.asset_image import AnimatedImage
 from ..madhatter.hat_io.asset import LaytonPack
 from ..engine.anim.image_anim import AnimatedImageObject
 from ..engine.const import PATH_PACK_TXT2, PATH_PACK_TXT
+from .const import PATH_TEMP
+
+from os import makedirs
+from shutil import rmtree
 
 from pygame import image, Surface
 
@@ -60,6 +64,15 @@ def getPackedString(pathPack, nameString) -> str:
         return tempString.decode('shift-jis')
     except:
         return ""
+
+# TODO - Use in above commands
+def decodeArchiveString(pack : LaytonPack, nameString) -> Optional[str]:
+    if (stringData := pack.getFile(nameString)) != None:
+        try:
+            return stringData.decode('shift-jis')
+        except UnicodeDecodeError:
+            return ""
+    return None
 
 def getTxtString(laytonState, nameString) -> str:
     return getPackedString(PATH_PACK_TXT % laytonState.language.value, nameString)
@@ -174,3 +187,17 @@ def getAnimFromPathWithAttributes(inPath, spawnAnimName="gfx", posVariable="pos"
         else:
             tempImage.setPos((0, RESOLUTION_NINTENDO_DS[1]))
     return tempImage
+
+def ensureTempFolder():
+    try:
+        makedirs(PATH_TEMP, exist_ok=True)
+    except OSError:
+        return False
+    return True
+
+def cleanTempFolder():
+    try:
+        rmtree(PATH_TEMP)
+    except:
+        return False
+    return True
