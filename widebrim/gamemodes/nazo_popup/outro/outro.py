@@ -141,7 +141,7 @@ class OutroLayer(FullScreenPopup):
         entryPuzzle = self.laytonState.saveSlot.puzzleData.getPuzzleData(self.laytonState.getCurrentNazoListEntry().idExternal - 1)
         if self.laytonState.wasPuzzleSolved:
             if not(entryPuzzle.wasSolved):
-                if self.laytonState.getGameModeNext() != GAMEMODES.Jiten1 and self.laytonState.getCurrentNazoListEntry().idInternal != 0xce:
+                if self.laytonState.getGameModeNext() != GAMEMODES.JitenWiFi and self.laytonState.getCurrentNazoListEntry().idInternal != 0xce:
                     # TODO - Set picarats better lol
                     picaratsGained = self.laytonState.getNazoData().getPicaratStage(entryPuzzle.levelDecay)
                     self.laytonState.saveSlot.picarats += picaratsGained

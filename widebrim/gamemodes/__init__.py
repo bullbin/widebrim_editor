@@ -13,3 +13,4 @@ from .nazoba import NazobaPlayer
 from .menu import BagPlayer
 from .memo import MemoPlayer
 from .mystery import MysteryPlayer
+from .jiten import JitenPlayer

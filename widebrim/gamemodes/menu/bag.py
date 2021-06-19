@@ -78,7 +78,7 @@ class BagPlayer(ScreenLayerNonBlocking):
 
         self.__drawBottomScreen : bool = True
         self.__drawTopScreenGraphics    : bool = True
-        self.laytonState.setGameModeNext(GAMEMODES.Menu)
+        self.laytonState.setGameModeNext(GAMEMODES.Bag)
         
     def draw(self, gameDisplay):
         # TODO - Preserve order. But messy

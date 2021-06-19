@@ -21,15 +21,15 @@ class GAMEMODES(Enum):
     SubHerbTea  = 15
     SubHamster  = 16
 
-    Menu        = 17
+    Bag         = 17
     Name        = 18
 
-    Jiten0      = 19
-    InfoMode    = 20    # Don't load this mode - it has no means of exiting itself. Triggers Mystery overlay
+    JitenBag    = 19
+    Mystery     = 20    # Don't load this mode - it has no means of exiting itself. Triggers Mystery overlay
 
     Staff       = 21
 
-    Jiten1      = 22
+    JitenWiFi   = 22
     Memo        = 23
 
     Challenge   = 24
@@ -40,7 +40,7 @@ class GAMEMODES(Enum):
     SecretMenu  = 28
 
     OmakeMenu   = 30
-    SecretJiten = 31
+    JitenSecret = 31
     ArtMode     = 32
     ChrViewMode = 33
     MusicMode   = 34
@@ -59,7 +59,7 @@ STRING_TO_GAMEMODE_VALUE = {"room"          :GAMEMODES.Room,
                             "puzzle"        :GAMEMODES.Puzzle,
                             "movie"         :GAMEMODES.Movie,
                             "narration"     :GAMEMODES.Narration,
-                            "menu"          :GAMEMODES.Menu,
+                            "menu"          :GAMEMODES.Bag,
                             "staff"         :GAMEMODES.Staff,
                             "name"          :GAMEMODES.HamsterName,
                             "challenge"     :GAMEMODES.Challenge,

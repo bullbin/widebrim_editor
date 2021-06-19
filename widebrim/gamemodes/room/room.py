@@ -392,7 +392,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
     
     def __startMenuMode(self):
         self.__disableInteractivity()
-        self.laytonState.setGameMode(GAMEMODES.Menu)
+        self.laytonState.setGameMode(GAMEMODES.Bag)
         # TODO - Is next gamemode room?
         self.screenController.fadeOut(callback=self.doOnKill)
 

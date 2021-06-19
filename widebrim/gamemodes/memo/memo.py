@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from widebrim.engine_ext.state_game import ScreenController
 
 # TODO - Research positions from binary
+# TODO - Fix text line (bottom screen) positions and add page number to draw
 
 class MemoPlayer(ScreenLayerNonBlocking):
     def __init__(self, laytonState : Layton2GameState, screenController : ScreenController):
@@ -124,7 +125,7 @@ class MemoPlayer(ScreenLayerNonBlocking):
     def __callbackOnClose(self):
         self.__makeInactive()
         self.laytonState.saveSlot.lastMemoPage = self.__pageNumber
-        self.laytonState.setGameMode(GAMEMODES.Menu)
+        self.laytonState.setGameMode(GAMEMODES.Bag)
         self.screenController.fadeOut(callback=self.doOnKill)
 
     def __doOnReloadPage(self):

@@ -78,8 +78,8 @@ class BaseQuestionObject(ScriptPlayer):
         # Set end gamemode on finish
         # TODO - Gamemode 11 used?
         if laytonState.getGameModeNext() not in [GAMEMODES.UnkNazo, GAMEMODES.Room,
-                                                 GAMEMODES.Jiten0, GAMEMODES.Jiten1,
-                                                 GAMEMODES.SecretJiten, GAMEMODES.Challenge,
+                                                 GAMEMODES.JitenBag, GAMEMODES.JitenWiFi,
+                                                 GAMEMODES.JitenSecret, GAMEMODES.Challenge,
                                                  GAMEMODES.Nazoba]:
             laytonState.setGameModeNext(GAMEMODES.EndPuzzle)
 

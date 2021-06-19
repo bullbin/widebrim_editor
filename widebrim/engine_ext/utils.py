@@ -80,7 +80,7 @@ def getTxtString(laytonState, nameString) -> str:
 def getTxt2String(laytonState, nameString) -> str:
     return getPackedString(PATH_PACK_TXT2 % laytonState.language.value, nameString)
 
-def getButtonFromPath(laytonState : Layton2GameState, inPath : str, callback : Optional[Callable] = None, animOff : str="off", animOn : str="on", pos=(0,0), namePosVariable=None) -> Optional[AnimatedButton]:
+def getButtonFromPath(laytonState : Layton2GameState, inPath : str, callback : Optional[Callable] = None, animOff : str="off", animOn : str="on", pos=(0,0), customDimensions=None, namePosVariable=None) -> Optional[AnimatedButton]:
     """Returns an image-based button from path. Note that by default, this button will be offset onto the bottom screen already.
 
     Args:
@@ -90,6 +90,7 @@ def getButtonFromPath(laytonState : Layton2GameState, inPath : str, callback : O
         animOff (str, optional): Name of animation when button is idle. Defaults to "off".
         animOn (str, optional): Name of animation when button is targetted. Defaults to "on".
         pos (tuple, optional): Position. Defaults to (0,0) and overriden by variable.
+        customDimensions (tuple, optional): Size of interactable area. Defaults to None, which means the maximum dimensions of the animation is used.
         namePosVariable ([type], optional): Name of variable storing position. Defaults to None, 'pos' will be used instead.
 
     Returns:
@@ -113,6 +114,9 @@ def getButtonFromPath(laytonState : Layton2GameState, inPath : str, callback : O
             anim.setPos((anim.getVariable(namePosVariable)[0],
                          anim.getVariable(namePosVariable)[1] + RESOLUTION_NINTENDO_DS[1]))
         
+        if customDimensions != None:
+            anim.setDimensions(customDimensions)
+
         return AnimatedButton(anim, animOn, animOff, callback=callback)
     return None
 

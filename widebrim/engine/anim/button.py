@@ -116,10 +116,15 @@ class AnimatedButton(TargettedButton):
         self._animNameUnpressed = animNameUnpressed
         self.image = image
         self.image.setAnimationFromName(self._animNameUnpressed)
+        self.__customDimensions = None
     
     def update(self, gameClockDelta):
         self.image.update(gameClockDelta)
     
+    def setDimensions(self, dimensions):
+        # TODO - Check and add to targetted button.
+        self.__customDimensions = dimensions
+
     def draw(self, gameDisplay):
         self.image.draw(gameDisplay)
 
@@ -132,4 +137,9 @@ class AnimatedButton(TargettedButton):
             self.image.setAnimationFromName(self._animNameUnpressed)
     
     def wasPressed(self, pos):
+        if self.__customDimensions != None:
+            if pos[0] >= self.image.getPos()[0] and pos[1] >= self.image.getPos()[1]:
+                if pos[0] <= (self.image.getPos()[0] + self.__customDimensions[0]) and pos[1] <= (self.image.getPos()[1] + self.__customDimensions[1]):
+                    return True
+            return False
         return self.image.wasPressed(pos)
