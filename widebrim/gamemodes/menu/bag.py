@@ -37,7 +37,7 @@ class BagPlayer(ScreenLayerNonBlocking):
         self.__addButton(getButtonFromPath(laytonState, PATH_BTN_TOJIRU, namePosVariable=VARIABLE_DEFAULT_POS, callback=self.__callbackOnCloseBag))
         self.__addButton(getButtonFromPath(laytonState, PATH_BTN_MEMO, namePosVariable=VARIABLE_DEFAULT_POS, callback=self.__callbackOnStartMemo))
         self.__addButton(getButtonFromPath(laytonState, PATH_BTN_MYSTERY, namePosVariable=VARIABLE_DEFAULT_POS, callback=self.__callbackOnStartMystery))
-        self.__addButton(getButtonFromPath(laytonState, PATH_BTN_PUZZLE, namePosVariable=VARIABLE_DEFAULT_POS))
+        self.__addButton(getButtonFromPath(laytonState, PATH_BTN_PUZZLE, namePosVariable=VARIABLE_DEFAULT_POS, callback=self.__callbackOnStartJiten))
         self.__addButton(getButtonFromPath(laytonState, PATH_BTN_SAVE, namePosVariable=VARIABLE_DEFAULT_POS, callback=self.__callbackOnStartSave))
         
         if (hintCoinAnim := getAnimFromPath(PATH_ANI_MEDAL_ICON, pos=POS_ANI_MEDAL_ICON)) != None:
@@ -182,6 +182,11 @@ class BagPlayer(ScreenLayerNonBlocking):
     def __callbackOnStartMemo(self):
         self.__disableInteractivity()
         self.laytonState.setGameMode(GAMEMODES.Memo)
+        self.screenController.fadeOut(callback=self.doOnKill)
+    
+    def __callbackOnStartJiten(self):
+        self.__disableInteractivity()
+        self.laytonState.setGameMode(GAMEMODES.JitenBag)
         self.screenController.fadeOut(callback=self.doOnKill)
     
     def __callbackOnStartCamera(self):

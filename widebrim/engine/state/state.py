@@ -1,4 +1,10 @@
-from typing import Optional
+from __future__ import annotations
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from widebrim.engine.state.state import Layton2GameState
+    from widebrim.engine_ext.state_game import ScreenController
+    from widebrim.madhatter.hat_io.asset_dlz.nz_lst import DlzEntryNzLst
 
 from ...madhatter.hat_io.asset_sav import Layton2SaveSlot
 from ...madhatter.hat_io.asset_dlz.ev_inf2 import DlzEntryEvInf2, EventInfoList
@@ -268,40 +274,43 @@ class Layton2GameState():
             return self._dbNazoList.getEntry(idEntry)
         return None
     
-    def getNazoListEntryByExternal(self, idExternal):
+    def getNazoListEntryByExternal(self, idExternal) -> Optional[DlzEntryNzLst]:
         for indexEntry in range(self._dbNazoList.getCountEntries()):
             entry = self._dbNazoList.getEntry(indexEntry)
             if entry.idExternal == idExternal:
                 return entry
         return None
 
-    def loadCurrentNazoData(self):
-        if self.getCurrentNazoListEntry() != None:
-            indexPuzzle = self.getCurrentNazoListEntry().idInternal
-            # TODO - Store this max somewhere, it's already a save field
-            if type(indexPuzzle) == int and 0 <= indexPuzzle < 216:
-                if indexPuzzle < 60:
-                    pathNazo = PATH_NAZO_A
-                elif indexPuzzle < 120:
-                    pathNazo = PATH_NAZO_B
-                else:
-                    pathNazo = PATH_NAZO_C
-                
-                packPuzzleData = FileInterface.getData(pathNazo % self.language.value)
-                
+    def getNazoDataAtId(self, idInternal) -> Optional[NazoData]:
+        # TODO - Store this max somewhere, it's already a save field
+        if type(idInternal) == int and 0 <= idInternal < 216:
+            if idInternal < 60:
+                pathNazo = PATH_NAZO_A
+            elif idInternal < 120:
+                pathNazo = PATH_NAZO_B
+            else:
+                pathNazo = PATH_NAZO_C
+            
+            packPuzzleData = FileInterface.getData(pathNazo % self.language.value)
+            
+            if packPuzzleData != None:
+                tempPackPuzzle = LaytonPack()
+                tempPackPuzzle.load(packPuzzleData)
+                packPuzzleData = tempPackPuzzle.getFile(PATH_PACK_NAZO % idInternal)
                 if packPuzzleData != None:
-                    tempPackPuzzle = LaytonPack()
-                    tempPackPuzzle.load(packPuzzleData)
-                    packPuzzleData = tempPackPuzzle.getFile(PATH_PACK_NAZO % indexPuzzle)
-                    if packPuzzleData != None:
-                        self._entryNzData = NazoData()
-                        if self._entryNzData.load(packPuzzleData):
-                            return True
+                    output = NazoData()
+                    if output.load(packPuzzleData):
+                        return output
+        return None
 
+    def loadCurrentNazoData(self) -> bool:
+        if self.getCurrentNazoListEntry() != None:
+            self._entryNzData = self.getNazoDataAtId(self.getCurrentNazoListEntry().idInternal)
+            return self._entryNzData != None
         self._entryNzData = None
         return False
     
-    def getNazoData(self):
+    def getNazoData(self) -> Optional[DlzEntryNzLst]:
         return self._entryNzData
 
     def unloadCurrentNazoData(self):

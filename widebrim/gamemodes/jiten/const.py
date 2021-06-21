@@ -22,6 +22,7 @@ PATH_ANIM_COVER_WIFI_2  = "menu/wifi/jiten_guard2.spr"
 PATH_ANIM_HINT          = "menu/jiten/jiten_hintbox.sbj"
 PATH_ANIM_PRIZE         = "menu/jiten/jiten_prize.sbj"
 
+PATH_PACK_JITEN         = "/data_lt2/nazo/?/jiten.plz"
 PATH_TEXT_JITEN_PLACE   = "p_%u.txt"
 PATH_TEXT_JITEN_MISSING = "p_63.txt"
 PATH_TEXT_NAZO_TYPE     = "type_%u.txt"

@@ -406,6 +406,13 @@ class EventPlayer(ScriptPlayer):
                 else:
                     self.screenController.setBgSub(PATH_EVENT_BG % indexSubBg)
 
+                # TODO - Remove this to populate event data structure
+                # 1 - Nothing
+                # 2 - Fade in main screen
+                # 3, 0 - Fade in both screens and modify main palette
+                # else - Fade in both screens
+                # There is another check for customSoundSet != 2 and behaviour != 3 but this is sound-related
+
                 introBehaviour = eventData.readUInt(1)
                 if introBehaviour == 0 or introBehaviour == 3:
                     self.screenController.modifyPaletteMain(120)

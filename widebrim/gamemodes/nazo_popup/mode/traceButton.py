@@ -19,8 +19,8 @@ PATH_ANI_POINT      = "nazo/tracebutton/point_trace.spr"
 PATH_ANI_BTN_LEFT   = "nazo/tracebutton/arrow_left.spr"
 PATH_ANI_BTN_RIGHT  = "nazo/tracebutton/arrow_right.spr"
 
-POS_BTN_LEFT        = (   2,RESOLUTION_NINTENDO_DS[1])
-POS_BTN_RIGHT       = (0x9e,RESOLUTION_NINTENDO_DS[1])
+POS_BTN_LEFT        = (   2,0)
+POS_BTN_RIGHT       = (0x9e,0)
 
 PATH_BG_TRACE       = "nazo/q%i.bgx"
 PATH_BG_TRACE_ALT   = "nazo/q%i_%i.bgx"
@@ -51,7 +51,7 @@ class HandlerTraceButton(BaseQuestionObject):
         def addIfNotNone(button):
             if button != None:
                 self.__buttons.append(button)
-        
+
         addIfNotNone(getButtonFromPath(laytonState, PATH_ANI_BTN_LEFT, pos=POS_BTN_LEFT, callback=self._callbackOnLeft))
         addIfNotNone(getButtonFromPath(laytonState, PATH_ANI_BTN_RIGHT, pos=POS_BTN_RIGHT, callback=self._callbackOnRight))
 

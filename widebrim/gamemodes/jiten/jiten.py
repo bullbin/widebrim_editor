@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import List, Optional, TYPE_CHECKING
+from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
 from widebrim.madhatter.hat_io.asset_image.image import AnimatedImage
 from widebrim.gamemodes.mystery.const import PATH_ANIM_BUTTON_CANCEL
@@ -8,7 +9,7 @@ from widebrim.engine.anim.image_anim.image import AnimatedImageObject
 from widebrim.engine.state.enum_mode import GAMEMODES
 
 from widebrim.engine.state.layer import ScreenLayerNonBlocking
-from widebrim.engine_ext.utils import getAnimFromPathWithAttributes, getButtonFromPath, getStaticButtonFromAnim, getAnimFromPath
+from widebrim.engine_ext.utils import getAnimFromPathWithAttributes, getButtonFromPath, getPackedString, getStaticButtonFromAnim, getAnimFromPath
 from .const import *
 
 if TYPE_CHECKING:
@@ -18,6 +19,15 @@ if TYPE_CHECKING:
 class JitenPlayer(ScreenLayerNonBlocking):
     def __init__(self, laytonState : Layton2GameState, screenController : ScreenController, callbackOnTerminate : Optional[callable] = None):
         super().__init__()
+
+        self.__inFavouriteMode              : bool  = False
+        self.__lastSelectedFavouriteIndex   : int   = 0
+        self.__lastSelectedNormalIndex      : int   = 0
+        self.__textRendererLocation : StaticTextHelper  = StaticTextHelper(laytonState.font18)
+        self.__textRendererType     : StaticTextHelper  = StaticTextHelper(laytonState.font18)
+        self.__textRendererName     : StaticTextHelper  = StaticTextHelper(laytonState.font18)
+        self.__animPreview          : Optional[AnimatedImageObject] = None # TODO - jiten_q1
+        self.__isInteractive        : bool = False
 
         if laytonState.getGameModeNext() == GAMEMODES.JitenWiFi:
             # TODO - Save game to source slot, display message if save failed
@@ -72,7 +82,7 @@ class JitenPlayer(ScreenLayerNonBlocking):
             self.__screenController.setBgMain(PATH_BG_MAIN_WIFI)
             self.__animCover1 = getAnimFromPathWithAttributes(PATH_ANIM_COVER_WIFI_1, posVariable=ANIM_VAR_POS_TAG_JITEN_GUARD)
             self.__animCover2 = getAnimFromPathWithAttributes(PATH_ANIM_COVER_WIFI_2, posVariable=ANIM_VAR_POS_TAG_JITEN_GUARD)
-            addButtonIfNotNone(getButtonFromPath(laytonState, PATH_ANIM_BUTTON_CANCEL, None))
+            addButtonIfNotNone(getButtonFromPath(laytonState, PATH_ANIM_BUTTON_CANCEL, self.__callbackOnExit))
         else:
             self.__screenController.setBgMain(PATH_BG_MAIN)
             self.__screenController.setBgSub(PATH_BG_SUB % laytonState.language.value)
@@ -81,7 +91,10 @@ class JitenPlayer(ScreenLayerNonBlocking):
             
             # TODO - store in favourite mode in the main object, not save container. Set animation based on state.
             if self.__animModeSelect != None:
-                self.__animModeSelect.setAnimationFromName(NAME_ANIM_JITEN_BTN_TOGGLE_FAV_OFF)
+                if self.__inFavouriteMode:
+                    self.__animModeSelect.setAnimationFromName(NAME_ANIM_TAG_TAB_PICKS)
+                else:
+                    self.__animModeSelect.setAnimationFromName(NAME_ANIM_TAG_TAB_ALL)
             
             # TODO - Unk button 5
             self.__animCover1 = getAnimFromPathWithAttributes(PATH_ANIM_COVER, posVariable=ANIM_VAR_POS_TAG_JITEN_GUARD)
@@ -96,7 +109,7 @@ class JitenPlayer(ScreenLayerNonBlocking):
                 self.__buttonsHitbox.append(getHitbox((x,y), SIZE_HITBOX_FAVOURITE))
                 y += BIAS_HITBOX_SELECT_Y
             
-            addButtonIfNotNone(getButtonFromPath(laytonState, PATH_ANIM_BTN_ALL, None, animOff=NAME_ANIM_JITEN_BTN_ALT_CLOSE_OFF, animOn=NAME_ANIM_JITEN_BTN_ALT_CLOSE_CLICK, customDimensions=DIM_BTN_CLOSE, pos=POS_BTN_CLOSE))
+            addButtonIfNotNone(getButtonFromPath(laytonState, PATH_ANIM_BTN_ALL, self.__callbackOnExit, animOff=NAME_ANIM_JITEN_BTN_ALT_CLOSE_OFF, animOn=NAME_ANIM_JITEN_BTN_ALT_CLOSE_CLICK, customDimensions=DIM_BTN_CLOSE, pos=POS_BTN_CLOSE))
 
             # TODO - Question logo is fetched here and writes some save flags
         
@@ -105,15 +118,69 @@ class JitenPlayer(ScreenLayerNonBlocking):
         
         # TODO - Populate internal structure (names, etc...)
 
-        self.__screenController.fadeIn()
-    
+        self.__screenController.fadeIn(callback=self.__enableInteractivity)
+
+    def __enableInteractivity(self):
+        self.__isInteractive = True
+
+    def __disableInteractivity(self):
+        self.__isInteractive = False
+
+    def __updateSelectedPuzzle(self):
+        if self.__sourceGameMode != GAMEMODES.JitenWiFi:
+            if self.__inFavouriteMode:
+                puzzleId = self.__lastSelectedFavouriteIndex
+            else:
+                puzzleId = self.__lastSelectedNormalIndex
+
+            # TODO - Text renderers and preview will be voided before check, since game does it in awkward way (and can't decide when to use stack)
+
+            if puzzleId != 0:
+                nzLstEntry = self.__laytonState.getNazoListEntryByExternal(puzzleId)
+                if nzLstEntry != None:
+                    nazoData = self.__laytonState.getNazoDataAtId(nzLstEntry.idInternal)
+                    if nazoData != None:
+                        nazoType = nazoData.idHandler
+                        if nazoType == 0x23:
+                            nazoType = 0x16
+                        
+                        textType = getPackedString(PATH_PACK_JITEN.replace("?", self.__laytonState.language.value), PATH_TEXT_NAZO_TYPE % nazoType)
+                        self.__textRendererType.setText(textType[0:min(len(textType), 64)])
+
+                        # TODO - Unk validation check (2_Nazo_ValidateAndGetUnkData)
+                        puzzleData = self.__laytonState.saveSlot.puzzleData.getPuzzleData(puzzleId - 1)
+                        if puzzleData.enableNazoba:
+                            textLocation = getPackedString(PATH_PACK_JITEN.replace("?", self.__laytonState.language.value), PATH_TEXT_JITEN_MISSING)
+                        else:
+                            textLocation = getPackedString(PATH_PACK_JITEN.replace("?", self.__laytonState.language.value), PATH_TEXT_JITEN_PLACE % nazoData.indexPlace)
+
+                        self.__textRendererLocation.setText(textLocation[0:min(len(textLocation), 64)])
+                        self.__textRendererName.setText(nazoData.name[0:min(len(nazoData.name, 64))])
+            
+                    self.__animPreview = getAnimFromPath(PATH_ANIM_PREVIEW % nzLstEntry.idInternal, pos=POS_ANIM_PREVIEW)
+
+    def __callbackOnExit(self):
+        # TODO - Reverse this
+        self.__disableInteractivity()
+        if self.__sourceGameMode == GAMEMODES.JitenBag:
+            self.__laytonState.setGameMode(GAMEMODES.Bag)
+        elif self.__sourceGameMode == GAMEMODES.JitenSecret:
+            self.__laytonState.setGameMode(GAMEMODES.SecretMenu)
+        else:
+            # TODO - Overlay for WiFi is annoying
+            pass
+            #self.__laytonState.setGameMode(GAMEMODES.)
+        self.__screenController.fadeOut(callback=self.doOnKill)
+
     def draw(self, gameDisplay):
         for drawable in self.__buttons:
             drawable.draw(gameDisplay)
+        
         return super().draw(gameDisplay)
     
     def handleTouchEvent(self, event):
-        for interactable in self.__buttons:
-            if interactable.handleTouchEvent(event):
-                return True
+        if self.__isInteractive:
+            for interactable in self.__buttons:
+                if interactable.handleTouchEvent(event):
+                    return True
         return super().handleTouchEvent(event)
