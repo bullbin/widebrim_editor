@@ -2,11 +2,10 @@ from __future__ import annotations
 from math import sqrt
 from random import randint
 from typing import List, Optional, TYPE_CHECKING, Tuple, Union
-from widebrim.madhatter.hat_io.asset_dlz.ev_inf2 import DlzEntryEvInf2
 from widebrim.engine.anim.image_anim.imageAsNumber import StaticImageAsNumericalFont
 from widebrim.engine.anim.button import NullButton
 from pygame.constants import BLEND_RGB_SUB, MOUSEBUTTONDOWN
-from widebrim.madhatter.hat_io.asset_dat.place import PlaceData, Exit
+from widebrim.madhatter.hat_io.asset_dat.place import Exit, PlaceDataNds
 
 from widebrim.engine.const import PATH_PACK_PLACE_NAME, PATH_TEXT_GOAL, PATH_TEXT_PLACE_NAME, RESOLUTION_NINTENDO_DS
 from widebrim.engine.state.enum_mode import GAMEMODES
@@ -91,7 +90,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
         if self.__animTouchIcon != None and self.__animTouchIcon.setAnimationFromIndex(1):
             self.__animTouchIcon.setCurrentAnimationLoopStatus(False)
 
-        self.__placeData : Optional[PlaceData] = None
+        self.__placeData : Optional[PlaceDataNds] = None
 
         self.__inMoveMode : bool = False
         self.__btnMoveMode : Optional[AnimatedButton] = getButtonFromPath(laytonState, PATH_BTN_MOVEMODE, callback=self.__startMoveMode)
@@ -558,7 +557,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
         self.__calculateRoom()
         if (tempPlaceData := getPlaceData()) != None:
-            placeData = PlaceData()
+            placeData = PlaceDataNds()
             placeData.load(tempPlaceData)
             self.__placeData = placeData
 
@@ -620,15 +619,14 @@ class RoomPlayer(ScreenLayerNonBlocking):
                     self.__animEvent.append(eventAsset)
 
                     if (eventInfo := self.laytonState.getEventInfoEntry(objEvent.idEvent)) != None:
-                        eventInfo : DlzEntryEvInf2
                         # TODO - Fix this awful syntax, add convenience functions (similar code used elsewhere)
                         if eventInfo.typeEvent == 1 and self.laytonState.saveSlot.eventViewed.getSlot(eventInfo.indexEventViewedFlag):
                             self.__animEventDraw.append(False)
                         elif eventInfo.typeEvent == 4 and (nzLstEntry := self.laytonState.getNazoListEntry(eventInfo.dataPuzzle)) != None:
-                                if (puzzleData := self.laytonState.saveSlot.puzzleData.getPuzzleData(nzLstEntry.idExternal - 1)) != None and puzzleData.wasSolved:
-                                    self.__animEventDraw.append(False)
-                                else:
-                                    self.__animEventDraw.append(True)
+                            if (puzzleData := self.laytonState.saveSlot.puzzleData.getPuzzleData(nzLstEntry.idExternal - 1)) != None and puzzleData.wasSolved:
+                                self.__animEventDraw.append(False)
+                            else:
+                                self.__animEventDraw.append(True)
                         else:
                             self.__animEventDraw.append(True)
                         

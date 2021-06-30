@@ -2,23 +2,17 @@ from __future__ import annotations
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from widebrim.engine.state.state import Layton2GameState
-    from widebrim.engine_ext.state_game import ScreenController
     from widebrim.madhatter.hat_io.asset_dlz.nz_lst import DlzEntryNzLst
+    from widebrim.madhatter.hat_io.asset_dlz.sm_inf import DlzEntrySubmapInfoNds
+    from widebrim.madhatter.hat_io.asset_dlz.ev_inf2 import DlzEntryEvInf2
 
-from ...madhatter.hat_io.asset_sav import Layton2SaveSlot
-from ...madhatter.hat_io.asset_dlz.ev_inf2 import DlzEntryEvInf2, EventInfoList
-from ...madhatter.hat_io.asset_dlz.sm_inf import DlzEntrySubmapInfo, SubmapInfo
-from ...madhatter.hat_io.asset_placeflag import PlaceFlag
-from ...madhatter.hat_io.asset_storyflag import StoryFlag
-from ...madhatter.hat_io.asset_autoevent import AutoEvent
-from ...madhatter.hat_io.asset_dlz.goal_inf import GoalInfo
-from ...madhatter.hat_io.asset_dlz.nz_lst import NazoList
-from ...madhatter.hat_io.asset_dlz.ht_event import HerbteaEvent
-from ...madhatter.hat_io.asset_dlz.chp_inf import ChapterInfo
-from ...madhatter.hat_io.asset_dlz.tm_def import TimeDefinitionInfo
-from ...madhatter.hat_io.asset import LaytonPack, File
-from ...madhatter.hat_io.asset_dat.nazo import NazoData
+from widebrim.madhatter.hat_io.asset_sav import Layton2SaveSlot
+from widebrim.madhatter.hat_io.asset_dlz import EventInfoList, SubmapInfoNds, GoalInfo, NazoListNds, HerbteaEvent, ChapterInfo, TimeDefinitionInfo
+from widebrim.madhatter.hat_io.asset_dat import NazoDataNds
+from widebrim.madhatter.hat_io.asset_placeflag import PlaceFlag
+from widebrim.madhatter.hat_io.asset_storyflag import StoryFlag
+from widebrim.madhatter.hat_io.asset_autoevent import AutoEvent
+from widebrim.madhatter.hat_io.asset import LaytonPack, File
 
 from ..const import LANGUAGES, EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_EV_INF2, PATH_DB_SM_INF, PATH_PROGRESSION_DB, PATH_DB_RC_ROOT, PATH_DB_GOAL_INF, PATH_DB_NZ_LST, PATH_DB_TM_DEF, PATH_DB_RC_ROOT_LANG, PATH_DB_CHP_INF, PATH_PUZZLE_SCRIPT
 from ..const import PATH_NAZO_A, PATH_NAZO_B, PATH_NAZO_C, PATH_PACK_NAZO
@@ -102,7 +96,7 @@ class Layton2GameState():
             self.font18             = NftrTiles(FileInterface.getData("/data_lt2/font/font18.NFTR"))
             self.fontEvent          = NftrTiles(FileInterface.getData("/data_lt2/font/fontevent.NFTR"))
             self.fontQ              = NftrTiles(FileInterface.getData("/data_lt2/font/fontq.NFTR"))
-            self._dbNazoList        = NazoList()
+            self._dbNazoList        = NazoListNds()
             self._dbNazoList.load(FileInterface.getData(PATH_DB_RC_ROOT_LANG % (self.language.value, PATH_DB_NZ_LST)))
             self._dbTimeDef         = TimeDefinitionInfo()
             self._dbTimeDef.load(FileInterface.getData(PATH_DB_RC_ROOT % (PATH_DB_TM_DEF)))
@@ -281,7 +275,7 @@ class Layton2GameState():
                 return entry
         return None
 
-    def getNazoDataAtId(self, idInternal) -> Optional[NazoData]:
+    def getNazoDataAtId(self, idInternal) -> Optional[NazoDataNds]:
         # TODO - Store this max somewhere, it's already a save field
         if type(idInternal) == int and 0 <= idInternal < 216:
             if idInternal < 60:
@@ -298,7 +292,7 @@ class Layton2GameState():
                 tempPackPuzzle.load(packPuzzleData)
                 packPuzzleData = tempPackPuzzle.getFile(PATH_PACK_NAZO % idInternal)
                 if packPuzzleData != None:
-                    output = NazoData()
+                    output = NazoDataNds()
                     if output.load(packPuzzleData):
                         return output
         return None
@@ -310,7 +304,7 @@ class Layton2GameState():
         self._entryNzData = None
         return False
     
-    def getNazoData(self) -> Optional[DlzEntryNzLst]:
+    def getNazoData(self) -> Optional[NazoDataNds]:
         return self._entryNzData
 
     def unloadCurrentNazoData(self):
@@ -360,7 +354,7 @@ class Layton2GameState():
     def loadSubmapInfo(self):
         if self._dbSubmapInfo == None:
             if (submapData := FileInterface.getData(PATH_DB_RC_ROOT % PATH_DB_SM_INF)) != None:
-                self._dbSubmapInfo = SubmapInfo()
+                self._dbSubmapInfo = SubmapInfoNds()
                 self._dbSubmapInfo.load(submapData)
                 return True
         return False
@@ -369,7 +363,7 @@ class Layton2GameState():
         del self._dbSubmapInfo
         self._dbSubmapInfo = None
 
-    def getSubmapInfoEntry(self, indexEventViewed) -> Optional[DlzEntrySubmapInfo]:
+    def getSubmapInfoEntry(self, indexEventViewed) -> Optional[DlzEntrySubmapInfoNds]:
         if indexEventViewed == 0 or self.saveSlot.eventViewed.getSlot(indexEventViewed):
             if self._dbSubmapInfo == None:
                 self.loadSubmapInfo()
