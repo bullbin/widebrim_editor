@@ -412,6 +412,7 @@ class EventPlayer(ScriptPlayer):
                 # 3, 0 - Fade in both screens and modify main palette
                 # else - Fade in both screens
                 # There is another check for customSoundSet != 2 and behaviour != 3 but this is sound-related
+                # customSoundSet != 1 means fade out on exit...
 
                 introBehaviour = eventData.readUInt(1)
                 if introBehaviour == 0 or introBehaviour == 3:

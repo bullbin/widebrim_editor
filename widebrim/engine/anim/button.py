@@ -2,12 +2,12 @@ from pygame import MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION
 
 class TargettedButton():
     def __init__(self, callbackOnPressed, callbackOnTargetted, callbackOnUntargetted):
-        self._isTargetted = False
+        self._isTargetted  : bool = False
         self.callbackOnPressed = callbackOnPressed
         self.callbackOnTargetted = callbackOnTargetted
         self.callbackOnUntargetted = callbackOnUntargetted
     
-    def setTargettedState(self, newState):
+    def setTargettedState(self, newState : bool):
         if self._isTargetted != newState:
             if newState:
                 if callable(self.callbackOnTargetted):
