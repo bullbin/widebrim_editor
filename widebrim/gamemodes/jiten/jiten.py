@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import List, Optional, TYPE_CHECKING
 from widebrim.engine.anim.image_anim.imageAsNumber import StaticImageAsNumericalFont
-from widebrim.madhatter.hat_io.asset_image.image import AnimatedImage
 from widebrim.gamemodes.jiten.hitbox import JitenHitbox
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
@@ -15,15 +14,19 @@ from widebrim.engine.state.layer import ScreenLayerNonBlocking
 from widebrim.engine_ext.utils import getAnimFromPathWithAttributes, getButtonFromPath, getPackedString, getAnimFromPath
 from .const import *
 
-# TODO - Migrate jiten list stuff in list object elsewhere
+from pygame import Surface
 
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
+    from widebrim.madhatter.hat_io.asset_sav import PuzzleData
+    from widebrim.madhatter.hat_io.asset_dlz.nz_lst import DlzEntryNzLst
 
 def lerp(valSource, valDest, strength : float) -> float:
     diff = valDest - valSource
     return valSource + (diff * strength)
+
+# TODO - WiFi date, callback and scrollbar
 
 class JitenPlayer(ScreenLayerNonBlocking):
     def __init__(self, laytonState : Layton2GameState, screenController : ScreenController, callbackOnTerminate : Optional[callable] = None):
@@ -38,18 +41,18 @@ class JitenPlayer(ScreenLayerNonBlocking):
             posEnd = (pos[0] + dimensions[0], pos[1] + dimensions[1])
             return NullButton(pos, posEnd, callback=callback)
 
-        self.__laytonState = laytonState
+        self.__laytonState      = laytonState
         self.__screenController = screenController
-        self.__sourceGameMode = self.__laytonState.getGameMode()
+        self.__sourceGameMode   = self.__laytonState.getGameMode()
 
         self.__inFavouriteMode              : bool  = False
         self.__lastSelectedFavouriteIndex   : int   = 0
         self.__lastSelectedNormalIndex      : int   = 0
-        self.__textRendererLocation : StaticTextHelper  = StaticTextHelper(laytonState.fontEvent)
-        self.__textRendererType     : StaticTextHelper  = StaticTextHelper(laytonState.fontEvent)
-        self.__textRendererName     : StaticTextHelper  = StaticTextHelper(laytonState.fontQ)
-        self.__animPreview          : Optional[AnimatedImageObject] = None # TODO - jiten_q1
-        self.__isInteractive        : bool = False
+        self.__textRendererLocation     : StaticTextHelper              = StaticTextHelper(laytonState.fontEvent)
+        self.__textRendererType         : StaticTextHelper              = StaticTextHelper(laytonState.fontEvent)
+        self.__textRendererName         : StaticTextHelper              = StaticTextHelper(laytonState.fontQ)
+        self.__animPreview              : Optional[AnimatedImageObject] = None
+        self.__isInteractive            : bool = False
 
         self.__drawables                : List[AnimatedImageObject]     = []
         self.__buttons                  : List[AnimatedButton]          = []
@@ -58,21 +61,25 @@ class JitenPlayer(ScreenLayerNonBlocking):
         self.__buttonsTab               : List[NullButton]              = []
         self.__ids                      : List[int]                     = []
 
-        self.__animModeSelect : Optional[AnimatedImageObject] = None
-        self.__animPrize : Optional[AnimatedImageObject] = getAnimFromPath(PATH_ANIM_PRIZE, pos=POS_ANIM_PRIZE)    # TODO - Spawn anim index
-        self.__animUpperNum : Optional[AnimatedImageObject] = None
-        self.__animHintbox : Optional[AnimatedImageObject] = None
-        self.__animShared : Optional[AnimatedImageObject] = getAnimFromPath(PATH_ANIM_BTN_ALL % laytonState.language.value)
+        self.__animModeSelect : Optional[AnimatedImageObject]   = None
+        self.__animPrize : Optional[AnimatedImageObject]        = None
+        self.__animHintbox : Optional[AnimatedImageObject]      = None
+        self.__animShared : Optional[AnimatedImageObject]       = getAnimFromPath(PATH_ANIM_BTN_ALL % laytonState.language.value)
 
         self.__btnUpSlow    : Optional[AnimatedButton] = getButtonFromPath(laytonState, PATH_ANIM_BTN_ALL, self.__callbackOnScrollButtonFinish, NAME_ANIM_JITEN_BTN_UP_OFF, NAME_ANIM_JITEN_BTN_UP_ON, pos=POS_BTN_UP, customDimensions=DIM_BTN_MOVE)
         self.__btnUpFast    : Optional[AnimatedButton] = getButtonFromPath(laytonState, PATH_ANIM_BTN_ALL, self.__callbackOnScrollButtonFinish, NAME_ANIM_JITEN_BTN_UP_MANY_OFF, NAME_ANIM_JITEN_BTN_UP_MANY_ON, pos=POS_BTN_UP_MANY, customDimensions=DIM_BTN_MOVE)
         self.__btnDownSlow  : Optional[AnimatedButton] = getButtonFromPath(laytonState, PATH_ANIM_BTN_ALL, self.__callbackOnScrollButtonFinish, NAME_ANIM_JITEN_BTN_DOWN_OFF, NAME_ANIM_JITEN_BTN_DOWN_ON, pos=POS_BTN_DOWN, customDimensions=DIM_BTN_MOVE)
         self.__btnDownFast  : Optional[AnimatedButton] = getButtonFromPath(laytonState, PATH_ANIM_BTN_ALL, self.__callbackOnScrollButtonFinish, NAME_ANIM_JITEN_BTN_DOWN_MANY_OFF, NAME_ANIM_JITEN_BTN_DOWN_MANY_ON, pos=POS_BTN_DOWN_MANY, customDimensions=DIM_BTN_MOVE)
+        self.__btnSolve     : Optional[AnimatedButton] = None
 
-        self.__animJitenNum : Optional[AnimatedImageObject] = getAnimFromPath(PATH_ANIM_NUM % laytonState.language.value)
-        self.__textJitenNum : Optional[StaticImageAsNumericalFont] = None
+        self.__animUpperNum : Optional[AnimatedImageObject]         = getAnimFromPath(PATH_ANIM_NUM % laytonState.language.value)
+        self.__animJitenNum : Optional[AnimatedImageObject]         = getAnimFromPath(PATH_ANIM_NUM_ARC.replace("?", laytonState.language.value))
+        self.__textJitenNum : Optional[StaticImageAsNumericalFont]  = None
+        self.__textUpperNum : Optional[StaticImageAsNumericalFont]  = None
         if self.__animJitenNum != None:
             self.__textJitenNum = StaticImageAsNumericalFont(self.__animJitenNum)
+        if self.__animUpperNum != None:
+            self.__textUpperNum = StaticImageAsNumericalFont(self.__animUpperNum, stride=6, usePadding=True)
 
         if laytonState.getGameModeNext() == GAMEMODES.JitenWiFi:
             # TODO - Save game to source slot, display message if save failed
@@ -84,10 +91,10 @@ class JitenPlayer(ScreenLayerNonBlocking):
         addIfNotNone(self.__buttons, self.__btnDownSlow)
         addIfNotNone(self.__buttons, self.__btnDownFast)
         if self.__sourceGameMode == GAMEMODES.JitenWiFi:
-            addIfNotNone(self.__buttons, getButtonFromPath(laytonState, PATH_ANIM_BTN_ALL, self.__callbackOnSolvePressed, NAME_ANIM_JITEN_BTN_SOLVE_OFF_WIFI, NAME_ANIM_JITEN_BTN_SOLVE_ON_WIFI, pos=POS_BTN_SOLVE, customDimensions=DIM_BTN_SOLVE))
+            self.__btnSolve = getButtonFromPath(laytonState, PATH_ANIM_BTN_ALL, self.__callbackOnSolvePressed, NAME_ANIM_JITEN_BTN_SOLVE_OFF_WIFI, NAME_ANIM_JITEN_BTN_SOLVE_ON_WIFI, pos=POS_BTN_SOLVE, customDimensions=DIM_BTN_SOLVE)
             addIfNotNone(self.__buttons, getButtonFromPath(laytonState, PATH_ANIM_BUTTON_CANCEL, self.__callbackOnExit))
         else:
-            addIfNotNone(self.__buttons, getButtonFromPath(laytonState, PATH_ANIM_BTN_ALL, self.__callbackOnSolvePressed, NAME_ANIM_JITEN_BTN_SOLVE_OFF, NAME_ANIM_JITEN_BTN_SOLVE_ON, pos=POS_BTN_SOLVE, customDimensions=DIM_BTN_SOLVE))
+            self.__btnSolve = getButtonFromPath(laytonState, PATH_ANIM_BTN_ALL, self.__callbackOnSolvePressed, NAME_ANIM_JITEN_BTN_SOLVE_OFF, NAME_ANIM_JITEN_BTN_SOLVE_ON, pos=POS_BTN_SOLVE, customDimensions=DIM_BTN_SOLVE)
             addIfNotNone(self.__buttons, getButtonFromPath(laytonState, PATH_ANIM_BTN_ALL, self.__callbackOnExit, animOff=NAME_ANIM_JITEN_BTN_ALT_CLOSE_OFF, animOn=NAME_ANIM_JITEN_BTN_ALT_CLOSE_CLICK, customDimensions=DIM_BTN_CLOSE, pos=POS_BTN_CLOSE))
 
         # TODO - Weird positioning (HACK)
@@ -106,19 +113,23 @@ class JitenPlayer(ScreenLayerNonBlocking):
         if self.__sourceGameMode == GAMEMODES.JitenWiFi:
             # Setup BG and covers for WiFi mode
             self.__screenController.setBgMain(PATH_BG_MAIN_WIFI)
+            self.__screenController.setBgSub(PATH_BG_SUB_WIFI.replace("?", laytonState.language.value))
             addIfNotNone(self.__drawables, getAnimFromPathWithAttributes(PATH_ANIM_COVER_WIFI_1, posVariable=ANIM_VAR_POS_TAG_JITEN_GUARD))
             addIfNotNone(self.__drawables, getAnimFromPathWithAttributes(PATH_ANIM_COVER_WIFI_2, posVariable=ANIM_VAR_POS_TAG_JITEN_GUARD))
         else:
             # Setup BG and covers for normal mode
             self.__screenController.setBgMain(PATH_BG_MAIN)
             self.__screenController.setBgSub(PATH_BG_SUB % laytonState.language.value)
-            addIfNotNone(self.__drawables, getAnimFromPath(PATH_ANIM_INTRO_TEXT % laytonState.language.value))
-            addIfNotNone(self.__drawables, getAnimFromPathWithAttributes(PATH_ANIM_COVER, posVariable=ANIM_VAR_POS_TAG_JITEN_GUARD))
             
             self.__buttonsTab.append(getHitbox(POS_BTN_TO_FAV, DIM_BTN_TO_FAVOURITES, callback=self.__switchToFavourites))
             self.__buttonsTab.append(getHitbox(POS_BTN_FROM_FAV, DIM_BTN_FROM_FAVOURITES, callback=self.__switchToAll))
             self.__animModeSelect = getAnimFromPathWithAttributes(PATH_ANIM_TABS % laytonState.language.value, posVariable=ANIM_VAR_POS_TAG_JITEN_GUARD)
+            self.__animPrize = getAnimFromPath(PATH_ANIM_PRIZE, pos=POS_ANIM_PRIZE)    # TODO - Spawn anim index
             
+            addIfNotNone(self.__drawables, getAnimFromPathWithAttributes(PATH_ANIM_COVER, posVariable=ANIM_VAR_POS_TAG_JITEN_GUARD))
+            addIfNotNone(self.__drawables, self.__animModeSelect)
+            addIfNotNone(self.__drawables, getAnimFromPath(PATH_ANIM_INTRO_TEXT % laytonState.language.value, spawnAnimName="gfx", pos=(POS_ANIM_TITLE[0], POS_ANIM_TITLE[1] + RESOLUTION_NINTENDO_DS[1])))
+
             # TODO - Unk button 5
             self.__animHintbox = getAnimFromPath(PATH_ANIM_HINT)
 
@@ -131,29 +142,27 @@ class JitenPlayer(ScreenLayerNonBlocking):
             # TODO - Question logo is fetched here and writes some save flags
 
         # TODO - Not accurate. More scalable approach would be to store closest index and percent to next
-        self.__scrollY = 0
-        self.__prevScrollY = 0
-        self.__indexScrollTop = 0
-        self.__isScrolling = False
-        self.__lastScrollSpeed : int = 0
+        self.__scrollY                      = 0
+        self.__indexOverlay : Optional[int] = None
+        self.__prevScrollY                  = 0
+        self.__indexScrollTop               = 0
+        self.__lastScrollSpeed : int        = 0
         self.__hitboxes : List[JitenHitbox] = []
-        self.__animTimer = Fader(0, initialActiveState=False)
-        self.__indexButtonHit = 0
+        self.__animTimer                    = Fader(0, initialActiveState=False)
+        self.__indexButtonHit               = 0
+        self.__loadedExternalPuzzleId       = 0
+        self.__surfaceJitenSelectOverlay    = Surface((SIZE_BOX_SELECT_OVERLAY[0], BOUNDS_Y_SELECT_BOX_MAX - BOUNDS_Y_SELECT_BOX_MIN)).convert_alpha()
+        self.__surfaceSelectBox             = Surface(SIZE_BOX_SELECT_OVERLAY).convert_alpha()
+        self.__surfaceSelectBox.fill((COLOR_BOX_SELECT_OVERLAY[0], COLOR_BOX_SELECT_OVERLAY[1], COLOR_BOX_SELECT_OVERLAY[2], ALPHA_SELECT_OVERLAY))
 
-        # TODO - Populate internal structure (names, etc...)
+        self.__canBeSolved : bool           = False
 
+        self.__getSavedTabLocation()
         self.__loadTab()
         self.__screenController.fadeIn(callback=self.__enableInteractivity)
 
     def __loadTab(self):
         # accuracy in shambles
-        # TODO - When switching, theres some rules
-        # If nothing is available on the next tab, keep current item selected
-        # If the item selected was deleted, select the next item
-        # With the last item selected, attempt to bring it to the top
-        # If that is not possible, just get it in view
-        # Favourites and all last picked is saved during runtime
-        # Only last picked is committed to the save though
 
         self.__indexScrollTop = 0
         if self.__sourceGameMode == GAMEMODES.JitenWiFi:
@@ -168,12 +177,58 @@ class JitenPlayer(ScreenLayerNonBlocking):
                 if self.__animModeSelect != None:
                     self.__animModeSelect.setAnimationFromName(NAME_ANIM_TAG_TAB_ALL)
 
+    def __getSavedTabLocation(self):
+        if self.__sourceGameMode == GAMEMODES.JitenWiFi:
+            self.__lastSelectedNormalIndex = self.__laytonState.getLastJitenWiFiExternal()
+        else:
+            self.__lastSelectedNormalIndex = self.__laytonState.getLastJitenNazoExternal()
+            self.__lastSelectedFavouriteIndex = self.__laytonState.getLastJitenFavouriteExternal()
+
+    def __commitTabLocation(self):
+        if self.__sourceGameMode == GAMEMODES.JitenWiFi:
+            self.__laytonState.setLastJitenWiFiExternal(self.__lastSelectedNormalIndex)
+        else:
+            self.__laytonState.setLastJitenNazoExternal(self.__lastSelectedNormalIndex)
+            self.__laytonState.setLastJitenFavouriteExternal(self.__lastSelectedFavouriteIndex)
+
     def __getIds(self):
         if self.__sourceGameMode == GAMEMODES.JitenWiFi:
             self.__getWifiIds()
         else:
             self.__getNormalIds()
-        self.__updateSelectedPuzzle()
+
+    def __selectAndCalculateScrollY(self):
+        targetIdExternal = 0
+        targetIndex = 0
+
+        if self.__inFavouriteMode:
+            targetIdExternal = self.__lastSelectedFavouriteIndex
+        else:
+            targetIdExternal = self.__lastSelectedNormalIndex
+
+        if targetIdExternal in self.__ids:
+            targetIndex = self.__ids.index(targetIdExternal)
+        else:
+            for indexId, id in enumerate(self.__ids):
+                targetIndex = indexId
+                if id > targetIdExternal:
+                    break
+
+            if len(self.__ids) > 0:
+                targetIdExternal = self.__ids[targetIndex]
+        
+        if self.__inFavouriteMode:
+            self.__lastSelectedFavouriteIndex = targetIdExternal
+        else:
+            self.__lastSelectedNormalIndex = targetIdExternal
+
+        if targetIndex >= len(self.__ids):
+            # If this tab is empty, reset scrollY and don't select anything (leave past selection)
+            self.__applyScrollOffset(0)
+        else:
+            # Else, select the puzzle from this tab and keep going
+            self.__applyScrollOffset(targetIndex * BIAS_HITBOX_SELECT_Y)
+            self.__updateSelectedPuzzle()
 
     def __getFavouriteIds(self):
         self.__ids = []
@@ -183,12 +238,9 @@ class JitenPlayer(ScreenLayerNonBlocking):
             puzzleData =  self.__laytonState.saveSlot.puzzleData.getPuzzleData(indexExternal - 1)
             if puzzleData != None and (puzzleData.wasEncountered or puzzleData.wasSolved) and puzzleData.wasPicked:
                 self.__ids.append(indexExternal)
-                self.__hitboxes.append(JitenHitbox(self.__laytonState, indexExternal, indexHitbox, self.__animShared, self.__animJitenNum, self.__textJitenNum, self.__sourceGameMode))
+                self.__hitboxes.append(JitenHitbox(self.__laytonState, indexExternal, indexHitbox, self.__animShared, self.__animJitenNum, self.__textJitenNum, self.__sourceGameMode, self.__surfaceJitenSelectOverlay))
                 indexHitbox += 1
-        
-        if self.__lastSelectedFavouriteIndex == 0 and len(self.__ids) > 0:
-            self.__lastSelectedFavouriteIndex = self.__ids[0]
-        # TODO - set scrollY
+        self.__selectAndCalculateScrollY()
 
     def __getNormalIds(self):
         # TODO - Add engine module for addressing puzzle data, it's all over the place
@@ -200,15 +252,23 @@ class JitenPlayer(ScreenLayerNonBlocking):
             puzzleData =  self.__laytonState.saveSlot.puzzleData.getPuzzleData(indexExternal - 1)
             if puzzleData != None and puzzleData.wasEncountered or puzzleData.wasSolved:
                 self.__ids.append(indexExternal)
-                self.__hitboxes.append(JitenHitbox(self.__laytonState, indexExternal, indexHitbox, self.__animShared, self.__animJitenNum, self.__textJitenNum, self.__sourceGameMode))
+                self.__hitboxes.append(JitenHitbox(self.__laytonState, indexExternal, indexHitbox, self.__animShared, self.__animJitenNum, self.__textJitenNum, self.__sourceGameMode, self.__surfaceJitenSelectOverlay))
                 indexHitbox += 1
-        
-        # TODO - Page constants that decide which puzzle to start display from... (HACK)
-        if self.__lastSelectedNormalIndex == 0 and len(self.__ids) > 0:
-            self.__lastSelectedNormalIndex = self.__ids[0]
+        self.__selectAndCalculateScrollY()
 
     def __getWifiIds(self):
-        pass
+        # NOTE - WiFi mode, like the binary, switches to INTERNAL IDs. Don't get this mixed up (devs make life hard)
+        self.__ids = []
+        self.__hitboxes = []
+        indexHitbox = 0
+        for indexWiFiPuzzle in range(self.__laytonState.wiFiData.getCountEntries()):
+            entry = self.__laytonState.wiFiData.getEntry(indexWiFiPuzzle)
+            # Game doesn't do these checks but we might as well
+            if entry.idInternal != 0 and self.__laytonState.getNazoListEntry(entry.idInternal) != None:
+                self.__ids.append(entry.idInternal)
+                self.__hitboxes.append(JitenHitbox(self.__laytonState, entry.idInternal, indexHitbox, self.__animShared, self.__animJitenNum, self.__textJitenNum, self.__sourceGameMode, self.__surfaceJitenSelectOverlay))
+                indexHitbox += 1
+        self.__selectAndCalculateScrollY()
 
     def __enableInteractivity(self):
         self.__isInteractive = True
@@ -234,53 +294,67 @@ class JitenPlayer(ScreenLayerNonBlocking):
                 puzzleId = self.__lastSelectedNormalIndex
 
             # TODO - Text renderers and preview will be voided before check, since game does it in awkward way (and can't decide when to use stack)
-
             if puzzleId != 0:
-                nzLstEntry = self.__laytonState.getNazoListEntryByExternal(puzzleId)
-                puzzleData = self.__laytonState.saveSlot.puzzleData.getPuzzleData(puzzleId - 1)
+                if puzzleId != self.__loadedExternalPuzzleId:
+                    self.__loadedExternalPuzzleId = puzzleId
+                    nzLstEntry = self.__laytonState.getNazoListEntryByExternal(puzzleId)
+                    puzzleData = self.__laytonState.saveSlot.puzzleData.getPuzzleData(puzzleId - 1)
 
-                if nzLstEntry != None:
-                    self.__laytonState.setPuzzleId(nzLstEntry.idInternal)
-                    if self.__laytonState.loadCurrentNazoData():
-                        nazoData = self.__laytonState.getNazoData()
-                        nazoType = nazoData.idHandler
-                        if nazoType == 0x23:
-                            nazoType = 0x16
-                        
-                        textType = getPackedString(PATH_PACK_JITEN.replace("?", self.__laytonState.language.value), PATH_TEXT_NAZO_TYPE % nazoType)
-                        self.__textRendererType.setText(textType[0:min(len(textType), 64)])
+                    self.__canBeSolved = puzzleData.wasSolved
 
-                        # TODO - Unk validation check (2_Nazo_ValidateAndGetUnkData)
-                        
-                        if puzzleData.enableNazoba:
-                            textLocation = getPackedString(PATH_PACK_JITEN.replace("?", self.__laytonState.language.value), PATH_TEXT_JITEN_MISSING)
+                    if nzLstEntry != None:
+                        self.__indexOverlay = self.__ids.index(puzzleId)
+
+                        self.__laytonState.setPuzzleId(nzLstEntry.idInternal)
+                        if self.__laytonState.loadCurrentNazoData():
+                            nazoData = self.__laytonState.getNazoData()
+                            nazoType = nazoData.idHandler
+                            if nazoType == 0x23:
+                                nazoType = 0x16
+                            
+                            textType = getPackedString(PATH_PACK_JITEN.replace("?", self.__laytonState.language.value), PATH_TEXT_NAZO_TYPE % nazoType)
+                            self.__textRendererType.setText(textType[0:min(len(textType), 64)])
+
+                            # TODO - Unk validation check (2_Nazo_ValidateAndGetUnkData)
+                            
+                            if puzzleData.enableNazoba:
+                                textLocation = getPackedString(PATH_PACK_JITEN.replace("?", self.__laytonState.language.value), PATH_TEXT_JITEN_MISSING)
+                            else:
+                                textLocation = getPackedString(PATH_PACK_JITEN.replace("?", self.__laytonState.language.value), PATH_TEXT_JITEN_PLACE % nazoData.indexPlace)
+
+                            # TODO - madhatter needs nazoData variable scope changes
+                            self.__textRendererLocation.setText(textLocation[0:min(len(textLocation), 64)])
+                            self.__textRendererName.setText(nazoData.getTextName()[0:min(len(nazoData.getTextName()), 64)])
+                
+                        # TODO - pretty sure gfx is automatic
+                        self.__animPreview = getAnimFromPath(PATH_ANIM_PREVIEW % nzLstEntry.idInternal, pos=POS_ANIM_PREVIEW)
+                        if self.__animPreview != None:
+                            self.__animPreview.setAnimationFromIndex(1)
+
+                    if self.__animPrize != None:
+                        # TODO - Check if wifi puzzle
+                        if not(puzzleData.wasSolved):
+                            self.__animPrize.setAnimationFromIndex(4)
+                        elif puzzleData.levelDecay == 2:
+                            self.__animPrize.setAnimationFromIndex(3)
+                        elif puzzleData.levelDecay == 1:
+                            self.__animPrize.setAnimationFromIndex(2)
                         else:
-                            textLocation = getPackedString(PATH_PACK_JITEN.replace("?", self.__laytonState.language.value), PATH_TEXT_JITEN_PLACE % nazoData.indexPlace)
+                            self.__animPrize.setAnimationFromIndex(1)
+            else:
+                self.__indexOverlay = None
 
-                        # TODO - madhatter needs nazoData variable scope changes
-                        self.__textRendererLocation.setText(textLocation[0:min(len(textLocation), 64)])
-                        self.__textRendererName.setText(nazoData.getTextName()[0:min(len(nazoData.getTextName()), 64)])
-            
-                    # TODO - pretty sure gfx is automatic
-                    self.__animPreview = getAnimFromPath(PATH_ANIM_PREVIEW % nzLstEntry.idInternal, pos=POS_ANIM_PREVIEW)
-                    if self.__animPreview != None:
-                        self.__animPreview.setAnimationFromIndex(1)
-
-                if self.__animPrize != None:
-                    # TODO - Check if wifi puzzle
-                    if not(puzzleData.wasSolved):
-                        self.__animPrize.setAnimationFromIndex(4)
-                    elif puzzleData.levelDecay == 2:
-                        self.__animPrize.setAnimationFromIndex(3)
-                    elif puzzleData.levelDecay == 1:
-                        self.__animPrize.setAnimationFromIndex(2)
-                    else:
-                        self.__animPrize.setAnimationFromIndex(1)
+        else:
+            # Already validated (HACK)
+            if self.__lastSelectedNormalIndex != 0 and self.__lastSelectedNormalIndex != self.__loadedExternalPuzzleId:
+                self.__loadedExternalPuzzleId = self.__lastSelectedNormalIndex
+                self.__laytonState.setPuzzleId(self.__lastSelectedNormalIndex)
+                self.__canBeSolved = True
+                self.__indexOverlay = self.__ids.index(self.__lastSelectedNormalIndex)
 
     def __callbackOnSolvePressed(self):
         self.__disableInteractivity()
-        print("Ready to solve!")
-        # TODO - Not ready yet!!!
+        self.__commitTabLocation()
         self.__laytonState.setGameModeNext(self.__sourceGameMode)
         self.__laytonState.setGameMode(GAMEMODES.Puzzle)
         self.__screenController.fadeOut(callback=self.doOnKill)
@@ -288,14 +362,13 @@ class JitenPlayer(ScreenLayerNonBlocking):
     def __callbackOnExit(self):
         # TODO - Reverse this
         self.__disableInteractivity()
+        self.__commitTabLocation()
         if self.__sourceGameMode == GAMEMODES.JitenBag:
             self.__laytonState.setGameMode(GAMEMODES.Bag)
         elif self.__sourceGameMode == GAMEMODES.JitenSecret:
             self.__laytonState.setGameMode(GAMEMODES.SecretMenu)
         else:
-            # TODO - Overlay for WiFi is annoying
-            pass
-            #self.__laytonState.setGameMode(GAMEMODES.)
+            self.__laytonState.setGameMode(GAMEMODES.WifiSecretMenu)
         self.__screenController.fadeOut(callback=self.doOnKill)
 
     def __callbackOnFavouritePress(self):
@@ -306,21 +379,15 @@ class JitenPlayer(ScreenLayerNonBlocking):
 
     def __callbackOnHitboxPress(self):
         if len(self.__ids) > self.__indexButtonHit + self.__indexScrollTop:
-            # TODO - Switching tabs causes this to break, since last index is not consistent
             if self.__inFavouriteMode:
-                wasDifferent = (self.__lastSelectedFavouriteIndex != self.__ids[self.__indexScrollTop + self.__indexButtonHit])
                 self.__lastSelectedFavouriteIndex = self.__ids[self.__indexScrollTop + self.__indexButtonHit]
             else:
-                wasDifferent = (self.__lastSelectedNormalIndex != self.__ids[self.__indexScrollTop + self.__indexButtonHit])
                 self.__lastSelectedNormalIndex = self.__ids[self.__indexScrollTop + self.__indexButtonHit]
             
-            if wasDifferent:
-                self.__updateSelectedPuzzle()
+            self.__updateSelectedPuzzle()
 
     def __callbackOnScrollButtonFinish(self):
         # TODO - Allow drifting while transition is happening
-        self.__isScrolling = False
-
         closestY = round(self.__scrollY / BIAS_HITBOX_SELECT_Y) * BIAS_HITBOX_SELECT_Y
         timeForY = (abs(closestY - self.__scrollY) / self.__lastScrollSpeed)
 
@@ -329,22 +396,87 @@ class JitenPlayer(ScreenLayerNonBlocking):
         self.__animTimer.setCallback(self.__callbackUnlockScrolling)
         self.__disableInteractivity()
     
-    def __callbackUnlockScrolling(self):
-        self.__scrollY = round(self.__scrollY / BIAS_HITBOX_SELECT_Y) * BIAS_HITBOX_SELECT_Y
+    def __applyScrollOffset(self, value):
+        vMax = BIAS_HITBOX_SELECT_Y * (len(self.__ids) - COUNT_DISPLAY)
+        self.__scrollY = max(min(value, vMax), 0)
         self.__indexScrollTop = self.__scrollY // BIAS_HITBOX_SELECT_Y
         for hitbox in self.__hitboxes:
             hitbox.applyOffset(self.__scrollY)
+
+    def __callbackUnlockScrolling(self):
+        # TODO - Stop doing box code
+        self.__applyScrollOffset(round(self.__scrollY / BIAS_HITBOX_SELECT_Y) * BIAS_HITBOX_SELECT_Y)
         self.__enableInteractivity()
-
+    
     def __addScrollOffset(self, speed, value):
-        self.__isScrolling = True
         self.__lastScrollSpeed = speed
-        vMax = BIAS_HITBOX_SELECT_Y * (len(self.__ids) - COUNT_DISPLAY)
+        self.__applyScrollOffset(self.__scrollY + value)
 
-        self.__scrollY = max(min(self.__scrollY + value, vMax), 0)
+    def __drawTopScreenNumber(self, nzLstEntry : DlzEntryNzLst, puzzleData : PuzzleData, gameDisplay):
+        
+        def getMax(countDigit : int):
+            return max(0, (10 ** countDigit) - 1)
+        
+        if self.__textUpperNum != None:
+            if self.__laytonState.getNazoData() == None:
+                self.__laytonState.loadCurrentNazoData()
+            
+            if self.__laytonState.getNazoData() != None:
+                self.__textUpperNum.setMaxNum(getMax(COUNT_DIGIT_PICARAT))
+                self.__textUpperNum.setPos(POS_TEXT_PICARAT_FULL)
+                self.__textUpperNum.setText(self.__laytonState.getNazoData().getPicaratStage(0))
+                self.__textUpperNum.drawBiased(gameDisplay)
+                self.__textUpperNum.setPos(POS_TEXT_PICARAT_DECAY)
+                self.__textUpperNum.setText(self.__laytonState.getNazoData().getPicaratStage(puzzleData.levelDecay))
+                self.__textUpperNum.drawBiased(gameDisplay)
 
-        for hitbox in self.__hitboxes:
-            hitbox.applyOffset(self.__scrollY)
+            self.__textUpperNum.setMaxNum(getMax(COUNT_DIGIT_NUMBER))
+            self.__textUpperNum.setPos(POS_TEXT_PUZZLE_NUMBER)
+            self.__textUpperNum.setText(nzLstEntry.idExternal)
+            self.__textUpperNum.drawBiased(gameDisplay)
+
+    def __drawTopScreen(self, gameDisplay):
+        # TODO - Draw order and top screen for WiFi
+        if self.__animPreview != None:
+            self.__animPreview.draw(gameDisplay)
+        if self.__animPrize != None:
+            self.__animPrize.draw(gameDisplay)
+        
+        self.__textRendererType.drawXYCenterPoint(gameDisplay)
+        self.__textRendererName.drawXCentered(gameDisplay)
+        self.__textRendererLocation.drawXYCenterPoint(gameDisplay)
+
+        if self.__loadedExternalPuzzleId != 0:
+            nzLstEntry = self.__laytonState.getCurrentNazoListEntry()
+            if nzLstEntry != None:
+                puzzleData = self.__laytonState.saveSlot.puzzleData.getPuzzleData(nzLstEntry.idExternal - 1)
+                if puzzleData != None:
+                    if self.__animHintbox != None:
+                        x,y = POS_ANIM_HINT_OPEN
+                        for indexHint in range(puzzleData.levelHint):
+                            self.__animHintbox.setAnimationFromIndex(indexHint + 1)
+                            self.__animHintbox.setPos((x,y))
+                            self.__animHintbox.draw(gameDisplay)
+                            x += BIAS_X_HINT_OPEN
+        
+                    self.__drawTopScreenNumber(nzLstEntry, puzzleData, gameDisplay)
+    
+    def __drawBottomScreen(self, gameDisplay):
+        self.__surfaceJitenSelectOverlay.fill((0,0,0,0))
+        if self.__indexOverlay != None:
+            targetY = (BIAS_HITBOX_SELECT_Y * self.__indexOverlay) - self.__scrollY
+            self.__surfaceJitenSelectOverlay.blit(self.__surfaceSelectBox, (0,targetY))
+
+        for drawable in self.__hitboxes:
+            drawable.renderText()
+
+        gameDisplay.blit(self.__surfaceJitenSelectOverlay, (POS_X_SELECT_BOX, BOUNDS_Y_SELECT_BOX_MIN + RESOLUTION_NINTENDO_DS[1]))
+
+        for drawable in self.__hitboxes + self.__buttons + self.__drawables:
+            drawable.draw(gameDisplay)
+        
+        if self.__canBeSolved and self.__btnSolve != None:
+            self.__btnSolve.draw(gameDisplay)
 
     def update(self, gameClockDelta):
         if self.__animTimer.getActiveState():
@@ -373,28 +505,18 @@ class JitenPlayer(ScreenLayerNonBlocking):
         return super().update(gameClockDelta)
 
     def draw(self, gameDisplay):
-        # DrawAndProcessButtons - wifi chooses different anims to draw
-        for drawable in self.__hitboxes:
-            drawable.draw(gameDisplay)
-        
-        # TODO - Draw order and top screen for WiFi
-        if self.__animPreview != None:
-            self.__animPreview.draw(gameDisplay)
-        if self.__animPrize != None:
-            self.__animPrize.draw(gameDisplay)
-        if self.__animModeSelect != None:
-            self.__animModeSelect.draw(gameDisplay)
-        
-        for drawable in self.__buttons + self.__drawables:
-            drawable.draw(gameDisplay)
-
-        self.__textRendererType.drawXYCenterPoint(gameDisplay)
-        self.__textRendererName.drawXCentered(gameDisplay)
-        self.__textRendererLocation.drawXYCenterPoint(gameDisplay)
+        self.__drawBottomScreen(gameDisplay)
+        if self.__sourceGameMode != GAMEMODES.JitenWiFi:
+            self.__drawTopScreen(gameDisplay)
+    
         return super().draw(gameDisplay)
     
     def handleTouchEvent(self, event):
         if self.__isInteractive:
+            if self.__canBeSolved and self.__btnSolve != None:
+                if self.__btnSolve.handleTouchEvent(event):
+                    return True
+
             for interactable in self.__buttons:
                 if interactable.handleTouchEvent(event):
                     return True

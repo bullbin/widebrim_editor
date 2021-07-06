@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from widebrim.madhatter.hat_io.asset_dlz.sm_inf import DlzEntrySubmapInfoNds
     from widebrim.madhatter.hat_io.asset_dlz.ev_inf2 import DlzEntryEvInf2
 
-from widebrim.madhatter.hat_io.asset_sav import Layton2SaveSlot
+from widebrim.madhatter.hat_io.asset_sav import Layton2SaveSlot, WiFiState
 from widebrim.madhatter.hat_io.asset_dlz import EventInfoList, SubmapInfoNds, GoalInfo, NazoListNds, HerbteaEvent, ChapterInfo, TimeDefinitionInfo
 from widebrim.madhatter.hat_io.asset_dat import NazoDataNds
 from widebrim.madhatter.hat_io.asset_placeflag import PlaceFlag
@@ -31,6 +31,8 @@ class Layton2GameState():
         
         # Save header is unused during gameplay
         self.saveSlot       = Layton2SaveSlot()
+        # TODO - Index slot
+        self.wiFiData       = WiFiState()
 
         self.language       = language
 
@@ -107,8 +109,10 @@ class Layton2GameState():
         self.entryNzList    = None
         self._entryNzData    = None
 
-        self._indexMysteryChanged : int = -1
-        self._roomLoadBehaviour = 0
+        self._indexMysteryChanged           : int   = -1
+        self._roomLoadBehaviour             : int   = 0
+        self._idExternalLastFavouritePuzzle : int   = 0
+        self._idExternalLastWiFiPuzzle      : int   = 0
 
         # Not accurate, but used to centralise event behaviour between room and event
         self.__isTimeStarted = False
@@ -259,10 +263,10 @@ class Layton2GameState():
         if self.entryNzList == None:
             print("Failed to update entry!")
 
-    def getCurrentNazoListEntry(self):
+    def getCurrentNazoListEntry(self) -> Optional[DlzEntryNzLst]:
         return self.entryNzList
 
-    def getNazoListEntry(self, idInternal):
+    def getNazoListEntry(self, idInternal) -> Optional[DlzEntryNzLst]:
         idEntry = self._dbNazoList.searchForEntry(idInternal)
         if idEntry != None:
             return self._dbNazoList.getEntry(idEntry)
@@ -434,3 +438,23 @@ class Layton2GameState():
 
     def getEncodedMysteryIndex(self) -> int:
         return self._indexMysteryChanged
+
+    def getLastJitenNazoExternal(self) -> int:
+        return self.saveSlot.lastAccessedPuzzle
+
+    def setLastJitenNazoExternal(self, idExternal : int):
+        # TODO - Puzzle int validation
+        self.saveSlot.lastAccessedPuzzle = idExternal
+
+    def getLastJitenFavouriteExternal(self) -> int:
+        return self._idExternalLastFavouritePuzzle
+
+    def setLastJitenFavouriteExternal(self, idExternal : int):
+        self._idExternalLastFavouritePuzzle = idExternal
+    
+    # TODO - Not sure if this is saved. Faster to do playback test
+    def getLastJitenWiFiExternal(self) -> int:
+        return self._idExternalLastWiFiPuzzle
+
+    def setLastJitenWiFiExternal(self, idExternal : int):
+        self._idExternalLastWiFiPuzzle = idExternal

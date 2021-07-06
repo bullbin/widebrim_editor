@@ -77,11 +77,13 @@ class SaveLoadScreenPopup(MainScreenPopup):
             if mode == SaveLoadScreenPopup.MODE_LOAD:
                 laytonState.timeStartTimer()
                 laytonState.saveSlot = self.saveData.getSlotData(self.slotActive)
+                laytonState.wiFiData = self.saveData.getWiFiData()
             else:
                 laytonState.timeUpdateStoredTime()
                 # TODO - When is the save slot made active?
                 laytonState.saveSlot.isActive = True
                 self.saveData.setSlotData(self.slotActive, laytonState.saveSlot)
+                self.saveData.setWiFiData(laytonState.wiFiData)
                 writeSaveData()
                 generateGraphicsForIndex(self.slotActive)
                 print("Overwrote save slot " + str(self.slotActive) + "!")
