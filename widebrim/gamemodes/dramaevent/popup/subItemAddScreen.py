@@ -31,8 +31,10 @@ class SubItemAddPopup(PrizeWindow2PopupWithCursor):
                 namePart = textInvalidTxt % self.laytonState.puzzleLastReward
             
             textPopup = getSubstitutedString(getTxt2String(self.laytonState, PATH_TEXT_GENERIC % idTxt2))
-            # TODO - Try/catch
-            return textPopup % namePart
+            try:
+                return textPopup % namePart
+            except:
+                return textPopup
 
         self.__itemIcon = eventStorage.getAssetItemAnim()
         if self.__itemIcon != None:

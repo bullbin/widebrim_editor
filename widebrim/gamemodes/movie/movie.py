@@ -29,50 +29,56 @@ if TYPE_CHECKING:
 # TODO - Implement drawable
 class MovieSurface():
     def __init__(self, indexMovie : int, callback : Optional[callable], framerate : float = 23.98):
-        # TODO - 256x192 is stored in file too, but what about modifications? SDK lib should handle it fine so we should ffprobe the data out first
-
-        # Calculate size of raw frame
-        self.__bufferSize       = RESOLUTION_NINTENDO_DS[0] * RESOLUTION_NINTENDO_DS[1] * 3
-        self.__pathMovieFile    = None
-        self.__surfVideo    :   Surface  = Surface(RESOLUTION_NINTENDO_DS)
-        self.__procConv     :   Optional[Popen] = None
-        self.__pos              = (0,RESOLUTION_NINTENDO_DS[1])
-        self.__timeElapsed  :   float = 0
-        self.__timeFrame        = 1000 / framerate
-        self.__callback         = callback
-
-        # Credit to https://stackoverflow.com/a/62870947 for the command used in this process
+        width, height               = RESOLUTION_NINTENDO_DS
+        self.__pathMovieFile        = None
+        self.__timeElapsed  : float = 0
+        self.__callback             = callback
+        self.__pos                  = (0,RESOLUTION_NINTENDO_DS[1])
 
         if ensureTempFolder():
             if ((movieData := FileInterface.getData(PATH_MOBICLIP_MOVIE % indexMovie)) != None):
                 try:
-                    with open(PATH_TEMP + "//" + PATH_TEMP_MOVIE_FILE, 'wb') as movieTemp:
-                        movieTemp.write(movieData)
+                    # Credit to Gericom for MODS header information - https://github.com/Gericom/MobiclipDecoder
+                    if len(movieData) > 30 and movieData[:4] == b'MODS':
+                        calcDimensions = (int.from_bytes(movieData[0xc:0x10], byteorder = 'little'), int.from_bytes(movieData[0x10:0x14], byteorder = 'little'))
+                        if calcDimensions[0] > 0 and calcDimensions[1] > 0:
+                            width, height = calcDimensions
+                        calcFps = int.from_bytes(movieData[0x14:0x18], byteorder = 'little') / (2 ** 24)
+                        if calcFps != 0:
+                            framerate = calcFps
+
                         # TODO - Writes empty even if not found...
+                        with open(PATH_TEMP + "//" + PATH_TEMP_MOVIE_FILE, 'wb') as movieTemp:
+                            movieTemp.write(movieData)
                         self.__pathMovieFile = PATH_TEMP + "//" + PATH_TEMP_MOVIE_FILE
-                    
-                    # TODO - Switch to python ffmpeg for platform agnostic ffmpeg
-                    command = [ "ffmpeg",
-                                '-loglevel', 'quiet',
-                                '-i', self.__pathMovieFile,
-                                # Mobiclip decoder doesn't deswizzle correctly...
-                                '-filter_complex', 'colorchannelmixer=1:0:0:0:0:0:1:0:0:1:0:0:0:0:0:1', 
-                                '-f', 'image2pipe',
-                                '-s', '%dx%d' % RESOLUTION_NINTENDO_DS,
-                                '-pix_fmt', 'rgb24',
-                                '-vcodec', 'rawvideo',
-                                '-' ]
-                    
-                    self.__procConv = Popen(command, stdout=PIPE, bufsize=self.__bufferSize * COUNT_BUFFER_FRAMES)
-                        
                 except:
                     pass
+        
+        # Calculate size of raw frame
+        self.__bufferSize       = width * height * 3
+        self.__surfVideo    :   Surface  = Surface((width, height))
+        self.__timeFrame        = 1000 / framerate
+        self.__procConv     :   Optional[Popen] = None
 
-        if self.__procConv == None:
+        if self.__pathMovieFile != None:
+            # TODO - Switch to python ffmpeg for platform agnostic ffmpeg
+            # Credit to https://stackoverflow.com/a/62870947 for the command used in this process
+            command = [ "ffmpeg",
+                        '-loglevel', 'quiet',
+                        '-i', self.__pathMovieFile,
+                        # Mobiclip decoder doesn't deswizzle correctly...
+                        '-filter_complex', 'colorchannelmixer=1:0:0:0:0:0:1:0:0:1:0:0:0:0:0:1', 
+                        '-f', 'image2pipe',
+                        '-s', '%dx%d' % (width, height),
+                        '-pix_fmt', 'rgb24',
+                        '-vcodec', 'rawvideo',
+                        '-' ]
+            
+            self.__procConv = Popen(command, stdout=PIPE, bufsize=self.__bufferSize * COUNT_BUFFER_FRAMES)
+        else:
             self.cleanup()
 
     def setPos(self, pos):
-        # TODO - Validate
         self.__pos = pos
     
     def getPos(self):
@@ -127,6 +133,7 @@ class SubtitleCommand():
 class MoviePlayer(ScriptPlayer):
     def __init__(self, laytonState : Layton2GameState, screenController : ScreenController):
         ScriptPlayer.__init__(self, laytonState, screenController, GdScript())
+        self.__surfaceMovie = MovieSurface(laytonState.getMovieNum(), self.__fadeOutAndTerminate)
 
         if (scriptData := getPackedData(PATH_ARCHIVE_MOVIE_SUBTITLES.replace("?", laytonState.language.value), PATH_NAME_SUBTITLE_SCRIPT % laytonState.getMovieNum())) != None:
             self._script.load(scriptData)
@@ -137,7 +144,6 @@ class MoviePlayer(ScriptPlayer):
         if (packData := FileInterface.getData(PATH_PACK_TXT % laytonState.language.value)) != None:
             self.__packTxt.load(packData)
 
-        self.__surfaceMovie = MovieSurface(laytonState.getMovieNum(), self.__fadeOutAndTerminate)
         self.__indexActiveSubtitle = -1
         self.__waitingForNextSubtitle = False
         self.__textRendererSubtitle = StaticTextHelper(laytonState.fontEvent, yBias=2)

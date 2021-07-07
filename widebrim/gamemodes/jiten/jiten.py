@@ -97,7 +97,7 @@ class JitenPlayer(ScreenLayerNonBlocking):
             self.__btnSolve = getButtonFromPath(laytonState, PATH_ANIM_BTN_ALL, self.__callbackOnSolvePressed, NAME_ANIM_JITEN_BTN_SOLVE_OFF, NAME_ANIM_JITEN_BTN_SOLVE_ON, pos=POS_BTN_SOLVE, customDimensions=DIM_BTN_SOLVE)
             addIfNotNone(self.__buttons, getButtonFromPath(laytonState, PATH_ANIM_BTN_ALL, self.__callbackOnExit, animOff=NAME_ANIM_JITEN_BTN_ALT_CLOSE_OFF, animOn=NAME_ANIM_JITEN_BTN_ALT_CLOSE_CLICK, customDimensions=DIM_BTN_CLOSE, pos=POS_BTN_CLOSE))
 
-        # TODO - Weird positioning (HACK)
+        # HACK - Weird positioning
         self.__textRendererLocation.setPos((POS_TEXT_LOCATION[0], POS_TEXT_LOCATION[1] + 2))
         self.__textRendererName.setPos((0, POS_Y_TEXT_NAME))
         self.__textRendererType.setPos((POS_TEXT_TYPE[0], POS_TEXT_TYPE[1] + 2))
@@ -139,7 +139,7 @@ class JitenPlayer(ScreenLayerNonBlocking):
                 self.__buttonsFavouriteHitbox.append(getHitbox((x,y), SIZE_HITBOX_FAVOURITE, callback=self.__callbackOnFavouritePress))
                 y += BIAS_HITBOX_SELECT_Y
 
-            # TODO - Question logo is fetched here and writes some save flags
+            # TODO - Question logo is fetched here and writes some save flags (probably new menu flag)
 
         # TODO - Not accurate. More scalable approach would be to store closest index and percent to next
         self.__scrollY                      = 0
@@ -332,7 +332,6 @@ class JitenPlayer(ScreenLayerNonBlocking):
                             self.__animPreview.setAnimationFromIndex(1)
 
                     if self.__animPrize != None:
-                        # TODO - Check if wifi puzzle
                         if not(puzzleData.wasSolved):
                             self.__animPrize.setAnimationFromIndex(4)
                         elif puzzleData.levelDecay == 2:

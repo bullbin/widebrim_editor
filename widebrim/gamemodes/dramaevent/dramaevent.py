@@ -15,7 +15,7 @@ from ..core_popup.script import ScriptPlayer
 
 from ...engine.const import PATH_EVENT_BG_LANG_DEP, RESOLUTION_NINTENDO_DS, PATH_CHAP_ROOT
 from ...engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C
-from ...engine.const import PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, PATH_PACK_TALK, PATH_EVENT_BG, PATH_PLACE_BG, PATH_EVENT_ROOT, PATH_ANI, PATH_NAME_ROOT
+from ...engine.const import PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, PATH_PACK_TALK, PATH_EVENT_BG, PATH_PLACE_BG, PATH_EVENT_ROOT, PATH_NAME_ROOT
 
 from ...madhatter.hat_io.asset import LaytonPack
 from ...madhatter.hat_io.asset_script import GdScript
@@ -108,7 +108,6 @@ class PlaceholderPopup(Popup):
 class TextWindow(Popup):
 
     # TODO - Improve redundancy, although these are all critical assets
-    # TODO - Wo
     SPRITE_WINDOW = getAnimFromPathWithAttributes(PATH_EVENT_ROOT % "twindow.arc")
 
     DICT_SLOTS = {0:"LEFT",
@@ -344,8 +343,6 @@ class EventPlayer(ScriptPlayer):
         def getEventScriptPath():
             return substituteEventPath(PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C)
 
-        # TODO - Search for language image as well as non-language image
-
         ScriptPlayer.__init__(self, laytonState, screenController, GdScript())
 
         # TODO - Type checking
@@ -502,7 +499,7 @@ class EventPlayer(ScriptPlayer):
                 self.talkScript.load(tempTalkScript, isTalkscript=True)
                 self._popup = TextWindow(self.laytonState, self.characterSpawnIdToCharacterMap, self.talkScript)
             else:
-                # TODO - In reality, if talkscript fails the popup will still appear with whatever text was left in the string buffer
+                # HACK - In reality, if talkscript fails the popup will still appear with whatever text was left in the string buffer
                 print("\tTalk script missing!", PATH_PACK_TALK % (self._idMain, self._idSub, operands[0].value))
 
         elif opcode == OPCODES_LT2.SpriteOn.value:
@@ -667,11 +664,19 @@ class EventPlayer(ScriptPlayer):
         elif opcode == OPCODES_LT2.DoLostPieceScreen.value:
             self._popup = PlaceholderPopup()
         
-        elif opcode == OPCODES_LT2.DoInPartyScreen.value:
-            self._popup = PlaceholderPopup()
+        elif opcode == OPCODES_LT2.DoInPartyScreen.value and len(operands) == 1:
+            partyFlagEncoded = int.from_bytes(self.laytonState.saveSlot.partyFlag.toBytes(), byteorder = 'little') | operands[0].value
+            self.laytonState.saveSlot.partyFlag = FlagsAsArray.fromBytes(partyFlagEncoded.to_bytes(1, byteorder = 'little'), 8)
+
+            if operands[0].value != 2:
+                self._popup = PlaceholderPopup()
         
-        elif opcode == OPCODES_LT2.DoOutPartyScreen.value:
-            self._popup = PlaceholderPopup()
+        elif opcode == OPCODES_LT2.DoOutPartyScreen.value and len(operands) == 1:
+            partyFlagEncoded = int.from_bytes(self.laytonState.saveSlot.partyFlag.toBytes(), byteorder = 'little') & ~operands[0].value
+            self.laytonState.saveSlot.partyFlag = FlagsAsArray.fromBytes(partyFlagEncoded.to_bytes(1, byteorder = 'little'), 8)
+
+            if operands[0].value != 2:
+                self._popup = PlaceholderPopup()
 
         elif opcode == OPCODES_LT2.DoDiaryAddScreen.value:
             # Stubbed, but don't want an error

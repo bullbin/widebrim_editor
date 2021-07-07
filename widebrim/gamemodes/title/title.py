@@ -40,7 +40,6 @@ class TitlePlayer(ScreenLayerNonBlocking):
             pass
 
         self.__animTitleScreen = getAnimFromPathWithAttributes(PATH_ANIM_TITLE % laytonState.language.value)
-        # TODO - Isolate screens properly, removes bugs in future and simplifies this mess
         if self.__animTitleScreen != None:
             self.__animTitleScreen.setPos((self.__animTitleScreen.getPos()[0], self.__animTitleScreen.getPos()[1] - RESOLUTION_NINTENDO_DS[1]))
         self.popup = None

@@ -8,8 +8,7 @@ from ...madhatter.hat_io.asset_sav import FlagsAsArray
 
 from pygame import MOUSEBUTTONDOWN
 
-# TODO - Add Pen object like original game with callback support for trigger on touch
-# TODO - Add callback supprot
+# TODO - Add callback support
 
 class ScriptPlayer(ScreenLayerNonBlocking):
     def __init__(self, laytonState, screenController, script):
@@ -125,7 +124,7 @@ class ScriptPlayer(ScreenLayerNonBlocking):
 
         elif opcode == OPCODES_LT2.DrawChapter.value:
             # TODO - Since its known faders only work when required, how does this event fade in the bottom screen when it should already be unobscured?
-            # TODO - Think this will cause a bug where screen can be pressed without finishing fade in...
+            #        Think this will cause a bug where screen can be pressed without finishing fade in...
 
             def callbackDrawChapter():
                 self.screenController.setBgMain(PATH_CHAP_ROOT % operands[0].value)
@@ -176,7 +175,7 @@ class ScriptPlayer(ScreenLayerNonBlocking):
                 tempEventCounter[indexCounter] = tempEventCounter[indexCounter] | valueCounter
                 self.laytonState.saveSlot.eventCounter = FlagsAsArray.fromBytes(tempEventCounter)
 
-        # TODO - 3 unknowns in these palette commands
+        # HACK - 3 unknowns in palette operations, only darkness value is used
         elif opcode == OPCODES_LT2.ModifyBGPal.value:
             self.screenController.modifyPaletteMain(operands[3].value)
 
@@ -200,7 +199,6 @@ class ScriptPlayer(ScreenLayerNonBlocking):
             self._faderWait.setDurationInFrames(operands[0].value)
 
         elif opcode == OPCODES_LT2.AddMemo.value:
-            # TODO - Try/except for setting flags or bypass errors
             isMemoAdded = self.laytonState.saveSlot.memoFlag.flagEnabled.getSlot(operands[0].value - 1)
             if not(isMemoAdded):
                 self.laytonState.saveSlot.memoFlag.flagNew.setSlot(True, operands[0].value - 1)

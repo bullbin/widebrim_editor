@@ -11,6 +11,7 @@ POS_HAMSTER_TEXT        = (0x80, 0x5c)
 POS_NAZOBA_TEXT         = (0x19, 0x11)
 
 POS_STOCK_SCREEN_NAZO_ICON  = (0x74, 0x3c)
+POS_PARTY_SCREEN_NAZO_ICON  = (0x74, 0x38)
 POS_LOST_SCREEN_PIECE_ICON  = (0, 0x38)
 POS_PHOTO_PIECE_PIECE_ICON  = (0x74, 0x3a)
 
@@ -33,6 +34,7 @@ ID_PHOTO_ALL_FOUND      = 0xde
 ID_PHOTO_NEARLY_FOUND   = 0x640
 
 PATH_ANIM_NAZO_ICON     = "event/nazo_icon.spr"
+PATH_ANIM_PARTY         = "map/map_icons.spr"
 
 PATH_ANIM_BUTTON_YES    = "system/btn/%s/yes.spr"
 PATH_ANIM_BUTTON_NO     = "system/btn/%s/no.spr"

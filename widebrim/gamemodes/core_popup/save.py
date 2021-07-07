@@ -36,7 +36,6 @@ class SaveLoadScreenPopup(MainScreenPopup):
     HEIGHT_SLOT         = 0x2b
 
     def __init__(self, laytonState, screenController, mode, bgIndex, callbackOnTerminate, callbackOnSlot):
-        # TODO - Centralise fading this out properly! Has to be done per handler and callbacks get a little maze-y
         MainScreenPopup.__init__(self, callbackOnTerminate)
 
         self.saveData = Layton2SaveFile()
@@ -131,7 +130,6 @@ class SaveLoadScreenPopup(MainScreenPopup):
                                 callback=callbackOnSlotAccessed))
             self.slotIndexSlot.append(indexSlot)
                 
-        # TODO - Make class variable, can also fail if None returned
         self.buttonBack = getButtonFromPath(laytonState, PATH_ANI_BTN_BACK, callback=callbackOnTerminate) 
 
         if mode == SaveLoadScreenPopup.MODE_LOAD:

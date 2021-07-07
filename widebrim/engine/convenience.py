@@ -11,5 +11,5 @@ def initDisplay():
     if not(_HAS_CAPTION_BEEN_SET):
         set_caption(WINDOW_DEFAULT_NAME)
         _HAS_CAPTION_BEEN_SET = True
-    output = set_mode((RESOLUTION_NINTENDO_DS[0], int(RESOLUTION_NINTENDO_DS[1] * 2)), flags = SCALED * WINDOW_SCALE_TO_VIEW)
+    output = set_mode((RESOLUTION_NINTENDO_DS[0], int(RESOLUTION_NINTENDO_DS[1] * 2)), flags = SCALED * WINDOW_SCALE_TO_VIEW, vsync=1)
     return output

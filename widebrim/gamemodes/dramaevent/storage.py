@@ -10,7 +10,6 @@
 # TODO - Everything has init positions. Add them where required.
 
 from ...engine_ext.utils import getAnimFromPath
-from ...engine.file import FileInterface
 from ...engine.const import RESOLUTION_NINTENDO_DS
 from .const import PATH_PRIZE_WINDOW, PATH_CURSOR_WAIT, PATH_ITEM_ICON, PATH_PIECE_ICON, POS_ITEM_ICON_Y
 from .const import POS_ITEM_ICON_Y_ALT, PATH_ANIM_REWARD_0, PATH_ANIM_REWARD_1, PATH_ANIM_REWARD_2, PATH_ANIM_REWARD_3

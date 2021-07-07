@@ -10,7 +10,6 @@ def applyPygameBannerTweaks():
         initDisplay()
 
         bannerImage = getBannerImageFromRom(FileInterface.getRom())
-        # TODO - Does this need to be RGBA?
         bannerSurface = pygame.image.fromstring(bannerImage.convert("RGB").tobytes("raw", "RGB"), bannerImage.size, "RGB").convert()
         try:
             transparency = bannerImage.getpalette()[:3]

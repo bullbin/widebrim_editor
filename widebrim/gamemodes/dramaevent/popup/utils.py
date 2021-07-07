@@ -80,6 +80,7 @@ class FadingPopupAnimBackground(FadingPopup):
         self._callbackOnTerminate = callbackOnTerminate
         self._isTryingToTerminate = False
     
+    # TODO - Fix bg if None
     def _drawBackground(self, gameDisplay):
         frame = self._bgAnim.getActiveFrame()
         if frame != None:

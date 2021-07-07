@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import List, Optional, TYPE_CHECKING
-from widebrim.gamemodes import mystery
+from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
 from widebrim.gamemodes.core_popup.save import SaveLoadScreenPopup
 from widebrim.gamemodes.core_popup.utils import FullScreenPopup
 from widebrim.gamemodes.dramaevent.const import PATH_ITEM_ICON
@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 from widebrim.engine.state.layer import ScreenLayerNonBlocking
 from widebrim.engine.state.enum_mode import GAMEMODES
 from .const import *
+from .popupReset import ResetPopup
 
 class BagPlayer(ScreenLayerNonBlocking):
     def __init__(self, laytonState : Layton2GameState, screenController : ScreenController):
@@ -33,7 +34,7 @@ class BagPlayer(ScreenLayerNonBlocking):
         self.__popup : Optional[FullScreenPopup] = None
 
         # TODO - Buttons draw slightly differently, the tojiru button won't go back to OFF state after being pressed.
-        self.__addButton(getButtonFromPath(laytonState, PATH_BTN_RESET, namePosVariable=VARIABLE_DEFAULT_POS))
+        self.__addButton(getButtonFromPath(laytonState, PATH_BTN_RESET, namePosVariable=VARIABLE_DEFAULT_POS, callback=self.__callbackOnReset))
         self.__addButton(getButtonFromPath(laytonState, PATH_BTN_TOJIRU, namePosVariable=VARIABLE_DEFAULT_POS, callback=self.__callbackOnCloseBag))
         self.__addButton(getButtonFromPath(laytonState, PATH_BTN_MEMO, namePosVariable=VARIABLE_DEFAULT_POS, callback=self.__callbackOnStartMemo))
         self.__addButton(getButtonFromPath(laytonState, PATH_BTN_MYSTERY, namePosVariable=VARIABLE_DEFAULT_POS, callback=self.__callbackOnStartMystery))
@@ -62,6 +63,12 @@ class BagPlayer(ScreenLayerNonBlocking):
         self.__animItemIcons : Optional[AnimatedImageObject] = getAnimFromPath(PATH_ITEM_ICON)
         self.__rendererStaticNumber     : Optional[StaticImageAsNumericalFont] = None
         self.__rendererStaticNumber2    : Optional[StaticImageAsNumericalFont] = None
+        self.__rendererPlaceName = StaticTextHelper(laytonState.fontEvent)
+
+        # TODO - Weird positioning
+        self.__rendererPlaceName.setPos((POS_TEXT_PLACE_NAME[0], POS_TEXT_PLACE_NAME[1] + 2))
+        # TODO - Breaks long strings
+        self.__rendererPlaceName.setText(laytonState.namePlace[0:min(len(laytonState.namePlace),64)])
 
         # TODO - What's with the stride here?
         if (staticNumber := getAnimFromPath(PATH_ANI_STATUS_NUMBER)) != None:
@@ -133,6 +140,24 @@ class BagPlayer(ScreenLayerNonBlocking):
     def __addAnim(self, anim : Optional[AnimatedImageObject]):
         if anim != None:
             self.__anims.append(anim)
+
+    def __callbackOnReset(self):
+
+        # TODO - Setup interactivity checks
+
+        def killReset():
+            self.__popup = None
+            # TODO - Bag button needs to be drawn too (not mimicking full draw pipeline)
+            # The game applies this workaround as well since they don't want to be caught with no buttons
+            self.__drawBottomScreen = True
+        
+        def doReset():
+            self.__disableInteractivity()
+            self.laytonState.setGameMode(GAMEMODES.Reset)
+            self.screenController.fadeOut(callback=self.doOnKill)
+
+        self.__drawBottomScreen = False
+        self.__popup = ResetPopup(self.laytonState, self.screenController, doReset, killReset)
 
     def __callbackOnStartMystery(self):
 
@@ -283,6 +308,8 @@ class BagPlayer(ScreenLayerNonBlocking):
             renderer.setMaxNum(maxNum)
             renderer.setText(value)
             renderer.drawBiased(gameDisplay)
+
+        self.__rendererPlaceName.drawXYCenterPoint(gameDisplay)
 
         if self.__rendererStaticNumber2 != None:
             solved, encountered = self.laytonState.saveSlot.getSolvedAndEncounteredPuzzleCount()

@@ -4,7 +4,7 @@ from random import randint
 from typing import List, Optional, TYPE_CHECKING, Tuple, Union
 from widebrim.engine.anim.image_anim.imageAsNumber import StaticImageAsNumericalFont
 from widebrim.engine.anim.button import NullButton
-from pygame.constants import BLEND_RGB_SUB, MOUSEBUTTONDOWN
+from pygame.constants import BLEND_RGB_SUB, MOUSEBUTTONDOWN, MOUSEBUTTONUP
 from widebrim.madhatter.hat_io.asset_dat.place import Exit, PlaceDataNds
 
 from widebrim.engine.const import PATH_PACK_PLACE_NAME, PATH_TEXT_GOAL, PATH_TEXT_PLACE_NAME, RESOLUTION_NINTENDO_DS
@@ -21,7 +21,7 @@ from widebrim.engine.anim.fader import Fader
 from widebrim.engine.state.layer import ScreenLayerNonBlocking
 from widebrim.engine.exceptions import FileInvalidCritical
 from widebrim.engine.anim.font.static import generateImageFromString
-from widebrim.engine_ext.utils import getAnimFromPath, getPackedData, getPackedString, getTxt2String, getButtonFromPath
+from widebrim.engine_ext.utils import getAnimFromPath, getAnimFromPathWithAttributes, getPackedData, getPackedString, getTxt2String, getButtonFromPath
 from .const import *
 from .animJump import AnimJumpHelper
 from .tobjPopup import TObjPopup
@@ -51,10 +51,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
         self.__animFirstTouch : Optional[AnimatedImageObject] = None
         if self.laytonState.isFirstTouchEnabled:
-            self.__animFirstTouch = getAnimFromPath(PATH_ANIM_FIRSTTOUCH, spawnAnimName="gfx")
-            if self.__animFirstTouch != None:
-                width, height = self.__animFirstTouch.getDimensions()
-                self.__animFirstTouch.setPos(((RESOLUTION_NINTENDO_DS[0] - width) // 2, ((RESOLUTION_NINTENDO_DS[1] - height) // 2) + RESOLUTION_NINTENDO_DS[1]))
+            self.__animFirstTouch = getAnimFromPathWithAttributes(PATH_ANIM_FIRSTTOUCH % laytonState.language.value)
         
         self.__hasPhotoPieceInArea : bool = False
         self.__hasPhotoPieceInAreaBeenTaken : bool = False
@@ -131,7 +128,6 @@ class RoomPlayer(ScreenLayerNonBlocking):
                 self.__imageExitOn.append(None)
 
         if self.__hasAutoEvent():
-            # TODO - This is part of init more than separate function imo
             self.laytonState.setGameMode(GAMEMODES.DramaEvent)
             self.__disableInteractivity()
             self.doOnKill()
@@ -171,9 +167,6 @@ class RoomPlayer(ScreenLayerNonBlocking):
             self.__animNumberIcon.draw(gameDisplay)
         if self.__animNumberFont != None:
             self.__animNumberFont.drawBiased(gameDisplay)
-
-        # TODO - Check first touch, draw over everything if needed
-        # Once touched, clear flag, play SFX and free anim object
 
         # Stops being accurate here
         if self.__targetEvent != None and self.__animEventStart != None:
@@ -235,12 +228,18 @@ class RoomPlayer(ScreenLayerNonBlocking):
         if self.__tObjWindow != None:
             self.__tObjWindow.draw(gameDisplay)
 
+        if self.__animFirstTouch != None and self.laytonState.isFirstTouchEnabled:
+            self.__animFirstTouch.draw(gameDisplay)
+
         return super().draw(gameDisplay)
 
     def update(self, gameClockDelta):
         for anim in self.__animMemberParty + self.__animBackground + self.__animEvent:
             if anim != None:
                 anim.update(gameClockDelta)
+
+        if self.__animFirstTouch != None and self.laytonState.isFirstTouchEnabled:
+            self.__animFirstTouch.update(gameClockDelta)
         
         if self.__animTeaEventIcon != None:
             self.__animTeaEventIcon.update(gameClockDelta)
@@ -297,6 +296,11 @@ class RoomPlayer(ScreenLayerNonBlocking):
         if self.__isInteractable:
 
             boundaryTestPos = (event.pos[0], event.pos[1] - RESOLUTION_NINTENDO_DS[1])
+
+            if self.laytonState.isFirstTouchEnabled:
+                if event.type == MOUSEBUTTONUP:
+                    self.laytonState.isFirstTouchEnabled = False
+                return True
 
             # Hide touch cursor on press, in case something else is spawned
             if self.__animTouchIcon != None and event.type == MOUSEBUTTONDOWN:
@@ -479,7 +483,6 @@ class RoomPlayer(ScreenLayerNonBlocking):
         self.__prepareNextPlace()
         self.__loadRoomData()
 
-        # TODO - Probably always move the hat
         if self.__targetExit.posTransition == (0,0):
             self.screenController.fadeOutMain(duration=100, callback=self.__doRoomTransition)
         else:
@@ -561,9 +564,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
             placeData.load(tempPlaceData)
             self.__placeData = placeData
 
-            # TODO - Get place string from jiten.plz, decode
             # TODO - Check if any entries for photo database here
-
             # TODO - Check if photo piece taken, set bools, unk camera check
 
             return True
@@ -592,6 +593,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
                 # TODO - String substituter
                 self.__textRoomTitle = generateImageFromString(self.laytonState.fontEvent, titleText)
                 self.__posRoomTitle = (RoomPlayer.POS_CENTER_TEXT_ROOM_TITLE[0] - self.__textRoomTitle.get_width() // 2, RoomPlayer.POS_CENTER_TEXT_ROOM_TITLE[1])
+                self.laytonState.namePlace = titleText
 
             self.screenController.setBgMain(PATH_PLACE_BG % self.__placeData.bgMainId)
             self.screenController.setBgSub(PATH_PLACE_MAP % self.__placeData.bgMapId)

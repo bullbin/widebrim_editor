@@ -209,7 +209,6 @@ class MysteryPlayer(ScreenLayerNonBlocking):
             MysteryPlayer.update = updateFinish
 
         def doShakeAndPause():
-            # TODO - Index of shit
             MysteryPlayer.draw = draw
             self.__laytonState.saveSlot.mysteryState.flagEnabled.setSlot(True, indexMystery)
             faderTiming.setDurationInFrames(50)

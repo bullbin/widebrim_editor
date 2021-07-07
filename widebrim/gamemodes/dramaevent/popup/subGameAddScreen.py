@@ -14,7 +14,6 @@ class SubGameAddPopup(PrizeWindow2PopupWithCursor):
             tempPromptText = getTxt2String(laytonState, PATH_TEXT_GENERIC % ID_SUB_GAME_0)
         elif idSubGame == 1:
             tempPromptText = getTxt2String(laytonState, PATH_TEXT_GENERIC % ID_SUB_GAME_1)
-            # TODO - Abstractions for modifying save data. Hamster, flags, etc
             if not(laytonState.saveSlot.minigameHamsterState.isEnabled):
                 laytonState.saveSlot.minigameHamsterState.setLevel(1)
         elif idSubGame == 2:

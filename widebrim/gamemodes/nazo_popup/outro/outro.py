@@ -7,9 +7,6 @@ from .const import *
 from .end import QuestionEndPopup
 
 # TODO - Refer to annotated function to finish implementing this...
-#        DO NOT FORGET TO MARK PUZZLES AS SOLVED BY USING THE VARIABLE IN LAYTONSTATE
-
-# TODO - 27_Question - remember to set solved and decay flags, reward
 
 class JudgementPopup(FullScreenPopup):
     # Note that this popup is an exception to the general rule that every popup should end with both faders activated

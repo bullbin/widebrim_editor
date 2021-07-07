@@ -105,7 +105,6 @@ class JitenHitbox():
                         self.__imageNum.setAnimationFromName(NAME_ANIM_JITEN_TAG_UNTOUCHED)
                 
                 self.__imageNum.draw(gameDisplay)
-                # TODO - Wifi does some id conversion - DrawHatAndPuzzleIdGraphics
             
             if self.__textNum != None and self.__sourceGamemode != GAMEMODES.JitenWiFi:
                 self.__textNum.setUsePadding(True)

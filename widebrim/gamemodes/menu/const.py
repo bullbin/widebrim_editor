@@ -27,26 +27,31 @@ DOT_LAYTON_WALK_OLD_ANIM = 2
 DOT_LAYTON_WALK_OLD_ANIM_HOURS = 100
 
 # Uses "pos" as position name, but directly specified
-PATH_BTN_TOJIRU = "menu/bag/%s/tojiru.spr"
-PATH_BTN_RESET = "menu/bag/reset.spr"
-PATH_BTN_MEMO = "menu/bag/%s/memo.spr"
-PATH_BTN_MYSTERY = "menu/bag/%s/hukamaru.spr"
-PATH_BTN_PUZZLE = "menu/bag/%s/jiten.spr"
-PATH_BTN_SAVE = "menu/bag/%s/save.spr"
-PATH_BTN_DIARY = "menu/bag/%s/diary.spr"
+PATH_BTN_TOJIRU     = "menu/bag/%s/tojiru.spr"
+PATH_BTN_RESET      = "menu/bag/reset.spr"
+PATH_BTN_MEMO       = "menu/bag/%s/memo.spr"
+PATH_BTN_MYSTERY    = "menu/bag/%s/hukamaru.spr"
+PATH_BTN_PUZZLE     = "menu/bag/%s/jiten.spr"
+PATH_BTN_SAVE       = "menu/bag/%s/save.spr"
+PATH_BTN_DIARY      = "menu/bag/%s/diary.spr"
 
 # Position depends on diary
-PATH_BTN_CAMERA_BROKEN = "menu/bag/%s/camera.spr"
-PATH_BTN_CAMERA_FIXED = "menu/bag/%s/camera_fix.spr"
-PATH_BTN_HAMSTER_ENABLED = "menu/bag/%s/ham.spr"
-PATH_BTN_HAMSTER_COMPLETE = "menu/bag/%s/ham_fix.spr"
-PATH_BTN_TEA_ENABLED = "menu/bag/%s/tea.spr"
-PATH_BTN_TEA_COMPLETE = "menu/bag/%s/tea_fix.spr"
+PATH_BTN_CAMERA_BROKEN      = "menu/bag/%s/camera.spr"
+PATH_BTN_CAMERA_FIXED       = "menu/bag/%s/camera_fix.spr"
+PATH_BTN_HAMSTER_ENABLED    = "menu/bag/%s/ham.spr"
+PATH_BTN_HAMSTER_COMPLETE   = "menu/bag/%s/ham_fix.spr"
+PATH_BTN_TEA_ENABLED        = "menu/bag/%s/tea.spr"
+PATH_BTN_TEA_COMPLETE       = "menu/bag/%s/tea_fix.spr"
 
 VARIABLE_BTN_DIARY_DISABLED = "pos"
-VARIABLE_BTN_DIARY_ENABLED = "pos2"
-VARIABLE_DEFAULT_POS = "pos"
+VARIABLE_BTN_DIARY_ENABLED  = "pos2"
+VARIABLE_DEFAULT_POS        = "pos"
 
-VARIABLE_BTN_RESET_POS = "reset_p"
-PATH_BTN_RESET_YES = "system/btn/%s/yes.spr"
-PATH_BTN_RESET_NO = "system/btn/%s/no.spr"
+VARIABLE_BTN_RESET_POS  = "reset_p"
+PATH_BTN_RESET_YES      = "system/btn/%s/yes.spr"
+PATH_BTN_RESET_NO       = "system/btn/%s/no.spr"
+
+ID_TEXT2_RESET          = 100
+POS_TEXT_RESET_CENTER   = (0x80, 0x3c)
+
+POS_TEXT_PLACE_NAME     = (0xa4, 0xa1)

@@ -47,17 +47,13 @@ class MenuScreen(TitlePlayerBottomScreenOverlay):
             self.laytonState.setGameMode(GAMEMODES.Name)
             self.routineTerminate()
 
-        if MenuScreen.BUTTON_BONUS == None:
-            MenuScreen.BUTTON_BONUS = getButtonFromPath(laytonState, PATH_BUTTON_BONUS, callback=routineBonus)
-
-        if MenuScreen.BUTTON_NEW == None:
-            if self.isActive:
-                MenuScreen.BUTTON_NEW = getButtonFromPath(laytonState, PATH_BUTTON_NEW_GAME, callback=callbackOnNewGame)
-            else:
-                MenuScreen.BUTTON_NEW = getButtonFromPath(laytonState, PATH_BUTTON_NEW_GAME, namePosVariable="pos2", callback=callbackOnNewGame)
-
-        if MenuScreen.BUTTON_CONT == None:
-            MenuScreen.BUTTON_CONT = getButtonFromPath(laytonState, PATH_BUTTON_CONTINUE, callback=routineContinue)
+        # TODO - Remake this (change positions, callbacks, etc) to prevent button reloading as this creates a visible stall
+        MenuScreen.BUTTON_CONT = getButtonFromPath(laytonState, PATH_BUTTON_CONTINUE, callback=routineContinue)
+        MenuScreen.BUTTON_BONUS = getButtonFromPath(laytonState, PATH_BUTTON_BONUS, callback=routineBonus)
+        if self.isActive:
+            MenuScreen.BUTTON_NEW = getButtonFromPath(laytonState, PATH_BUTTON_NEW_GAME, callback=callbackOnNewGame)
+        else:
+            MenuScreen.BUTTON_NEW = getButtonFromPath(laytonState, PATH_BUTTON_NEW_GAME, namePosVariable="pos2", callback=callbackOnNewGame)
     
     def update(self, gameClockDelta):
 

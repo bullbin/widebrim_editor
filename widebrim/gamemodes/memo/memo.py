@@ -47,7 +47,6 @@ class MemoPlayer(ScreenLayerNonBlocking):
             if button != None:
                 self.__buttons.append(button)
         
-        # TODO - Constants
         addButtonIfNotNone(getButtonFromPath(self.laytonState, PATH_ANIM_MEMO_BUTTONS, animOff=NAME_ANIM_BACK_OFF, animOn=NAME_ANIM_BACK_ON, namePosVariable=POS_ANIM_BACK, callback=self.__callbackOnPrevPage))
         addButtonIfNotNone(getButtonFromPath(self.laytonState, PATH_ANIM_MEMO_BUTTONS, animOff=NAME_ANIM_NEXT_OFF, animOn=NAME_ANIM_NEXT_ON, namePosVariable=POS_ANIM_NEXT, callback=self.__callbackOnNextPage))
         addButtonIfNotNone(getButtonFromPath(self.laytonState, PATH_ANIM_MEMO_CLOSE, animOff=NAME_ANIM_CLOSE_OFF, animOn=NAME_ANIM_CLOSE_ON, namePosVariable=POS_ANIM_CLICK, callback=self.__callbackOnClose))
@@ -90,7 +89,6 @@ class MemoPlayer(ScreenLayerNonBlocking):
         if self.__interactable:
             for button in self.__buttons:
                 if button.handleTouchEvent(event):
-                    # TODO - Always forget which to return...
                     return True
 
             for indexButton, button in enumerate(self.__buttonEntries):

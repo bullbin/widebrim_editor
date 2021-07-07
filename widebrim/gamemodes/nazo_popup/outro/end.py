@@ -17,7 +17,6 @@ class QuestionEndPopup(FullScreenPopup):
     def __init__(self, laytonState : Layton2GameState, screenController : ScreenController, callbackOnTerminate):
         super().__init__(callbackOnTerminate)
 
-        # TODO - cleanup all these variables lmao
         self.laytonState = laytonState
         self.screenController = screenController
 

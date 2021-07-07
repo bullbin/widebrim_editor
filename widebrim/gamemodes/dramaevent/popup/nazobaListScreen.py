@@ -61,7 +61,6 @@ class NazobaListPopup(FullScreenPopup):
             gameDisplay.blit(nameSurface, (POS_NAZOBA_TEXT[0], POS_NAZOBA_TEXT[1] + (indexNameSurface * STRIDE_NAZOBA_TEXT) + RESOLUTION_NINTENDO_DS[1]), special_flags=BLEND_RGB_SUB)
     
     def handleTouchEvent(self, event):
-        # TODO - Check if in bottom screen area
         if self._getActive() and event.type == MOUSEBUTTONUP:
             if self._lastDrawnIndex == len(self._namesToDraw):
                 self._makeInactive()

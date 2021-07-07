@@ -50,6 +50,10 @@ class Layton2GameState():
         self.wasPuzzleRestarted     = False
         self.puzzleLastReward       = -1
         self.isInMovieMode          = False
+        self._indexMysteryChanged           : int   = -1
+        self._roomLoadBehaviour             : int   = 0
+        self._idExternalLastFavouritePuzzle : int   = 0
+        self._idExternalLastWiFiPuzzle      : int   = 0
 
         self.dbPlaceFlag        = PlaceFlag()
         self.dbStoryFlag        = StoryFlag()
@@ -77,7 +81,6 @@ class Layton2GameState():
             raise FileInvalidCritical()
 
         # Loaded and unloaded where required
-        # TODO - Do this by gamemode
         self._dbChapterInfo     = None
         self._dbSubmapInfo      = None
         self._dbGoalInfo        = None
@@ -109,15 +112,29 @@ class Layton2GameState():
         self.entryNzList    = None
         self._entryNzData    = None
 
-        self._indexMysteryChanged           : int   = -1
-        self._roomLoadBehaviour             : int   = 0
-        self._idExternalLastFavouritePuzzle : int   = 0
-        self._idExternalLastWiFiPuzzle      : int   = 0
-
         # Not accurate, but used to centralise event behaviour between room and event
         self.__isTimeStarted = False
         self.__timeStarted = 0
         self._wasLastEventIdBranching = False
+        self.timeStartTimer()
+
+    def resetState(self):
+        # Not accurate but not using globals so who cares (HACK)
+        self._gameMode              = GAMEMODES.INVALID
+        self._gameModeNext          = GAMEMODES.INVALID
+        self._idEvent               = -1
+        self._idMovieNum            = -1
+        self.namePlace              = ""
+        self.isFirstTouchEnabled    = False
+        self.wasPuzzleSkipped       = False
+        self.wasPuzzleSolved        = False
+        self.wasPuzzleRestarted     = False
+        self.puzzleLastReward       = -1
+        self.isInMovieMode          = False
+        self._indexMysteryChanged   = -1
+        self._roomLoadBehaviour     = 0
+        self._idExternalLastFavouritePuzzle = 0
+        self._idExternalLastWiFiPuzzle      = 0
         self.timeStartTimer()
 
     def timeGetStartedState(self):
@@ -452,7 +469,6 @@ class Layton2GameState():
     def setLastJitenFavouriteExternal(self, idExternal : int):
         self._idExternalLastFavouritePuzzle = idExternal
     
-    # TODO - Not sure if this is saved. Faster to do playback test
     def getLastJitenWiFiExternal(self) -> int:
         return self._idExternalLastWiFiPuzzle
 

@@ -5,7 +5,6 @@ from os import path
 from .exceptions import PathInvalidRom, RomInvalid
 
 # TODO - Patch support
-# TODO - Clean exit
 
 class FileInterface():
 
