@@ -14,3 +14,6 @@ from .menu import BagPlayer
 from .memo import MemoPlayer
 from .mystery import MysteryPlayer
 from .jiten import JitenPlayer
+from .wfcSetup import NintendoWfcBypassPlayer
+from .secret import WiFiSecretMenuPlayer, SecretMenuPlayer, TopSecretMenuPlayer, ArtModePlayer
+from .wiFiDownloadPuzzle import WiFiDownloadPuzzleBypassPlayer

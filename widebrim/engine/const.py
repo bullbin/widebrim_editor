@@ -7,12 +7,16 @@ TIME_FRAMECOUNT_TO_MILLISECONDS = 1000/60
 EVENT_ID_START_PUZZLE           = 20000
 EVENT_ID_START_TEA              = 30000
 
+PATH_DB_HTEVENT     = "/data_lt2/rc/ht_event.dlz"
 PATH_DB_EV_INF2     = "/data_lt2/rc/%s/ev_inf2.dlz"
 PATH_DB_GOAL_INF    = "goal_inf.dlz"
 PATH_DB_NZ_LST      = "nz_lst.dlz"
 PATH_DB_CHP_INF     = "chp_inf.dlz"
 PATH_DB_TM_DEF      = "tm_def.dlz"
 PATH_DB_SM_INF      = "sm_inf.dlz"
+PATH_DB_PLACEFLAG   = "placeflag.dat"
+PATH_DB_STORYFLAG   = "storyflag2.dat"
+PATH_DB_AUTOEVENT   = "autoevent2.dat"
 PATH_DB_RC_ROOT     = "/data_lt2/rc/%s"
 PATH_DB_RC_ROOT_LANG    = "/data_lt2/rc/%s/%s"
 

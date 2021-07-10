@@ -27,33 +27,25 @@ class GAMEMODES(Enum):
     Memo        = 23
     Challenge   = 24
     EventTea    = 25
-
-    UnkSubPhoto0    = 26
-    UnkSubPhoto1    = 27
-
-    SecretMenu      = 28
-
-    # TODO - Research not complete
-    WifiSecretMenu  = 29
-
-    OmakeMenu       = 30
-    JitenSecret     = 31
-    ArtMode         = 32
-    ChrViewMode     = 33
-    MusicMode       = 34
-    VoiceMode       = 35
-    MovieViewMode   = 36
-    HamsterName     = 37
-
-    # TODO - Research not complete
-    NintendoWfcSetup = 38
-    WifiDownloadPuzzle = 39
-
-    Passcode        = 40
-    UnkCodeInput0   = 41
-    UnkCodeInput1   = 42
-    Diary           = 43
-    Nazoba          = 44
+    UnkSubPhoto0        = 26
+    UnkSubPhoto1        = 27
+    SecretMenu          = 28
+    WiFiSecretMenu      = 29
+    TopSecretMenu       = 30
+    JitenSecret         = 31
+    ArtMode             = 32
+    ChrViewMode         = 33
+    MusicMode           = 34
+    VoiceMode           = 35
+    MovieViewMode       = 36
+    HamsterName         = 37
+    NintendoWfcSetup    = 38
+    WiFiDownloadPuzzle  = 39
+    Passcode            = 40
+    CodeInputPandora    = 41
+    CodeInputFuture     = 42
+    Diary               = 43
+    Nazoba              = 44
 
 # Cmd_SetGameMode
 STRING_TO_GAMEMODE_VALUE = {"room"          :GAMEMODES.Room,

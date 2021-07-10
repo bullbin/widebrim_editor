@@ -67,8 +67,6 @@ class AnimatedImageObject():
 
         # TODO - Add alpha
         # TODO - Don't use composed frame since that preblends alpha which causes every surface to require alpha drawing instead of alpha mask
-        # TODO - Support multiple animations running simultaneously (used in LAYTON3)
-        # TODO - Add alignment options, primarily for characters
 
     @staticmethod
     def fromMadhatter(assetData):

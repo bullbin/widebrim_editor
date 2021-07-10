@@ -1,8 +1,4 @@
-# TODO : Switch this around...
-# Layers will need a blocking system to ensure certain events do not happen during a fading operation.
-# For example, a script needs to stop execution during fading to prevent things from happening too soon
-# This means also exposing a method to reveal if fading is occuring.
-# Additionally at some point it would be good to support dirty rendering
+# TODO - Support dirty rendering (requires major restructure along with drawables change)
 
 class ScreenLayer():
     def __init__(self):

@@ -1,3 +1,4 @@
+from widebrim.engine_ext.const import SHAKE_PIX
 from ..engine.state.layer import ScreenCollection, ScreenLayerNonBlocking
 from ..engine.state.enum_mode import GAMEMODES
 from ..engine.const import RESOLUTION_NINTENDO_DS
@@ -31,7 +32,14 @@ GAMEMODE_TO_HANDLER = {GAMEMODES.Reset:ResetHelper,
                        GAMEMODES.JitenWiFi:JitenPlayer,
                        GAMEMODES.Memo:MemoPlayer,
                        GAMEMODES.EventTea:EventTeaPlayer,
+                       GAMEMODES.SecretMenu:SecretMenuPlayer,
+                       GAMEMODES.WiFiSecretMenu:WiFiSecretMenuPlayer,
+                       GAMEMODES.TopSecretMenu:TopSecretMenuPlayer,
+                       GAMEMODES.JitenSecret:JitenPlayer,
+                       GAMEMODES.ArtMode:ArtModePlayer,
                        GAMEMODES.HamsterName:NamePlayer,
+                       GAMEMODES.NintendoWfcSetup:NintendoWfcBypassPlayer,
+                       GAMEMODES.WiFiDownloadPuzzle:WiFiDownloadPuzzleBypassPlayer,
                        GAMEMODES.Nazoba:NazobaPlayer}
 
 class BgLayer(ScreenLayerNonBlocking):
@@ -102,8 +110,8 @@ class BgLayer(ScreenLayerNonBlocking):
 
         def drawBg(surface, originalPos, shakeFader):
             if shakeFader.getActiveState():
-                # TODO - Remove constants here, clip screen edges.
-                gameDisplay.blit(surface, (originalPos[0] + randint(-2,2), originalPos[1] + randint(-2,2)))
+                # HACK - Screen isn't clipped for speed sake
+                gameDisplay.blit(surface, (originalPos[0] + randint(-SHAKE_PIX,SHAKE_PIX), originalPos[1] + randint(-SHAKE_PIX,SHAKE_PIX)))
             else:
                 gameDisplay.blit(surface, originalPos)
 

@@ -14,7 +14,7 @@ from widebrim.madhatter.hat_io.asset_storyflag import StoryFlag
 from widebrim.madhatter.hat_io.asset_autoevent import AutoEvent
 from widebrim.madhatter.hat_io.asset import LaytonPack, File
 
-from ..const import LANGUAGES, EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_EV_INF2, PATH_DB_SM_INF, PATH_PROGRESSION_DB, PATH_DB_RC_ROOT, PATH_DB_GOAL_INF, PATH_DB_NZ_LST, PATH_DB_TM_DEF, PATH_DB_RC_ROOT_LANG, PATH_DB_CHP_INF, PATH_PUZZLE_SCRIPT
+from ..const import LANGUAGES, EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_AUTOEVENT, PATH_DB_EV_INF2, PATH_DB_HTEVENT, PATH_DB_PLACEFLAG, PATH_DB_SM_INF, PATH_DB_STORYFLAG, PATH_PROGRESSION_DB, PATH_DB_RC_ROOT, PATH_DB_GOAL_INF, PATH_DB_NZ_LST, PATH_DB_TM_DEF, PATH_DB_RC_ROOT_LANG, PATH_DB_CHP_INF
 from ..const import PATH_NAZO_A, PATH_NAZO_B, PATH_NAZO_C, PATH_PACK_NAZO
 from ..exceptions import FileInvalidCritical
 from ..file import FileInterface
@@ -61,8 +61,7 @@ class Layton2GameState():
 
         self.dlzHerbteaEvent    = HerbteaEvent()
 
-        # TODO - Convert to constants
-        if (herbteaData := FileInterface.getData("/data_lt2/rc/ht_event.dlz")) != None:
+        if (herbteaData := FileInterface.getData(PATH_DB_HTEVENT)) != None:
             try:
                 self.dlzHerbteaEvent.load(herbteaData)
             except:
@@ -73,9 +72,9 @@ class Layton2GameState():
             packedProgressionDbs = LaytonPack()
             packedProgressionDbs.load(FileInterface.getData(PATH_PROGRESSION_DB))
 
-            self.dbPlaceFlag.load(packedProgressionDbs.getFile("placeflag.dat"))
-            self.dbStoryFlag.load(packedProgressionDbs.getFile("storyflag2.dat"))
-            self.dbAutoEvent.load(packedProgressionDbs.getFile("autoevent2.dat"))
+            self.dbPlaceFlag.load(packedProgressionDbs.getFile(PATH_DB_PLACEFLAG))
+            self.dbStoryFlag.load(packedProgressionDbs.getFile(PATH_DB_STORYFLAG))
+            self.dbAutoEvent.load(packedProgressionDbs.getFile(PATH_DB_AUTOEVENT))
 
         except:
             raise FileInvalidCritical()
@@ -182,10 +181,7 @@ class Layton2GameState():
         return self._gameModeNext
 
     def getTimeDefinitionEntry(self, idTime):
-        indexEntry = self._dbTimeDef.searchForEntry(idTime)
-        if indexEntry != None:
-            return self._dbTimeDef.getEntry(indexEntry)
-        return None
+        return self._dbTimeDef.searchForEntry(idTime)
 
     def getEventInfoEntry(self, idEvent) -> Optional[DlzEntryEvInf2]:
         if self._dbEventInfo == None:
@@ -194,10 +190,7 @@ class Layton2GameState():
             self._dbEventInfo = EventInfoList()
             self._dbEventInfo.load(FileInterface.getData(PATH_DB_EV_INF2 % self.language.value))
         
-        indexEntry = self._dbEventInfo.searchForEntry(idEvent)
-        if indexEntry != None:
-            return self._dbEventInfo.getEntry(indexEntry)
-        return None
+        return self._dbEventInfo.searchForEntry(idEvent)
     
     def setEventId(self, idEvent):
         # As evidenced by event 15000, the game will accept events which are not inside
@@ -284,10 +277,7 @@ class Layton2GameState():
         return self.entryNzList
 
     def getNazoListEntry(self, idInternal) -> Optional[DlzEntryNzLst]:
-        idEntry = self._dbNazoList.searchForEntry(idInternal)
-        if idEntry != None:
-            return self._dbNazoList.getEntry(idEntry)
-        return None
+        return self._dbNazoList.searchForEntry(idInternal)
     
     def getNazoListEntryByExternal(self, idExternal) -> Optional[DlzEntryNzLst]:
         for indexEntry in range(self._dbNazoList.getCountEntries()):
@@ -332,9 +322,9 @@ class Layton2GameState():
         pass
 
     def loadChapterInfoDb(self):
-        # TODO - What if this returns None
         self._dbChapterInfo = ChapterInfo()
-        self._dbChapterInfo.load(FileInterface.getData(PATH_DB_RC_ROOT % PATH_DB_CHP_INF))
+        if (dbChapterInfo := FileInterface.getData(PATH_DB_RC_ROOT % PATH_DB_CHP_INF)) != None:
+            self._dbChapterInfo.load(dbChapterInfo)
 
     def unloadChapterInfoDb(self):
         del self._dbChapterInfo
@@ -408,6 +398,12 @@ class Layton2GameState():
         # Don't know best way to do this yet :(
         return False
     
+    def isCameraComplete(self) -> bool:
+        for indexCamFlag in range(10):
+            if not(self.saveSlot.photoState.flagComplete.getSlot(indexCamFlag)):
+                return False
+        return True
+
     def isHamsterUnlocked(self) -> bool:
         return self.saveSlot.minigameHamsterState.isEnabled
     
@@ -474,3 +470,11 @@ class Layton2GameState():
 
     def setLastJitenWiFiExternal(self, idExternal : int):
         self._idExternalLastWiFiPuzzle = idExternal
+    
+    def getCountEncounteredStoryPuzzle(self) -> int:
+        count = 0
+        for idExternal in range(1, 0x8b):
+            if (puzzleData := self.saveSlot.puzzleData.getPuzzleData(idExternal - 1)) != None:
+                if puzzleData.wasEncountered:
+                    count += 1
+        return count

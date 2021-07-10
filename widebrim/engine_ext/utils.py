@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Callable, Optional, TYPE_CHECKING
+from typing import Callable, Optional, TYPE_CHECKING, Tuple
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
 
@@ -191,6 +191,10 @@ def getAnimFromPathWithAttributes(inPath, spawnAnimName="gfx", posVariable="pos"
         else:
             tempImage.setPos((0, RESOLUTION_NINTENDO_DS[1]))
     return tempImage
+
+# TODO - Remove this HACK (and use it wherever possible)
+def offsetVectorToSecondScreen(inPos : Tuple[int,int]):
+    return (inPos[0], inPos[1] + RESOLUTION_NINTENDO_DS[1])
 
 def ensureTempFolder():
     try:

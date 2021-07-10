@@ -1,8 +1,7 @@
 from ....madhatter.hat_io.binary import BinaryReader
 from ....engine.convenience import initDisplay
-from ....engine.const import RESOLUTION_NINTENDO_DS
 
-from pygame import display, Surface
+from pygame import Surface
 initDisplay()
 
 # TODO - Restructure to load CWDH first

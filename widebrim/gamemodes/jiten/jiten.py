@@ -193,7 +193,7 @@ class JitenPlayer(ScreenLayerNonBlocking):
 
     def __getIds(self):
         if self.__sourceGameMode == GAMEMODES.JitenWiFi:
-            self.__getWifiIds()
+            self.__getWiFiIds()
         else:
             self.__getNormalIds()
 
@@ -256,7 +256,7 @@ class JitenPlayer(ScreenLayerNonBlocking):
                 indexHitbox += 1
         self.__selectAndCalculateScrollY()
 
-    def __getWifiIds(self):
+    def __getWiFiIds(self):
         # NOTE - WiFi mode, like the binary, switches to INTERNAL IDs. Don't get this mixed up (devs make life hard)
         self.__ids = []
         self.__hitboxes = []
@@ -367,7 +367,7 @@ class JitenPlayer(ScreenLayerNonBlocking):
         elif self.__sourceGameMode == GAMEMODES.JitenSecret:
             self.__laytonState.setGameMode(GAMEMODES.SecretMenu)
         else:
-            self.__laytonState.setGameMode(GAMEMODES.WifiSecretMenu)
+            self.__laytonState.setGameMode(GAMEMODES.WiFiSecretMenu)
         self.__screenController.fadeOut(callback=self.doOnKill)
 
     def __callbackOnFavouritePress(self):

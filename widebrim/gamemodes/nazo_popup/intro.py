@@ -146,7 +146,7 @@ class IntroLayer(FullScreenPopup):
             drawOnBgSurface("nazo", "pos2")
             drawOnBgSurface("puzzle", "pos3")
 
-            # Wifi-specific and behaviour here
+            # WiFi-specific and behaviour here
             # TODO - The game messes back and forth with sbj and spr. So any changes to ROM
             #        need to be done with both images, or widebrim must support arj images
             if self.laytonState.getCurrentNazoListEntry != None:

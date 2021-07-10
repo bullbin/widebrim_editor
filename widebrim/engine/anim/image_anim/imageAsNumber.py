@@ -22,7 +22,6 @@ class StaticImageAsFont():
             self._stride = stride
         else:
             self._useStride = False
-            self._stride = None
         return isValid
 
     def setPos(self, pos):
@@ -80,9 +79,16 @@ class StaticImageAsNumericalFont(StaticImageAsFont):
         self.setMaxNum(maxNum)
         super().__init__(image, text=text, stride=stride)
         
-    # TODO - Doesn't support negatives for drawing, I'm lazy. Disable them
     def setText(self, text):
-        isValid = type(text) == int or type(text) == None
+        """Sets the number to draw. Positive values only.
+
+        Args:
+            text (int): Value to draw
+
+        Returns:
+            bool: True if value was accepted
+        """
+        isValid = (type(text) == int and text >= 0) or type(text) == None
         if isValid:
             self._text = text
         return isValid

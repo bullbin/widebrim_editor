@@ -1,5 +1,5 @@
 import ndspy.rom
-from ..madhatter.hat_io import binary, asset
+from ..madhatter.hat_io import asset
 from .config import PATH_ROM
 from os import path
 from .exceptions import PathInvalidRom, RomInvalid
