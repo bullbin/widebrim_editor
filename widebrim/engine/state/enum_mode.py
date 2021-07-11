@@ -42,7 +42,7 @@ class GAMEMODES(Enum):
     NintendoWfcSetup    = 38
     WiFiDownloadPuzzle  = 39
     Passcode            = 40
-    CodeInputPandora    = 41
+    CodeInputCurious    = 41
     CodeInputFuture     = 42
     Diary               = 43
     Nazoba              = 44

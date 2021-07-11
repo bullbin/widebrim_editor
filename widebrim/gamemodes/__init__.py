@@ -15,5 +15,5 @@ from .memo import MemoPlayer
 from .mystery import MysteryPlayer
 from .jiten import JitenPlayer
 from .wfcSetup import NintendoWfcBypassPlayer
-from .secret import WiFiSecretMenuPlayer, SecretMenuPlayer, TopSecretMenuPlayer, ArtModePlayer
+from .secret import WiFiSecretMenuPlayer, SecretMenuPlayer, TopSecretMenuPlayer, ArtModePlayer, PasscodePlayer
 from .wiFiDownloadPuzzle import WiFiDownloadPuzzleBypassPlayer

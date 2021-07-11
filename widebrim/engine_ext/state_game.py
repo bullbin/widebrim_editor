@@ -40,6 +40,8 @@ GAMEMODE_TO_HANDLER = {GAMEMODES.Reset:ResetHelper,
                        GAMEMODES.HamsterName:NamePlayer,
                        GAMEMODES.NintendoWfcSetup:NintendoWfcBypassPlayer,
                        GAMEMODES.WiFiDownloadPuzzle:WiFiDownloadPuzzleBypassPlayer,
+                       GAMEMODES.Passcode:PasscodePlayer,
+                       # TODO - Diary
                        GAMEMODES.Nazoba:NazobaPlayer}
 
 class BgLayer(ScreenLayerNonBlocking):
