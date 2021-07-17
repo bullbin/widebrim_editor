@@ -16,7 +16,7 @@ from ...engine.file import FileInterface
 from ...madhatter.hat_io.asset import LaytonPack
 from pygame import MOUSEBUTTONUP, BLEND_RGB_SUB, BLEND_RGB_MULT, Surface
 
-# TODO - Used in code entry? Not ready for use yet
+# TODO - This needs rewrite. Especially after doing CodeInput some of this is stupid
 
 class KeyboardButton(NullButton):
     def __init__(self, pos, posEnd, callback=None):
@@ -43,7 +43,6 @@ class NamePlayer(ScreenLayerNonBlocking):
         try:
             tempPack = LaytonPack()
             tempPack.load(FileInterface.getData(PATH_PACK_TEXT))
-            # TODO - Pad to correct size
             self.mapKigou = getSubstitutedString(tempPack.getFile(PATH_KIGOU).decode('shift-jis'))
             self.mapKomoji = getSubstitutedString(tempPack.getFile(PATH_KOMOJI).decode('shift-jis'))
             self.mapOomoji = getSubstitutedString(tempPack.getFile(PATH_OOMOJI).decode('shift-jis'))
@@ -109,9 +108,10 @@ class NamePlayer(ScreenLayerNonBlocking):
                 self._updateEntry()
 
         def callbackOnKeyPress():
-            self._addCharToEntry(self.activeMap[self.activeKey])
-            if self.indexBg == 2:
-                self._setIndexBg(0)
+            if self.activeKey < len(self.activeMap):
+                self._addCharToEntry(self.activeMap[self.activeKey])
+                if self.indexBg == 2:
+                    self._setIndexBg(0)
 
         for indexKey in range(self.countKeys):
             self.keys.append(KeyboardButton((0,0), SIZE_KEY, callback=callbackOnKeyPress))
@@ -185,25 +185,35 @@ class NamePlayer(ScreenLayerNonBlocking):
             self.surfaceBadName.draw(gameDisplay)
 
     def handleTouchEvent(self, event):
-        if self.drawNamesBlockedScreen:
-            if event.type == MOUSEBUTTONUP:
-                self.drawNamesBlockedScreen = False
-                self._clearEntry()
-        else:
-            self.buttonSub.handleTouchEvent(event)
-            self.buttonAccent.handleTouchEvent(event)
-            self.buttonSpace.handleTouchEvent(event)
-            self.buttonErase.handleTouchEvent(event)
-            self.buttonOk.handleTouchEvent(event)
+        if not(self.screenController.getFadingStatus()):
+            if self.drawNamesBlockedScreen:
+                if event.type == MOUSEBUTTONUP:
+                    self.drawNamesBlockedScreen = False
+                    self._clearEntry()
+                    return True
+            else:
+                if self.buttonSub.handleTouchEvent(event):
+                    return True
+                if self.buttonAccent.handleTouchEvent(event):
+                    return True
+                if self.buttonSpace.handleTouchEvent(event):
+                    return True
+                if self.buttonErase.handleTouchEvent(event):
+                    return True
+                if self.buttonOk.handleTouchEvent(event):
+                    return True
 
-            if self.indexBg != 3:
-                self.keyDownShift.handleTouchEvent(event)
-                self.keyShift.handleTouchEvent(event)
-            
-            for indexKey in range(self.countKeys):
-                self.activeKey = indexKey
-                if self.keys[indexKey].handleTouchEvent(event):
-                    break
+                if self.indexBg != 3:
+                    if self.keyDownShift.handleTouchEvent(event):
+                        return True
+                    if self.keyShift.handleTouchEvent(event):
+                        return True
+                
+                for indexKey in range(self.countKeys):
+                    self.activeKey = indexKey
+                    if self.keys[indexKey].handleTouchEvent(event):
+                        return True
+        return super().handleTouchEvent(event)
 
     # Update key position functions reversed from game, so constants have not been pulled to module as modifying
     # these in the ROM would have no effect on key position.

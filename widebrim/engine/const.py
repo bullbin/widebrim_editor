@@ -86,3 +86,8 @@ class LANGUAGES(Enum):
     Spanish     = "sp"
     Korean      = "ko"
     Japanese    = "jp"
+
+class CIPHER_IV(Enum):
+    Default     = 0x59
+    Future      = 0x55
+    Pandora     = 0x4b

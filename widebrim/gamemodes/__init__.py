@@ -17,3 +17,4 @@ from .jiten import JitenPlayer
 from .wfcSetup import NintendoWfcBypassPlayer
 from .secret import WiFiSecretMenuPlayer, SecretMenuPlayer, TopSecretMenuPlayer, ArtModePlayer, PasscodePlayer
 from .wiFiDownloadPuzzle import WiFiDownloadPuzzleBypassPlayer
+from .codeinput import CodeInputPlayer

@@ -1,8 +1,13 @@
 from __future__ import annotations
 from typing import Optional, TYPE_CHECKING
 
+from pygame.constants import BLEND_RGB_SUB
+from widebrim.engine.anim.font.static import generateImageFromStringStrided
+
 from widebrim.engine.state.layer import ScreenLayerNonBlocking
 from widebrim.engine.state.enum_mode import GAMEMODES
+from widebrim.engine.cipher import generatePasscode
+from widebrim.engine.const import CIPHER_IV
 from widebrim.engine_ext.utils import getAnimFromPath, getButtonFromPath, getStaticButtonFromAnim
 
 from .const import *
@@ -19,6 +24,7 @@ class PasscodePlayer(ScreenLayerNonBlocking):
         self.__laytonState = laytonState
         self.__screenController = screenController
         self.__buttons = []
+        self.__textPasscode = generateImageFromStringStrided(laytonState.fontEvent, generatePasscode(CIPHER_IV.Default), STRIDE_TEXT_PASSCODE)
 
         def addButtonIfNotNone(button : Optional[StaticButton]):
             if button != None:
@@ -26,12 +32,12 @@ class PasscodePlayer(ScreenLayerNonBlocking):
 
         self.__animBtn = getAnimFromPath(PATH_ANIM_BUTTONS % laytonState.language.value)
 
+        # TODO - Should save somewhere near here...
         # TODO - Code overlay on these events
-        # TODO - Code overlay on this gamemode
         if self.__laytonState.saveSlot.codeInputFlags.getSlot(0) == True:
-            addButtonIfNotNone(getStaticButtonFromAnim(self.__animBtn, NAME_ANIM_CURIOUS_ENABLED, self.__callbackOnCuriousEnabled, POS_BTN_CURIOUS, clickOffset=BTN_CLICK_OFFSET))
+            addButtonIfNotNone(getStaticButtonFromAnim(self.__animBtn, NAME_ANIM_PANDORA_ENABLED, self.__callbackOnPandoraEnabled, POS_BTN_PANDORA, clickOffset=BTN_CLICK_OFFSET))
         else:
-            addButtonIfNotNone(getStaticButtonFromAnim(self.__animBtn, NAME_ANIM_CURIOUS_DISABLED, self.__callbackOnCuriousDisabled, POS_BTN_CURIOUS, clickOffset=BTN_CLICK_OFFSET))
+            addButtonIfNotNone(getStaticButtonFromAnim(self.__animBtn, NAME_ANIM_PANDORA_DISABLED, self.__callbackOnPandoraDisabled, POS_BTN_PANDORA, clickOffset=BTN_CLICK_OFFSET))
 
         if self.__laytonState.saveSlot.codeInputFlags.getSlot(8) == True:
             addButtonIfNotNone(getStaticButtonFromAnim(self.__animBtn, NAME_ANIM_FUTURE_ENABLED, self.__callbackOnFutureEnabled, POS_BTN_FUTURE, clickOffset=BTN_CLICK_OFFSET))
@@ -48,14 +54,14 @@ class PasscodePlayer(ScreenLayerNonBlocking):
 
         screenController.fadeIn()
 
-    def __callbackOnCuriousEnabled(self):
+    def __callbackOnPandoraEnabled(self):
         self.__laytonState.setGameMode(GAMEMODES.DramaEvent)
         self.__laytonState.setGameModeNext(GAMEMODES.Passcode)
         self.__laytonState.setEventId(ID_EVENT_SECRET)
         self.__screenController.fadeOut(callback=self.doOnKill)
 
-    def __callbackOnCuriousDisabled(self):
-        self.__laytonState.setGameMode(GAMEMODES.CodeInputCurious)
+    def __callbackOnPandoraDisabled(self):
+        self.__laytonState.setGameMode(GAMEMODES.CodeInputPandora)
         self.__screenController.fadeOut(callback=self.doOnKill)
 
     def __callbackOnFutureEnabled(self):
@@ -76,6 +82,7 @@ class PasscodePlayer(ScreenLayerNonBlocking):
     def draw(self, gameDisplay):
         for button in self.__buttons:
             button.draw(gameDisplay)
+        gameDisplay.blit(self.__textPasscode, POS_TEXT_PASSCODE, special_flags=BLEND_RGB_SUB)
     
     def update(self, gameClockDelta):
         if self.__btnCancel != None:

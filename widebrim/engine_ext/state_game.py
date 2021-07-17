@@ -2,7 +2,7 @@ from widebrim.engine_ext.const import SHAKE_PIX
 from ..engine.state.layer import ScreenCollection, ScreenLayerNonBlocking
 from ..engine.state.enum_mode import GAMEMODES
 from ..engine.const import RESOLUTION_NINTENDO_DS
-from ..engine.anim.fader import Fader
+from ..engine.anim.fader import Fader, FaderDeferredAssumedVBlank
 
 from ..gamemodes import *
 from ..gamemodes.core_popup.reset import ResetHelper
@@ -41,6 +41,8 @@ GAMEMODE_TO_HANDLER = {GAMEMODES.Reset:ResetHelper,
                        GAMEMODES.NintendoWfcSetup:NintendoWfcBypassPlayer,
                        GAMEMODES.WiFiDownloadPuzzle:WiFiDownloadPuzzleBypassPlayer,
                        GAMEMODES.Passcode:PasscodePlayer,
+                       GAMEMODES.CodeInputPandora:CodeInputPlayer,
+                       GAMEMODES.CodeInputFuture:CodeInputPlayer,
                        # TODO - Diary
                        GAMEMODES.Nazoba:NazobaPlayer}
 
@@ -129,8 +131,8 @@ class FaderLayer(ScreenLayerNonBlocking):
         self._faderSurfMain  = Surface(RESOLUTION_NINTENDO_DS)
         self._faderSurfSub   = Surface(RESOLUTION_NINTENDO_DS)
 
-        self._faderMain     = Fader(0, initialActiveState=False)
-        self._faderSub      = Fader(0, initialActiveState=False)
+        self._faderMain     = FaderDeferredAssumedVBlank(0, initialActiveState=False)
+        self._faderSub      = FaderDeferredAssumedVBlank(0, initialActiveState=False)
         self._faderWait         = Fader(0, initialActiveState=False)
 
         self._waitCanBeSkipped  = False

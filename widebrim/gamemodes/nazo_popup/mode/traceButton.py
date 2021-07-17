@@ -77,6 +77,8 @@ class HandlerTraceButton(BaseQuestionObject):
         self._tracePointsTotal = (0,0)
         self._tracePointsCount = 0
         self._tracePointTargetted = None
+
+        self._setPuzzleTouchBounds(RESOLUTION_NINTENDO_DS[1])
     
     def _loadPuzzleBg(self):
         nazoData = self.laytonState.getNazoData()

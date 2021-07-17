@@ -71,11 +71,11 @@ class PuzzlePlayer(ScreenLayerNonBlocking):
         self._waitingToUnrollAndRestart = False
 
         # TODO - Triggers some sound to stop here
-        activeNazoEntry = self.laytonState.getCurrentNazoListEntry()
-        if activeNazoEntry != None:
-            # TODO - This actually checks that the puzzle has nothing attached to it - no flags at all
-            if not (self.laytonState.saveSlot.puzzleData.getPuzzleData(activeNazoEntry.idExternal - 1).wasEncountered):
-                self.laytonState.saveSlot.puzzleData.getPuzzleData(activeNazoEntry.idExternal - 1).wasEncountered = True
+        # This check was rewritten, some puzzles seem to not want to be stored, eg ID 203 (secret) intentionally uses external ID 0 which is invalid
+        if (activeNazoEntry := self.laytonState.getCurrentNazoListEntry()) != None:
+            if (puzzleData := self.laytonState.saveSlot.puzzleData.getPuzzleData(activeNazoEntry.idExternal - 1)) != None:
+                # TODO - This actually checks that the puzzle has nothing attached to it - no flags at all
+                puzzleData.wasEncountered = True
 
         if self.laytonState.loadCurrentNazoData():
             # Do intro screen and start loading chain

@@ -1,7 +1,10 @@
 from __future__ import annotations
 from typing import List, Optional, TYPE_CHECKING
+
+from pygame.constants import KEYUP
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
 from widebrim.madhatter.hat_io.asset_script import GdScript
+from widebrim.engine.keybinds import KEY_START
 
 from widebrim.engine_ext.const import PATH_TEMP
 from widebrim.engine.state.enum_mode import GAMEMODES
@@ -25,7 +28,6 @@ if TYPE_CHECKING:
 
 # Thank you FFMPEG team for supporting mobiclip! 4.4 minimum req.
 
-# TODO - Implement skip
 # TODO - Implement drawable
 class MovieSurface():
     def __init__(self, indexMovie : int, callback : Optional[callable], framerate : float = 23.98):
@@ -184,7 +186,17 @@ class MoviePlayer(ScriptPlayer):
         self.__updateRenderedSubtitle()
         self.__surfaceMovie.update(gameClockDelta)
     
+    def handleKeyboardEvent(self, event):
+        if not(self.screenController.getFadingStatus()):
+            if event.type == KEYUP and event.key == KEY_START:
+                self.__fadeOutAndTerminate()
+                return True
+        return super().handleKeyboardEvent(event)
+    
     def doOnKill(self):
+        # HACK - Force cleanup on termination in case of skipped scene, as the thread will otherwise continue in background
+        if self.__surfaceMovie != None:
+            self.__surfaceMovie.cleanup()
         if self.laytonState.isInMovieMode:
             self.laytonState.setGameMode(GAMEMODES.MovieViewMode)
         else:
@@ -192,7 +204,8 @@ class MoviePlayer(ScriptPlayer):
         return super().doOnKill()
 
     def __fadeOutAndTerminate(self):
-        self.screenController.fadeOutMain(callback=self.doOnKill)
+        if not(self.screenController.getFadingStatus()):
+            self.screenController.fadeOutMain(callback=self.doOnKill)
 
     def _doUnpackedCommand(self, opcode, operands):
         if opcode == OPCODES_LT2.SetSubTitle.value and len(operands) == 3:
