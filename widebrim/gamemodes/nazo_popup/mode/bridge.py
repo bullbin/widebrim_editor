@@ -58,7 +58,7 @@ class HandlerBridge(HandlerOnOff):
 
     def doOnComplete(self):
         for button in self._buttons:
-            button.callbackOnPressed = self._onFootPressed
+            button.setCallbackOnPressed(self._onFootPressed)
         return super().doOnComplete()
 
     def drawPuzzleElements(self, gameDisplay):

@@ -11,7 +11,7 @@ from widebrim.engine.anim.fader import Fader
 from widebrim.engine.state.enum_mode import GAMEMODES
 
 from widebrim.engine.state.layer import ScreenLayerNonBlocking
-from widebrim.engine_ext.utils import getAnimFromPathWithAttributes, getButtonFromPath, getPackedString, getAnimFromPath
+from widebrim.engine_ext.utils import getAnimFromPathWithAttributes, getButtonFromPath, getClickableButtonFromPath, getPackedString, getAnimFromPath
 from .const import *
 
 from pygame import Surface
@@ -92,10 +92,10 @@ class JitenPlayer(ScreenLayerNonBlocking):
         addIfNotNone(self.__buttons, self.__btnDownFast)
         if self.__sourceGameMode == GAMEMODES.JitenWiFi:
             self.__btnSolve = getButtonFromPath(laytonState, PATH_ANIM_BTN_ALL, self.__callbackOnSolvePressed, NAME_ANIM_JITEN_BTN_SOLVE_OFF_WIFI, NAME_ANIM_JITEN_BTN_SOLVE_ON_WIFI, pos=POS_BTN_SOLVE, customDimensions=DIM_BTN_SOLVE)
-            addIfNotNone(self.__buttons, getButtonFromPath(laytonState, PATH_ANIM_BUTTON_CANCEL, self.__callbackOnExit))
+            addIfNotNone(self.__buttons, getClickableButtonFromPath(laytonState, PATH_ANIM_BUTTON_CANCEL, self.__callbackOnExit, unclickOnCallback=False))
         else:
             self.__btnSolve = getButtonFromPath(laytonState, PATH_ANIM_BTN_ALL, self.__callbackOnSolvePressed, NAME_ANIM_JITEN_BTN_SOLVE_OFF, NAME_ANIM_JITEN_BTN_SOLVE_ON, pos=POS_BTN_SOLVE, customDimensions=DIM_BTN_SOLVE)
-            addIfNotNone(self.__buttons, getButtonFromPath(laytonState, PATH_ANIM_BTN_ALL, self.__callbackOnExit, animOff=NAME_ANIM_JITEN_BTN_ALT_CLOSE_OFF, animOn=NAME_ANIM_JITEN_BTN_ALT_CLOSE_CLICK, customDimensions=DIM_BTN_CLOSE, pos=POS_BTN_CLOSE))
+            addIfNotNone(self.__buttons, getClickableButtonFromPath(laytonState, PATH_ANIM_BTN_ALL, self.__callbackOnExit, animOff=NAME_ANIM_JITEN_BTN_ALT_CLOSE_OFF, animOn=NAME_ANIM_JITEN_BTN_ALT_CLOSE_CLICK, animClick=NAME_ANIM_JITEN_BTN_ALT_CLOSE_CLICK, customDimensions=DIM_BTN_CLOSE, pos=POS_BTN_CLOSE, unclickOnCallback=False))
 
         # HACK - Weird positioning
         self.__textRendererLocation.setPos((POS_TEXT_LOCATION[0], POS_TEXT_LOCATION[1] + 2))

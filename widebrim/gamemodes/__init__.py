@@ -10,7 +10,7 @@ from .movie import MoviePlayer
 from .startpuzzle import StartPuzzlePlayer
 from .staypuzzle import StayPuzzlePlayer
 from .nazoba import NazobaPlayer
-from .menu import BagPlayer
+from .bag import BagPlayer
 from .memo import MemoPlayer
 from .mystery import MysteryPlayer
 from .jiten import JitenPlayer
@@ -18,3 +18,4 @@ from .wfcSetup import NintendoWfcBypassPlayer
 from .secret import WiFiSecretMenuPlayer, SecretMenuPlayer, TopSecretMenuPlayer, ArtModePlayer, PasscodePlayer, MovieViewModePlayer, ChrViewModePlayer
 from .wiFiDownloadPuzzle import WiFiDownloadPuzzleBypassPlayer
 from .codeinput import CodeInputPlayer
+from .diary import DiaryPlayer

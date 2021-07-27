@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Optional, TYPE_CHECKING
 from widebrim.engine.const import PATH_TEXT_GENERIC, RESOLUTION_NINTENDO_DS
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
-from widebrim.gamemodes.menu.const import PATH_ANI_RESET_WINDOW, POS_TEXT_RESET_CENTER, VARIABLE_BTN_RESET_POS, PATH_BTN_RESET_YES, PATH_BTN_RESET_NO
+from widebrim.gamemodes.bag.const import PATH_ANI_RESET_WINDOW, POS_TEXT_RESET_CENTER, VARIABLE_BTN_RESET_POS, PATH_BTN_RESET_YES, PATH_BTN_RESET_NO
 from widebrim.engine_ext.utils import getAnimFromPathWithAttributes, getButtonFromPath, getTxt2String
 
 if TYPE_CHECKING:

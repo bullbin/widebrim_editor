@@ -4,7 +4,7 @@ if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
     from PIL.Image import Image as ImageType
 
-from widebrim.engine.anim.button import AnimatedButton, StaticButton
+from widebrim.engine.anim.button import AnimatedButton, AnimatedClickableButton, StaticButton
 from ..madhatter.hat_io.asset_image import StaticImage
 from ..engine.const import PATH_BG_ROOT, PATH_ANI, PATH_FACE_ROOT, RESOLUTION_NINTENDO_DS
 from ..engine.file import FileInterface
@@ -102,7 +102,6 @@ def getButtonFromPath(laytonState : Layton2GameState, inPath : str, callback : O
         Optional[AnimatedButton]: Image-based button
     """
 
-    # TODO - Support click image
     if "?" in inPath:
         inPath = inPath.replace("?", laytonState.language.value)
     elif "%s" in inPath:
@@ -161,6 +160,12 @@ def getStaticButtonFromPath(laytonState : Layton2GameState, inPath : str, spawnA
         if button.image.getActiveFrame() != None:
             return StaticButton(button.image.getPos(), button.image.getActiveFrame(), callback=callback, targettedOffset=clickOffset)
     return None
+
+def getClickableButtonFromPath(laytonState : Layton2GameState, inPath : str, callback : Optional[Callable], animOff : str = "off", animOn : str = "on", animClick : str = "click", pos=(0,0), customDimensions=None, namePosVariable=None, unclickOnCallback=True) -> Optional[AnimatedClickableButton]:
+    button = getButtonFromPath(laytonState, inPath, callback, animOff, animOn, pos, customDimensions, namePosVariable)
+    if button != None:
+        button = button.asClickable(animClick, unclickOnCallback)
+    return button
 
 def getAnimFromPath(inPath, spawnAnimName=None, pos=(0,0)) -> Optional[AnimatedImageObject]:
 

@@ -21,7 +21,7 @@ from widebrim.engine.anim.fader import Fader
 from widebrim.engine.state.layer import ScreenLayerNonBlocking
 from widebrim.engine.exceptions import FileInvalidCritical
 from widebrim.engine.anim.font.static import generateImageFromString
-from widebrim.engine_ext.utils import getAnimFromPath, getAnimFromPathWithAttributes, getPackedData, getPackedString, getTxt2String, getButtonFromPath
+from widebrim.engine_ext.utils import getAnimFromPath, getAnimFromPathWithAttributes, getClickableButtonFromPath, getPackedData, getPackedString, getTxt2String
 from .const import *
 from .animJump import AnimJumpHelper
 from .tobjPopup import TObjPopup
@@ -90,8 +90,8 @@ class RoomPlayer(ScreenLayerNonBlocking):
         self.__placeData : Optional[PlaceDataNds] = None
 
         self.__inMoveMode : bool = False
-        self.__btnMoveMode : Optional[AnimatedButton] = getButtonFromPath(laytonState, PATH_BTN_MOVEMODE, callback=self.__startMoveMode)
-        self.__btnMenuMode : Optional[AnimatedButton] = getButtonFromPath(laytonState, PATH_BTN_MENU_ICON, callback=self.__startMenuMode)
+        self.__btnMoveMode : Optional[AnimatedButton] = getClickableButtonFromPath(laytonState, PATH_BTN_MOVEMODE, callback=self.__startMoveMode)
+        self.__btnMenuMode : Optional[AnimatedButton] = getClickableButtonFromPath(laytonState, PATH_BTN_MENU_ICON, callback=self.__startMenuMode, unclickOnCallback=False)
         
         self.__tObjWindow           : Optional[TObjPopup]       = None
 
@@ -320,6 +320,13 @@ class RoomPlayer(ScreenLayerNonBlocking):
                 self.__inMoveMode = False
 
             else:
+                # TODO - Accurate button order
+                if self.__btnMoveMode != None and self.__btnMoveMode.handleTouchEvent(event):
+                    return True
+                
+                if self.__btnMenuMode != None and self.__btnMenuMode.handleTouchEvent(event):
+                    return True
+
                 # TODO - Event handling is not very accurate; just reuses code from previous room handler
                 if event.type == MOUSEBUTTONDOWN and (objEventIndex := getPressedEventIndex(boundaryTestPos)) != None:
                     # TODO - Check photo flags
@@ -366,12 +373,6 @@ class RoomPlayer(ScreenLayerNonBlocking):
                             if wasBoundingCollided(tObj.bounding, boundaryTestPos):
                                 self.__startTObj(tObj.idChar, tObj.idTObj, False)
                                 return True
-                
-                if self.__btnMoveMode != None and self.__btnMoveMode.handleTouchEvent(event):
-                    return True
-                
-                if self.__btnMenuMode != None and self.__btnMenuMode.handleTouchEvent(event):
-                    return True
                 
                 if event.type == MOUSEBUTTONDOWN and (objExit := getPressedExit(boundaryTestPos, immediateOnly=True)) != None:
                     self.__startExit(objExit)

@@ -3,7 +3,7 @@ from typing import List, Optional, TYPE_CHECKING
 from widebrim.engine.anim.image_anim.image import AnimatedImageObject
 from widebrim.engine.state.enum_mode import GAMEMODES
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
-from widebrim.engine_ext.utils import getAnimFromPath, getButtonFromPath, getTxtString
+from widebrim.engine_ext.utils import getAnimFromPath, getButtonFromPath, getClickableButtonFromPath, getTxtString
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
 from widebrim.engine.state.layer import ScreenLayerNonBlocking
 from widebrim.engine.anim.button import AnimatedButton, NullButton
@@ -38,8 +38,8 @@ class MemoPlayer(ScreenLayerNonBlocking):
             self.__buttonEntries.append(NullButton((x,y), (x+BUTTON_DIMENSIONS[0], y+BUTTON_DIMENSIONS[1]), callback=self.__callbackOnEntryPress))
             self.__surfacesTitle.append(StaticTextHelper(self.laytonState.fontEvent))
             # TODO - position was from visual, no basis in binary
-            self.__surfacesTitle[indexButton].setPos((x + 28,y + 4))
-            y += BUTTON_STRIDE_Y
+            self.__surfacesTitle[indexButton].setPos((x + 28,y + 3))
+            y += BUTTON_STRIDE_Y + 1 # TODO - What's going on with spacing here? Missing padding?
 
         # TODO - Button collection class, faster
         self.__buttons : List[AnimatedButton] = []
@@ -49,7 +49,7 @@ class MemoPlayer(ScreenLayerNonBlocking):
         
         addButtonIfNotNone(getButtonFromPath(self.laytonState, PATH_ANIM_MEMO_BUTTONS, animOff=NAME_ANIM_BACK_OFF, animOn=NAME_ANIM_BACK_ON, namePosVariable=POS_ANIM_BACK, callback=self.__callbackOnPrevPage))
         addButtonIfNotNone(getButtonFromPath(self.laytonState, PATH_ANIM_MEMO_BUTTONS, animOff=NAME_ANIM_NEXT_OFF, animOn=NAME_ANIM_NEXT_ON, namePosVariable=POS_ANIM_NEXT, callback=self.__callbackOnNextPage))
-        addButtonIfNotNone(getButtonFromPath(self.laytonState, PATH_ANIM_MEMO_CLOSE, animOff=NAME_ANIM_CLOSE_OFF, animOn=NAME_ANIM_CLOSE_ON, namePosVariable=POS_ANIM_CLICK, callback=self.__callbackOnClose))
+        addButtonIfNotNone(getClickableButtonFromPath(self.laytonState, PATH_ANIM_MEMO_CLOSE, animOff=NAME_ANIM_CLOSE_OFF, animOn=NAME_ANIM_CLOSE_ON, animClick=NAME_ANIM_CLOSE_CLICK, namePosVariable=POS_ANIM_CLICK, callback=self.__callbackOnClose, unclickOnCallback=False))
 
         self.screenController.setBgMain(PATH_BG_MAIN)
         self.screenController.setBgSub(PATH_BG_SUB % laytonState.language.value)

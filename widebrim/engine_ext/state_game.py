@@ -45,7 +45,7 @@ GAMEMODE_TO_HANDLER = {GAMEMODES.Reset:ResetHelper,
                        GAMEMODES.Passcode:PasscodePlayer,
                        GAMEMODES.CodeInputPandora:CodeInputPlayer,
                        GAMEMODES.CodeInputFuture:CodeInputPlayer,
-                       # TODO - Diary
+                       GAMEMODES.Diary:DiaryPlayer,
                        GAMEMODES.Nazoba:NazobaPlayer}
 
 class BgLayer(ScreenLayerNonBlocking):

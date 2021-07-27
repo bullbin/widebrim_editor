@@ -1,3 +1,4 @@
+from typing import List
 from .base import BaseQuestionObject
 from .const import PATH_ANI_ONOFF
 from ....engine.const import RESOLUTION_NINTENDO_DS
@@ -31,7 +32,7 @@ class OnOffButton(StaticButton):
 class HandlerOnOff(BaseQuestionObject):
     def __init__(self, laytonState, screenController, callbackOnTerminate):
         super().__init__(laytonState, screenController, callbackOnTerminate)
-        self._buttons = []
+        self._buttons : List[OnOffButton] = []
         self._buttonsEnabledSolution = []
     
     def hasRestartButton(self):

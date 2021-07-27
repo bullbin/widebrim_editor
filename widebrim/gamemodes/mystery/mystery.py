@@ -200,7 +200,6 @@ class MysteryPlayer(ScreenLayerNonBlocking):
                 animButton.update(gameClockDelta)
         
         def updateFinish(self : MysteryPlayer, gameClockDelta):
-            MysteryPlayer.update = self.__update
             self.__doNormalBehaviour()
 
         def terminate():
@@ -247,7 +246,6 @@ class MysteryPlayer(ScreenLayerNonBlocking):
             faderTiming.update(gameClockDelta)
 
         def updateFinish(self : MysteryPlayer, gameClockDelta):
-            MysteryPlayer.update = self.__update
             self.__doNormalBehaviour()
 
         def draw(self : MysteryPlayer, gameDisplay):
@@ -322,6 +320,7 @@ class MysteryPlayer(ScreenLayerNonBlocking):
     def __doNormalBehaviour(self):
         self.__screenController.fadeIn(callback=self.__enableInteractivitity)
         MysteryPlayer.draw = self.__draw
+        MysteryPlayer.update = self.__update
         MysteryPlayer.handleTouchEvent = self.__handleTouchEvent
 
     def __callbackOnMysteryPress(self):

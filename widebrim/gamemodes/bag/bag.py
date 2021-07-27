@@ -5,7 +5,7 @@ from widebrim.gamemodes.core_popup.save import SaveLoadScreenPopup
 from widebrim.gamemodes.core_popup.utils import FullScreenPopup
 from widebrim.gamemodes.dramaevent.const import PATH_ITEM_ICON
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
-from widebrim.engine_ext.utils import getAnimFromPath, getAnimFromPathWithAttributes, getButtonFromPath
+from widebrim.engine_ext.utils import getAnimFromPath, getAnimFromPathWithAttributes, getButtonFromPath, getClickableButtonFromPath
 from widebrim.engine.anim.image_anim.imageAsNumber import StaticImageAsNumericalFont
 from widebrim.engine.anim.button import AnimatedButton
 from widebrim.gamemodes.mystery import MysteryPlayer
@@ -35,7 +35,7 @@ class BagPlayer(ScreenLayerNonBlocking):
 
         # TODO - Buttons draw slightly differently, the tojiru button won't go back to OFF state after being pressed.
         self.__addButton(getButtonFromPath(laytonState, PATH_BTN_RESET, namePosVariable=VARIABLE_DEFAULT_POS, callback=self.__callbackOnReset))
-        self.__addButton(getButtonFromPath(laytonState, PATH_BTN_TOJIRU, namePosVariable=VARIABLE_DEFAULT_POS, callback=self.__callbackOnCloseBag))
+        self.__addButton(getClickableButtonFromPath(laytonState, PATH_BTN_TOJIRU, namePosVariable=VARIABLE_DEFAULT_POS, callback=self.__callbackOnCloseBag, unclickOnCallback=False))
         self.__addButton(getButtonFromPath(laytonState, PATH_BTN_MEMO, namePosVariable=VARIABLE_DEFAULT_POS, callback=self.__callbackOnStartMemo))
         self.__addButton(getButtonFromPath(laytonState, PATH_BTN_MYSTERY, namePosVariable=VARIABLE_DEFAULT_POS, callback=self.__callbackOnStartMystery))
         self.__addButton(getButtonFromPath(laytonState, PATH_BTN_PUZZLE, namePosVariable=VARIABLE_DEFAULT_POS, callback=self.__callbackOnStartJiten))
@@ -92,7 +92,7 @@ class BagPlayer(ScreenLayerNonBlocking):
         def drawBase():
             # TODO - Horrible hack. Please please please separate the screens.
             for drawable in self.__buttons + self.__anims:
-                if type(drawable) == AnimatedButton:
+                if isinstance(drawable, AnimatedButton):
                     if drawable.image.getPos()[1] < RESOLUTION_NINTENDO_DS[1]:
                         if self.__drawTopScreenGraphics:
                             drawable.draw(gameDisplay)
@@ -228,10 +228,15 @@ class BagPlayer(ScreenLayerNonBlocking):
                     self.laytonState.setEventId(18410)
         self.screenController.fadeOut(callback=self.doOnKill)
 
+    def __callbackOnStartDiary(self):
+        self.__disableInteractivity()
+        self.laytonState.setGameMode(GAMEMODES.Diary)
+        self.screenController.fadeOut(callback=self.doOnKill)
+
     def __loadAdditionalButtons(self):        
         namePosVariable = VARIABLE_BTN_DIARY_DISABLED
         if self.laytonState.isAnthonyDiaryEnabled():
-            self.__addButton(getButtonFromPath(self.laytonState, PATH_BTN_DIARY, namePosVariable=VARIABLE_DEFAULT_POS))
+            self.__addButton(getButtonFromPath(self.laytonState, PATH_BTN_DIARY, namePosVariable=VARIABLE_DEFAULT_POS, callback=self.__callbackOnStartDiary))
             namePosVariable = VARIABLE_BTN_DIARY_ENABLED
 
         if self.laytonState.isCameraAvailable():
