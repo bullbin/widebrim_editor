@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import Callable, Optional, TYPE_CHECKING, Tuple
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
+    from PIL.Image import Image as ImageType
 
 from widebrim.engine.anim.button import AnimatedButton, StaticButton
 from ..madhatter.hat_io.asset_image import StaticImage
@@ -20,7 +21,7 @@ from pygame import image, Surface
 
 def getImageFromPath(laytonState, pathBg) -> Optional[Surface]:
 
-    def fetchBgxImage(path):
+    def fetchBgxImage(path) -> Optional[ImageType]:
         # TODO - Fix unwanted behaviour with reading null-terminated strings, where a null character is left at the end
         if "bgx" in path:
             tempPath = path.split(".")
@@ -48,7 +49,11 @@ def getImageFromPath(laytonState, pathBg) -> Optional[Surface]:
             bg = fetchBgxImage(pathBg)
         
         if bg != None:
-            return image.fromstring(bg.convert("RGB").tobytes("raw", "RGB"), bg.size, "RGB").convert()
+            # HACK - Reword transparencies to support colormasking
+            output = image.fromstring(bg.convert("RGB").tobytes("raw", "RGB"), bg.size, "RGB").convert()
+            if bg.mode == "P":
+                output.set_colorkey(bg.getpalette()[0:3])
+            return output
     return None
 
 def getPackedData(pathPack, nameItem) -> Optional[bytes]:

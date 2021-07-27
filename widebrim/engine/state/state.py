@@ -439,6 +439,13 @@ class Layton2GameState():
                 return False
         return True
     
+    def hasAllPuzzlesBeenSolved(self) -> bool:
+        for indexExternalPuzzle in range(1, 0x9a):
+            indexPuzzleData = indexExternalPuzzle - 1
+            if (puzzleData := self.saveSlot.puzzleData.getPuzzleData(indexPuzzleData)) != None and not(puzzleData.wasSolved):
+                return False
+        return True
+    
     def clearMysteryUnlockedIndex(self):
         self._indexMysteryChanged = -1
 

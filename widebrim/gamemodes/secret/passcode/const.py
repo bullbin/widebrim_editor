@@ -18,3 +18,5 @@ POS_BTN_FUTURE          = (0x8c,0x38)
 POS_TEXT_PASSCODE       = (0x49, 0x9b)
 STRIDE_TEXT_PASSCODE    = 0x10
 BTN_CLICK_OFFSET        = (1,1)
+
+# TODO - Save pops up here using main0.bgx to blank screen
