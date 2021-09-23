@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Callable, Optional, TYPE_CHECKING
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
-from widebrim.gamemodes.dramaevent.popup.utils import FadingPopup, FadingPopupAnimBackground, FadingPopupMultipleAnimBackground
+from widebrim.gamemodes.dramaevent.popup.utils import FadingPopupAnimBackground, FadingPopupMultipleAnimBackground
 from widebrim.engine_ext.utils import getAnimFromPath, getAnimFromPathWithAttributes, getTxt2String
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
@@ -43,70 +43,6 @@ from pygame.transform import flip
 
 # TODO - Set up preparations for many hardcoded event IDs which are called for various tasks in binary
 #        aka nazoba hell, since there's so much back and forth to spawn the extra handler due to memory constraints on NDS
-
-class Popup():
-
-    # Note - Inaccurate, as characters share the same alpha as this layer. Colours should bleed over characters as alpha channel is used for fading, not separate surface.
-
-    DURATION_FADE = 300
-
-    def __init__(self):
-        self.fader = Fader(Popup.DURATION_FADE)
-        self.canBeTerminated = False
-    
-    def doWhileActive(self, gameClockDelta):
-        self.fader.update(gameClockDelta)
-
-        if self.fader.getStrength() == 0:
-            self.canBeTerminated = True
-
-    def doOnExit(self):
-        pass
-
-    def update(self, gameClockDelta):
-        if not(self.canBeTerminated):
-            self.doWhileActive(gameClockDelta)
-
-    def draw(self, gameDisplay):
-        pass
-
-    def getContextState(self):
-        return self.canBeTerminated
-
-    def isPopupDone(self):
-        return True
-    
-    def handleTouchEventForPopup(self, event):
-        pass
-
-    def handleTouchEvent(self, event):
-        # If the popup is currently fading, skip it.
-        if event.type == MOUSEBUTTONUP:
-            if self.isPopupDone():
-                if not(self.fader.getActiveState()) and self.fader.getStrength() == 1:
-                    self.fader.setInvertedState(True)
-                    self.fader.reset()
-                    self.doOnExit()
-            else:
-                self.handleTouchEventForPopup(event)
-
-class PlaceholderPopup(Popup):
-
-    def __init__(self):
-        Popup.__init__(self)
-        self.surface = Surface((40,40))
-        self.surface.fill((255,0,0))
-        self.surface.set_alpha(0)
-    
-    def doWhileActive(self, gameClockDelta):
-        self.fader.update(gameClockDelta)
-        self.surface.set_alpha(round(self.fader.getStrength() * 255))
-
-        if self.fader.getStrength() == 0:
-            self.canBeTerminated = True
-
-    def draw(self, gameDisplay):
-        gameDisplay.blit(self.surface, (0,0))
 
 class TextWindow(FadingPopupMultipleAnimBackground):
 
@@ -158,7 +94,7 @@ class TextWindow(FadingPopupMultipleAnimBackground):
         if self.__targetCharacter != None:
             self.__targetCharacter.setCharacterTalkingState(False)
             if self.__animNameOnExit != None:
-                self.__targetCharacter.setAnimationFromName(self.__animNameOnExit)
+                self.__targetCharacter.setCharacterAnimationFromName(self.__animNameOnExit)
         return super().startTerminateBehaviour()
 
     def handleTouchEventForegroundElements(self, event : event):
@@ -173,7 +109,7 @@ class TextWindow(FadingPopupMultipleAnimBackground):
 
 class MokutekiWindow(FadingPopupAnimBackground):
 
-    # TODO - Timings are known for anim, cursor_wait, etc. Uses tm_def for aligned timing
+    # TODO - Timings are known for anim, cursor_wait, etc. Uses tm_def for aligned timing. Is this using TextWindow base (eg can span multiple pages)?
 
     def __init__(self, laytonState : Layton2GameState, screenController : ScreenController, text : str, callbackOnTerminate : Optional[Callable]):
         bgAnim = getAnimFromPathWithAttributes(PATH_MOKUTEKI_WINDOW)
@@ -338,6 +274,10 @@ class EventPlayer(ScriptPlayer):
         else:
             spawnId = self.laytonState.getEventId()
         
+        # EndPuzzle workaround causes invalidation to happen too early for event info...
+        # TODO - Think this through
+        spawnEventData = self.laytonState.getEventInfoEntry(spawnId)
+
         self._id = spawnId
         self._idMain = spawnId // 1000
         self._idSub = spawnId % 1000
@@ -374,12 +314,12 @@ class EventPlayer(ScriptPlayer):
 
                 # Event_MaybeLoadEvent
                 # Wants to set gamemode to puzzle, but this is overriden by setting to room. Done in different functions in game but both run during event
-                if ID_EVENT_PUZZLE <= spawnId < ID_EVENT_TEA and self.laytonState.entryEvInfo != None and self.laytonState.entryEvInfo.dataPuzzle != None:
-                    self.laytonState.setPuzzleId(self.laytonState.entryEvInfo.dataPuzzle)
+                if ID_EVENT_PUZZLE <= spawnId < ID_EVENT_TEA and spawnEventData != None and spawnEventData.dataPuzzle != None:
+                    self.laytonState.setPuzzleId(spawnEventData.dataPuzzle)
                     self.laytonState.setGameModeNext(GAMEMODES.EndPuzzle)
                 
-                if self.laytonState.entryEvInfo != None and self.laytonState.entryEvInfo.indexEventViewedFlag != None:
-                    self.laytonState.saveSlot.eventViewed.setSlot(True, self.laytonState.entryEvInfo.indexEventViewedFlag)
+                if spawnEventData != None and spawnEventData.indexEventViewedFlag != None:
+                    self.laytonState.saveSlot.eventViewed.setSlot(True, spawnEventData.indexEventViewedFlag)
 
                 self.screenController.setBgMain(PATH_PLACE_BG % eventData.readU16())
                 indexSubBg = eventData.readU16()
@@ -705,21 +645,21 @@ class EventPlayer(ScriptPlayer):
             self._popup = NamingHamPopup(self.laytonState, self.screenController, self._sharedImageHandler)
 
         elif opcode == OPCODES_LT2.DoLostPieceScreen.value:
-            self._popup = PlaceholderPopup()
+            self._popup = DoLostPiecePopup(self.laytonState, self.screenController, self._sharedImageHandler)
         
         elif opcode == OPCODES_LT2.DoInPartyScreen.value and len(operands) == 1:
             partyFlagEncoded = int.from_bytes(self.laytonState.saveSlot.partyFlag.toBytes(), byteorder = 'little') | operands[0].value
             self.laytonState.saveSlot.partyFlag = FlagsAsArray.fromBytes(partyFlagEncoded.to_bytes(1, byteorder = 'little'), 8)
 
             if operands[0].value != 2:
-                self._popup = PlaceholderPopup()
+                self._popup = DoInPartyPopup(self.laytonState, self.screenController, self._sharedImageHandler)
         
         elif opcode == OPCODES_LT2.DoOutPartyScreen.value and len(operands) == 1:
             partyFlagEncoded = int.from_bytes(self.laytonState.saveSlot.partyFlag.toBytes(), byteorder = 'little') & ~operands[0].value
             self.laytonState.saveSlot.partyFlag = FlagsAsArray.fromBytes(partyFlagEncoded.to_bytes(1, byteorder = 'little'), 8)
 
             if operands[0].value != 2:
-                self._popup = PlaceholderPopup()
+                self._popup = DoOutPartyPopup(self.laytonState, self.screenController, self._sharedImageHandler)
 
         elif opcode == OPCODES_LT2.DoDiaryAddScreen.value:
             # Stubbed, but don't want an error
@@ -739,6 +679,9 @@ class EventPlayer(ScriptPlayer):
                                 self.laytonState.saveSlot.eventViewed.setSlot(True, eventEntry.indexEventViewedFlag)
                                 self.laytonState.setEventId(targetEventId)
         
+        elif opcode == OPCODES_LT2.ReturnStationScreen.value:
+            self._popup = ReturnStationPopup(self.laytonState, self.screenController, self._sharedImageHandler)
+
         elif opcode == OPCODES_LT2.CompleteWindow.value and len(operands) == 2:
             self._popup = CompleteWindowPopup(self.laytonState, self.screenController, self._sharedImageHandler, operands[0].value, operands[1].value)
 

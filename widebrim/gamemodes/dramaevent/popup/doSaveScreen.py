@@ -27,9 +27,9 @@ class SaveButtonPopup(PrizeWindow2PopupWithCursor):
 
         # TODO - What is the pos name here?
         if saveIsComplete:
-            promptId = ID_SAVE_NOT_COMPLETE
-        else:
             promptId = ID_SAVE_COMPLETE
+        else:
+            promptId = ID_SAVE_NOT_COMPLETE
 
         self._prompt = generateImageFromString(laytonState.fontEvent, getTxt2String(laytonState, PATH_TEXT_GENERIC % promptId))
         self._promptPos = ((RESOLUTION_NINTENDO_DS[0] - self._prompt.get_width()) // 2, POS_TEXT_SAVE_Y + RESOLUTION_NINTENDO_DS[1])

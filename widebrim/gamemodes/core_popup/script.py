@@ -220,6 +220,12 @@ class ScriptPlayer(ScreenLayerNonBlocking):
 
         elif opcode == OPCODES_LT2.ReleaseItem.value:
             self.laytonState.saveSlot.storyItemFlag.setSlot(False, operands[0].value)
+        
+        elif opcode == OPCODES_LT2.DrawFrames.value:
+            # Not fully accurate since this counts drawn frames in the game, decoupling frames from actual timing. If the game is losing time (eg due to asset streaming) this will finish faster.
+            self._makeInactive()
+            self._faderWait.setCallback(self._makeActive)
+            self._faderWait.setDurationInFrames(operands[0].value)
 
         elif opcode == OPCODES_LT2.FadeOutFrameMain.value:
             self._makeInactive()

@@ -10,7 +10,7 @@ PATH_BG_NAME_3  = "name/name_bg3.bgx"
 PATH_BG_NAME_4  = "name/name_bg4.bgx"
 
 PATH_BG_SUB_NAME    = "name/?/name_sub.bgx"
-PATH_BG_SUB_HAM     = "name/?/name_sub.bgx"
+PATH_BG_SUB_HAM     = "name/?/name_sub_ham.bgx"
 
 PATH_ANI_CURSOR = "nazo/drawinput/di_cursor.spr"
 PATH_ANI_OK     = "name/?/name_ok.spr"

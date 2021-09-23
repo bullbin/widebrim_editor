@@ -4,14 +4,14 @@ from ....engine_ext.utils import getTxt2String
 from ....engine.const import RESOLUTION_NINTENDO_DS, PATH_TEXT_GENERIC
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
 
-class LostPiecePopup(PrizeWindow2PopupWithCursor):
+class DoLostPiecePopup(PrizeWindow2PopupWithCursor):
     def __init__(self, laytonState, screenController, eventStorage):
         PrizeWindow2PopupWithCursor.__init__(self, laytonState, screenController, eventStorage)
 
         self.pieceIcon = eventStorage.getAssetPieceIcon()
         if self.pieceIcon != None:
             self.pieceIcon.setAnimationFromName(NAME_AUTO_ANIM)
-            posPieceIcon = (RESOLUTION_NINTENDO_DS[0] - self.pieceIcon.getDimensions[0] // 2,
+            posPieceIcon = ((RESOLUTION_NINTENDO_DS[0] - self.pieceIcon.getDimensions()[0]) // 2,
                             POS_LOST_SCREEN_PIECE_ICON[1] + RESOLUTION_NINTENDO_DS[1])
             self.pieceIcon.setPos(posPieceIcon)
 

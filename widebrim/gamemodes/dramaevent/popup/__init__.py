@@ -1,6 +1,6 @@
 from .doSaveScreen import SaveButtonPopup
 from .itemAddScreen import ItemAddPopup
-from .lostPieceScreen import LostPiecePopup
+from .doLostPieceScreen import DoLostPiecePopup
 from .namingHamScreen import NamingHamPopup
 from .photoPieceAddScreen import PhotoPieceAddPopup
 from .stockScreen import StockPopup
@@ -9,3 +9,6 @@ from .subGameAddScreen import SubGameAddPopup
 from .subItemAddScreen import SubItemAddPopup
 from .completeWindowScreen import CompleteWindowPopup
 from .endingAddChallengeScreen import EndingAddChallengePopup
+from .returnStationScreen import ReturnStationPopup
+from .doOutPartyScreen import DoOutPartyPopup
+from .doInPartyScreen import DoInPartyPopup
