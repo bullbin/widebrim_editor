@@ -31,6 +31,7 @@ ID_LOST_SCREEN          = 0xd8
 ID_DIARY_ELEMENT_FOUND  = 0xdc
 ID_SUB_GAME_3           = 0xdb
 ID_PHOTO_ALL_FOUND      = 0xde
+ID_UNLOCK_END_CHALLENGE = 0x4b0
 ID_PHOTO_NEARLY_FOUND   = 0x640
 
 PATH_ANIM_NAZO_ICON     = "event/nazo_icon.spr"

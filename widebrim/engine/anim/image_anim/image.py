@@ -172,6 +172,9 @@ class AnimatedImageObject():
     def getPos(self):
         return self._pos
 
+    def getPosWithOffset(self):
+        return self._pos[0] + self._offset[0], self._pos[1] + self._offset[1]
+
     def getActiveFrame(self):
         if self.animActive != None:
             activeFrame = self.animActive.getActiveKeyframe()
@@ -196,9 +199,9 @@ class AnimatedImageObject():
         return hasMainFrameChanged or hasSubFrameChanged
 
     def draw(self, gameDisplay):
-        
         surface = self.getActiveFrame()
         if surface != None:
+            # TODO - would really like to integrate offset in (getPosWithOffset) but unsure if safe
             offset = (self._pos[0] + self._offset[0], self._pos[1] + self._offset[1])
             gameDisplay.blit(surface, offset)
 

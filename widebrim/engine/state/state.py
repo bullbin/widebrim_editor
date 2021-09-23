@@ -341,7 +341,7 @@ class Layton2GameState():
                 return entry
         return None
 
-    def getGoalInfEntry(self):
+    def getGoalInfEntry(self, id):
         if self._dbGoalInfo == None:
              # TODO : Load goal info
             print("Bad: Goal Info should have been loaded sooner!")
@@ -353,14 +353,7 @@ class Layton2GameState():
 
             self._dbGoalInfo.load(tempFile.data)
 
-        # TODO - Add madhatter search for goal_inf (why was this missing??)
-        for indexEntry in range(self._dbGoalInfo.getCountEntries()):
-            entry = self._dbGoalInfo.getEntry(indexEntry)
-
-            # TODO - Does this use calculated ID?
-            if entry.idEvent == self._idEvent:
-                return entry
-        return None
+        return self._dbGoalInfo.searchForEntry(id)
     
     def loadSubmapInfo(self):
         if self._dbSubmapInfo == None:
@@ -431,13 +424,24 @@ class Layton2GameState():
             self._roomLoadBehaviour = value
             return True
         return False
+
+    def getCountSolvedStoryPuzzles(self) -> int:
+        countSolved = 0
+        for indexExternalPuzzle in range(1, 0x8b):
+            indexPuzzleData = indexExternalPuzzle - 1
+            if (puzzleData := self.saveSlot.puzzleData.getPuzzleData(indexPuzzleData)) != None and puzzleData.wasSolved:
+                countSolved += 1
+        return countSolved
+    
+    def getCountEncounteredStoryPuzzle(self) -> int:
+        count = 0
+        for idExternal in range(1, 0x8b):
+            if (puzzleData := self.saveSlot.puzzleData.getPuzzleData(idExternal - 1)) != None and puzzleData.wasEncountered:
+                count += 1
+        return count
     
     def hasAllStoryPuzzlesBeenSolved(self) -> bool:
-        for indexExternalPuzzle in range(1, 0x8a):
-            indexPuzzleData = indexExternalPuzzle - 1
-            if (puzzleData := self.saveSlot.puzzleData.getPuzzleData(indexPuzzleData)) != None and not(puzzleData.wasSolved):
-                return False
-        return True
+        return self.getCountSolvedStoryPuzzles() == 138
     
     def hasAllPuzzlesBeenSolved(self) -> bool:
         for indexExternalPuzzle in range(1, 0x9a):
@@ -478,10 +482,3 @@ class Layton2GameState():
     def setLastJitenWiFiExternal(self, idExternal : int):
         self._idExternalLastWiFiPuzzle = idExternal
     
-    def getCountEncounteredStoryPuzzle(self) -> int:
-        count = 0
-        for idExternal in range(1, 0x8b):
-            if (puzzleData := self.saveSlot.puzzleData.getPuzzleData(idExternal - 1)) != None:
-                if puzzleData.wasEncountered:
-                    count += 1
-        return count

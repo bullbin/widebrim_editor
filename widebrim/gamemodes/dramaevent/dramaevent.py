@@ -1,8 +1,11 @@
 from __future__ import annotations
-from typing import Optional, TYPE_CHECKING
-from widebrim.engine_ext.utils import getAnimFromPath, getAnimFromPathWithAttributes
+from typing import Callable, Optional, TYPE_CHECKING
+from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
+from widebrim.gamemodes.dramaevent.popup.utils import FadingPopup, FadingPopupAnimBackground, FadingPopupMultipleAnimBackground
+from widebrim.engine_ext.utils import getAnimFromPath, getAnimFromPathWithAttributes, getTxt2String
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
+    from widebrim.engine_ext.state_game import ScreenController
 
 from widebrim.gamemodes.mystery import MysteryPlayer
 
@@ -13,7 +16,7 @@ from ...engine.exceptions import FileInvalidCritical
 from ...engine.file import FileInterface
 from ..core_popup.script import ScriptPlayer
 
-from ...engine.const import PATH_EVENT_BG_LANG_DEP, RESOLUTION_NINTENDO_DS, PATH_CHAP_ROOT
+from ...engine.const import PATH_EVENT_BG_LANG_DEP, PATH_TEXT_GENERIC, PATH_TEXT_PURPOSE, RESOLUTION_NINTENDO_DS, PATH_CHAP_ROOT
 from ...engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C
 from ...engine.const import PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, PATH_PACK_TALK, PATH_EVENT_BG, PATH_PLACE_BG, PATH_EVENT_ROOT, PATH_NAME_ROOT
 
@@ -31,7 +34,7 @@ from .const import *
 # TODO - Remove workaround by properly creating library
 from ...madhatter.hat_io.binary import BinaryReader
 
-from pygame import Surface, MOUSEBUTTONUP
+from pygame import Surface, MOUSEBUTTONUP, event
 from pygame.transform import flip
 
 # TODO - During fading, the main screen doesn't actually seem to be updated.
@@ -105,11 +108,9 @@ class PlaceholderPopup(Popup):
     def draw(self, gameDisplay):
         gameDisplay.blit(self.surface, (0,0))
 
-class TextWindow(Popup):
+class TextWindow(FadingPopupMultipleAnimBackground):
 
-    # TODO - Improve redundancy, although these are all critical assets
     SPRITE_WINDOW = getAnimFromPathWithAttributes(PATH_EVENT_ROOT % "twindow.arc")
-
     DICT_SLOTS = {0:"LEFT",
                   2:"RIGHT",
                   3:"LEFT_L",
@@ -117,90 +118,72 @@ class TextWindow(Popup):
                   5:"RIGHT_L",
                   6:"RIGHT_R"}
 
-    def __init__(self, laytonState, characterSpawnIdToCharacterMap, scriptTextWindow):
-        Popup.__init__(self)
-        self.animNameOnExit = None
-        if scriptTextWindow.getInstruction(0).operands[0].value in characterSpawnIdToCharacterMap:
-            self.characterController = characterSpawnIdToCharacterMap[scriptTextWindow.getInstruction(0).operands[0].value]
-
-            # TODO - Make const
-            if scriptTextWindow.getInstruction(0).operands[1].value != "NONE":
-                self.characterController.setCharacterAnimationFromName(scriptTextWindow.getInstruction(0).operands[1].value)
-            if scriptTextWindow.getInstruction(0).operands[2].value != "NONE":
-                self.animNameOnExit = scriptTextWindow.getInstruction(0).operands[2].value
-        else:
-            self.characterController = None
-
-        self.isArrowActive = False
-        self.isNameActive = False
-
-        if self.characterController != None and self.characterController.getVisibility():
-            if self.characterController.imageName != None and self.characterController.imageName.getActiveFrame() != None:
-                self.characterController.imageName.getActiveFrame().set_alpha(0)
-                self.isNameActive = True
+    def __init__(self, laytonState : Layton2GameState, screenController : ScreenController, text : str, targetCharacter : Optional[CharacterController], animNameOnSpawn : Optional[str] = None, animNameOnExit : Optional[str] = None, callbackOnTerminate : Optional[Callable] = None):
+        # TODO - Anim support in scroller
         
-        if self.characterController != None and self.characterController.slot in TextWindow.DICT_SLOTS:
-            TextWindow.SPRITE_WINDOW.setAnimationFromName(TextWindow.DICT_SLOTS[self.characterController.slot])
-        else:
-            TextWindow.SPRITE_WINDOW.setAnimationFromIndex(1)
+        self.__textScroller = ScrollingFontHelper(laytonState.fontEvent)
+        self.__textScroller.setText(text)
+        self.__textScroller.setPos((8, RESOLUTION_NINTENDO_DS[1] + 141))
 
-        # TODO - Needs more research. Hide on name probably valid but not sure exactly how this works
-        if (TextWindow.SPRITE_WINDOW.subAnimation != None and TextWindow.SPRITE_WINDOW.subAnimation.getActiveFrame() != None) and self.isNameActive:
-            self.isArrowActive = True
-            TextWindow.SPRITE_WINDOW.subAnimation.getActiveFrame().set_alpha(0)
+        self.__animNameOnExit = animNameOnExit
+        self.__targetCharacter = targetCharacter
 
-        TextWindow.SPRITE_WINDOW.getActiveFrame().set_alpha(0)
+        TextWindow.SPRITE_WINDOW.setAnimationFromIndex(1)
 
-        self.textScroller = ScrollingFontHelper(laytonState.fontEvent)
-        self.textScroller.setText(scriptTextWindow.getInstruction(0).operands[4].value)
-        self.textScroller.setPos((8, RESOLUTION_NINTENDO_DS[1] + 141))
+        bgAnims = [TextWindow.SPRITE_WINDOW]
+        if targetCharacter != None:
+            bgAnims.insert(0, targetCharacter.imageName)
+            if animNameOnSpawn != None:
+                targetCharacter.setCharacterAnimationFromName(animNameOnSpawn)
+            if targetCharacter.slot in TextWindow.DICT_SLOTS and targetCharacter.getVisibility():
+                TextWindow.SPRITE_WINDOW.setAnimationFromName(TextWindow.DICT_SLOTS[targetCharacter.slot])
+
+        super().__init__(laytonState, screenController, callbackOnTerminate, bgAnims)
     
-    def doWhileActive(self, gameClockDelta):
-        self.fader.update(gameClockDelta)
-        TextWindow.SPRITE_WINDOW.getActiveFrame().set_alpha(round(self.fader.getStrength() * 255))
-
-        if self.isArrowActive:
-            TextWindow.SPRITE_WINDOW.subAnimation.getActiveFrame().set_alpha(round(self.fader.getStrength() * 255))
-
-        if self.isNameActive:
-            self.characterController.imageName.getActiveFrame().set_alpha(round(self.fader.getStrength() * 255))
-
-        if self.characterController != None:
-            if self.textScroller.isWaiting() or not(self.textScroller.getActiveState()):
-                self.characterController.setCharacterTalkingState(False)
+    def updateForegroundElements(self, gameClockDelta):
+        self.__textScroller.update(gameClockDelta)
+        if self.__targetCharacter != None:
+            if self.__textScroller.isWaiting() or not(self.__textScroller.getActiveState()):
+                self.__targetCharacter.setCharacterTalkingState(False)
             else:
-                self.characterController.setCharacterTalkingState(True)
-
-        if self.fader.getStrength() == 0:
-            self.canBeTerminated = True
-        elif self.fader.getStrength() == 1:
-            self.textScroller.update(gameClockDelta)
+                self.__targetCharacter.setCharacterTalkingState(True)
+        return super().updateForegroundElements(gameClockDelta)
     
-    def doOnExit(self):
-        if self.characterController != None:
-            self.characterController.setCharacterTalkingState(False)
-            if self.animNameOnExit != None:
-                self.characterController.setCharacterAnimationFromName(self.animNameOnExit)
+    def drawForegroundElements(self, gameDisplay):
+        self.__textScroller.draw(gameDisplay)
+        return super().drawForegroundElements(gameDisplay)
 
-    def isPopupDone(self):
-        return not(self.textScroller.getActiveState())
+    def startTerminateBehaviour(self):
+        # TODO - When is character end anim applied?
+        if self.__targetCharacter != None:
+            self.__targetCharacter.setCharacterTalkingState(False)
+            if self.__animNameOnExit != None:
+                self.__targetCharacter.setAnimationFromName(self.__animNameOnExit)
+        return super().startTerminateBehaviour()
 
-    def handleTouchEventForPopup(self, event):
-        if not(self.fader.getActiveState()):
-            if self.textScroller.getActiveState():
-                if not(self.textScroller.isWaiting()):
-                    self.textScroller.skip()
+    def handleTouchEventForegroundElements(self, event : event):
+        if self.__textScroller.getActiveState():
+            if event.type == MOUSEBUTTONUP:
+                if not(self.__textScroller.isWaiting()):
+                    self.__textScroller.skip()
                 else:
-                    self.textScroller.setTap()
+                    self.__textScroller.setTap()
+            return True
+        return False
 
-    def draw(self, gameDisplay):
-        TextWindow.SPRITE_WINDOW.draw(gameDisplay)
+class MokutekiWindow(FadingPopupAnimBackground):
 
-        if self.isNameActive:
-            self.characterController.imageName.draw(gameDisplay)
-        
-        if self.fader.getStrength() == 1:
-            self.textScroller.draw(gameDisplay)
+    # TODO - Timings are known for anim, cursor_wait, etc. Uses tm_def for aligned timing
+
+    def __init__(self, laytonState : Layton2GameState, screenController : ScreenController, text : str, callbackOnTerminate : Optional[Callable]):
+        bgAnim = getAnimFromPathWithAttributes(PATH_MOKUTEKI_WINDOW)
+        super().__init__(laytonState, screenController, callbackOnTerminate, bgAnim)
+        self.__text = StaticTextHelper(laytonState.fontEvent)
+        self.__text.setText(text)
+        self.__text.setPos((POS_MOKUTEKI_TEXT[0], POS_MOKUTEKI_TEXT[1] + RESOLUTION_NINTENDO_DS[1]))
+
+    def drawForegroundElements(self, gameDisplay):
+        self.__text.draw(gameDisplay)
 
 class CharacterController():
 
@@ -281,7 +264,6 @@ class CharacterController():
             self._isCharacterTalking = isTalking
 
     def setCharacterSlot(self, slot):
-
         def getImageOffset():
             offset = self.imageCharacter.getVariable("drawoff")
             if offset != None:
@@ -307,7 +289,7 @@ class CharacterController():
                 
                 self._characterFlippedSurfaceNeedsUpdate = True
 
-    def setCharacterAnimationFromName(self, animName):
+    def setCharacterAnimationFromName(self, animName : str):
         if self.imageCharacter != None:
             if self.imageCharacter.setAnimationFromName(animName):
                 self._baseAnimName = self.imageCharacter.animActive.name
@@ -355,7 +337,8 @@ class EventPlayer(ScriptPlayer):
             spawnId = overrideId
         else:
             spawnId = self.laytonState.getEventId()
-
+        
+        self._id = spawnId
         self._idMain = spawnId // 1000
         self._idSub = spawnId % 1000
 
@@ -366,6 +349,8 @@ class EventPlayer(ScriptPlayer):
         self.characterSpawnIdToCharacterMap = {}
 
         self._sharedImageHandler = EventStorage()
+
+        self._doGoalSet = True
 
         if spawnId == -1:
             self.doOnKill()
@@ -448,12 +433,16 @@ class EventPlayer(ScriptPlayer):
                 print("Failed to fetch required data for event!")
                 self.doOnKill()
         
-            goalInfoEntry = self.laytonState.getGoalInfEntry()
-            # TODO - Popup if unk is 1
-
+    def doOnComplete(self):
+        if self._doGoalSet:
+            goalInfoEntry = self.laytonState.getGoalInfEntry(self._id)
             if goalInfoEntry != None:
-                print("\tUpdated goal to", goalInfoEntry.goal)
+                self._makeActive()
                 self.laytonState.saveSlot.goal = goalInfoEntry.goal
+                self._doGoalSet = False
+                if self.__doMokutekiWindow(goalInfoEntry.type, goalInfoEntry.goal):
+                    return
+        super().doOnComplete()
 
     def doOnKill(self):
         # TODO - Research more into next handler. What happens if the next gamemode is set in chapter event? Or normal gamemode?
@@ -478,6 +467,18 @@ class EventPlayer(ScriptPlayer):
 
         super().update(gameClockDelta)
 
+    def __doMokutekiWindow(self, doPopup : int, objective : int) -> bool:
+        if doPopup != 0:
+            text = ""
+            if type(objective) == int:
+                text = getTxt2String(self.laytonState, PATH_TEXT_PURPOSE % objective)
+            
+            # TODO - Strange mid-file checks here to see if some flags met. Affects timing and audio, not game state
+            self._popup = MokutekiWindow(self.laytonState, self.screenController, text, callbackOnTerminate=self._makeActive)
+            self._makeInactive()
+            return True
+        return False
+
     def _spriteOffAllCharacters(self):
         # TODO - Not a good hack! If a fader doesn't need to activate, this can be called immediately, breaking the order of execution!
         for character in self.characters:
@@ -493,14 +494,56 @@ class EventPlayer(ScriptPlayer):
             return False
 
         if opcode == OPCODES_LT2.TextWindow.value:
+            targetController = None
+            animNameOn = None
+            animNameOff = None
+            text = ""
+
             tempTalkScript = self._packEventTalk.getFile(PATH_PACK_TALK % (self._idMain, self._idSub, operands[0].value))
             if tempTalkScript != None:
                 self.talkScript = GdScript()
                 self.talkScript.load(tempTalkScript, isTalkscript=True)
-                self._popup = TextWindow(self.laytonState, self.characterSpawnIdToCharacterMap, self.talkScript)
+
+                # Game doesn't 'verify' data but broken scripts would inherit operands from previous scripts. Not feasible here
+
+                if self.talkScript.getInstructionCount() >= 1 and len(self.talkScript.getInstruction(0).operands) >= 5:
+                    if self.talkScript.getInstruction(0).operands[0].value in self.characterSpawnIdToCharacterMap:
+                        targetController = self.characterSpawnIdToCharacterMap[self.talkScript.getInstruction(0).operands[0].value]
+                    if self.talkScript.getInstruction(0).operands[1].value != "NONE" and type(self.talkScript.getInstruction(0).operands[1].value) == str:
+                        animNameOn = self.talkScript.getInstruction(0).operands[1].value
+                    if self.talkScript.getInstruction(0).operands[2].value != "NONE" and type(self.talkScript.getInstruction(0).operands[2].value) == str:
+                        animNameOff = self.talkScript.getInstruction(0).operands[2].value
+                    
+                    # Operand 3 is the text voice
+                    
+                    if type(self.talkScript.getInstruction(0).operands[4].value) == str:
+                        text = self.talkScript.getInstruction(0).operands[4].value
+
             else:
-                # HACK - In reality, if talkscript fails the popup will still appear with whatever text was left in the string buffer
+                # Game will execute command regardless, but window will inherit bad string data from central buffer. Not feasible but can mostly replicate.
+
                 print("\tTalk script missing!", PATH_PACK_TALK % (self._idMain, self._idSub, operands[0].value))
+            
+            self._popup = TextWindow(self.laytonState, self.screenController, text, targetController, animNameOnSpawn=animNameOn, animNameOnExit=animNameOff, callbackOnTerminate=self._makeActive)
+            self._makeInactive()
+
+        elif opcode == OPCODES_LT2.EndingMessage.value:
+            text = ""
+            try:
+                countSolved = self.laytonState.getCountSolvedStoryPuzzles()
+                if countSolved < 100:
+                    textCongrats = getTxt2String(self.laytonState, PATH_TEXT_GENERIC % ID_TEXT2_CONGRATS_SOLVED_UND_100)
+                elif countSolved < 120:
+                    textCongrats = getTxt2String(self.laytonState, PATH_TEXT_GENERIC % ID_TEXT2_CONGRATS_SOLVED_OVR_100)
+                else:
+                    textCongrats = getTxt2String(self.laytonState, PATH_TEXT_GENERIC % ID_TEXT2_CONGRATS_SOLVED_OVR_120)
+
+                text = getTxt2String(self.laytonState, PATH_TEXT_GENERIC % ID_TEXT2_ENDING_MESSAGE) % (countSolved, textCongrats)
+            except:
+                pass
+
+            self._popup = TextWindow(self.laytonState, self.screenController, text, None, callbackOnTerminate=self._makeActive)
+            self._makeInactive()
 
         elif opcode == OPCODES_LT2.SpriteOn.value:
             if isCharacterSlotValid(operands[0].value):
@@ -655,8 +698,8 @@ class EventPlayer(ScriptPlayer):
             self.laytonState.saveSlot.eventCounter = FlagsAsArray.fromBytes(photoPieceAddCounter)
             self._popup = PhotoPieceAddPopup(self.laytonState, self.screenController, self._sharedImageHandler)
         
-        elif opcode == OPCODES_LT2.MokutekiScreen.value:
-            self._popup = PlaceholderPopup()
+        elif opcode == OPCODES_LT2.MokutekiScreen.value and len(operands) == 2:
+            self.__doMokutekiWindow(operands[1].value, operands[0].value)
         
         elif opcode == OPCODES_LT2.DoNamingHamScreen.value:
             self._popup = NamingHamPopup(self.laytonState, self.screenController, self._sharedImageHandler)
@@ -698,6 +741,10 @@ class EventPlayer(ScriptPlayer):
         
         elif opcode == OPCODES_LT2.CompleteWindow.value and len(operands) == 2:
             self._popup = CompleteWindowPopup(self.laytonState, self.screenController, self._sharedImageHandler, operands[0].value, operands[1].value)
+
+        elif opcode == OPCODES_LT2.EndingAddChallenge.value and len(operands) == 0:
+            if not(self.laytonState.saveSlot.isComplete):
+                self._popup = EndingAddChallengePopup(self.laytonState, self.screenController, self._sharedImageHandler)
 
         else:
             return super()._doUnpackedCommand(opcode, operands)

@@ -59,8 +59,6 @@ class ScrollingFontHelper():
         self._text = getSubstitutedString(text)
         self._hasCharsRemaining = True
 
-        maxLineCount = 0
-        currentLineCount = 0
         lineWidths = []
 
         # Remove any sequences to do with changing anims, etc
@@ -159,7 +157,8 @@ class ScrollingFontHelper():
                         print("Missing color", nextChar[1])
 
                 else:
-                    # Command characters
+                    # TODO - Command characters
+                    print("TODO - Encountered anim command :: ", nextChar)
                     pass
 
             return False

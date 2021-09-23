@@ -1,6 +1,5 @@
 from pygame import Surface, BLEND_RGB_MULT
 from ...const import RESOLUTION_NINTENDO_DS
-from .const import BLEND_MAP
 from ...string import getSubstitutedString
 
 from ...convenience import initDisplay

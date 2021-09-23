@@ -1,3 +1,5 @@
+from typing import Callable, List, Optional
+from widebrim.engine.anim.image_anim.image import AnimatedImageObject
 from ...core_popup.utils import MainScreenPopup
 from ....engine.anim.fader import Fader
 from ....engine.const import RESOLUTION_NINTENDO_DS
@@ -53,8 +55,7 @@ class FadingPopup(MainScreenPopup):
 
     def update(self, gameClockDelta):
         self._alphaFader.update(gameClockDelta)
-
-        if self._alphaFader.getStrength():
+        if not(self._alphaFader.getActiveState()):
             self.updateForegroundElements(gameClockDelta)
     
     def startTerminateBehaviour(self):
@@ -73,23 +74,45 @@ class FadingPopup(MainScreenPopup):
                 self._alphaFader.skip()
 
 class FadingPopupAnimBackground(FadingPopup):
-    def __init__(self, laytonState, screenController, callbackOnTerminate, bgAnim):
+    def __init__(self, laytonState, screenController, callbackOnTerminate : Optional[Callable], bgAnim : Optional[AnimatedImageObject]):
         MainScreenPopup.__init__(self, callbackOnTerminate)
         self._alphaFader = Fader(FadingPopup.DURATION_FADE)
         self._bgAnim = bgAnim
         self._callbackOnTerminate = callbackOnTerminate
         self._isTryingToTerminate = False
     
-    # TODO - Fix bg if None
+    def _drawBgAnimRecursive(self, anim : AnimatedImageObject, gameDisplay):
+        if anim != None:
+            if (frame := anim.getActiveFrame()) != None:
+                frame.set_alpha(round(self._alphaFader.getStrength() * 255))
+                gameDisplay.blit(frame, anim.getPosWithOffset())
+            self._drawBgAnimRecursive(anim.subAnimation, gameDisplay)
+    
+    def _updateBase(self, gameClockDelta : float):
+        super().update(gameClockDelta)
+
     def _drawBackground(self, gameDisplay):
-        frame = self._bgAnim.getActiveFrame()
-        if frame != None:
-            frame.set_alpha(round(self._alphaFader.getStrength() * 255))
-            gameDisplay.blit(frame, self._bgAnim.getPos())
+        self._drawBgAnimRecursive(self._bgAnim, gameDisplay)
     
     def update(self, gameClockDelta):
-        self._bgAnim.update(gameClockDelta)
-        super().update(gameClockDelta)
+        if self._bgAnim != None:
+            self._bgAnim.update(gameClockDelta)
+        self._updateBase(gameClockDelta)
+
+class FadingPopupMultipleAnimBackground(FadingPopupAnimBackground):
+    def __init__(self, laytonState, screenController, callbackOnTerminate : Optional[Callable], bgAnim : List[Optional[AnimatedImageObject]]):
+        FadingPopupAnimBackground.__init__(self, laytonState, screenController, callbackOnTerminate, None)
+        self._bgAnim = bgAnim
+    
+    def _drawBackground(self, gameDisplay):
+        for anim in self._bgAnim:
+            self._drawBgAnimRecursive(anim, gameDisplay)
+    
+    def update(self, gameClockDelta):
+        for anim in self._bgAnim:
+            if anim != None:
+                anim.update(gameClockDelta)
+        self._updateBase(gameClockDelta)
 
 class PrizeWindow2PopupWithCursor(FadingPopupAnimBackground):
     def __init__(self, laytonState, screenController, eventStorage):
@@ -100,7 +123,6 @@ class PrizeWindow2PopupWithCursor(FadingPopupAnimBackground):
             if prizeWindow2Pos != None:
                 prizeWindow2.setPos((prizeWindow2Pos[0], prizeWindow2Pos[1] + RESOLUTION_NINTENDO_DS[1]))
 
-        # TODO - What if bgAnim invalid (None)? Set types on everything
         FadingPopupAnimBackground.__init__(self, laytonState, screenController, None, prizeWindow2)
 
         self._cursorWait = eventStorage.getAssetCursorWait()
