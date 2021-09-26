@@ -1,6 +1,14 @@
+from __future__ import annotations
+
+from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+from widebrim.engine.string.cmp import strCmp
 from ....madhatter.hat_io.asset_image import Animation, getTransparentLaytonPaletted
 from ...const import TIME_FRAMECOUNT_TO_MILLISECONDS
 from ...convenience import initDisplay
+
+if TYPE_CHECKING:
+    from widebrim.madhatter.hat_io.asset_image.image import AnimatedImage
+
 
 # TODO - Fix imports for only image
 import pygame
@@ -20,12 +28,12 @@ class AnimationSequence(Animation):
         self._elapsedFrame = 0
         self.isActive   = True
     
-    def getActiveKeyframe(self):
+    def getActiveKeyframe(self) -> Optional[int]:
         if self.isActive and self._indexFrame < len(self.keyframes):
             return self.keyframes[self._indexFrame].indexFrame
         return None
 
-    def updateCurrentFrame(self, gameClockDelta):
+    def updateCurrentFrame(self, gameClockDelta) -> bool:
         if self.isActive:
             self._elapsedFrame += gameClockDelta
             previousFrame = self._indexFrame
@@ -40,7 +48,7 @@ class AnimationSequence(Animation):
         return False
 
     @staticmethod
-    def fromMadhatter(inAnim):
+    def fromMadhatter(inAnim : Animation) -> AnimationSequence:
         output = AnimationSequence()
         output.name = inAnim.name
         output.keyframes = inAnim.keyframes
@@ -52,24 +60,23 @@ class AnimationSequence(Animation):
 
 class AnimatedImageObject():
     def __init__(self):
-        self._variables = {}
-        self._frames = []
-        self._animations = {}
-        self._indexToAnimationMap = {}
-        self.subAnimation = None
+        self._variables : Dict[str, List[int]]                      = {}
+        self._frames : List[pygame.Surface]                         = []
+        self._animations : Dict[str, AnimationSequence]             = {}
+        self._indexToAnimationMap : Dict[int, AnimationSequence]    = {}
 
-        self.animActive = None
-        self._pos = (0,0)
-        self._offset = (0,0)
+        self.subAnimation : Optional[AnimatedImageObject]   = None
+        self.animActive : Optional[AnimationSequence]       = None
 
-        # Not guarenteed reliable, workaround for alignment techniques since measuring the surface would be annoying
-        self._dimensions = (0,0)
+        self._pos : Tuple[int,int]          = (0,0)
+        self._offset : Tuple[int,int]       = (0,0)
+        self._dimensions : Tuple[int,int]   = (0,0) # Not guarenteed reliable, workaround for alignment techniques since measuring the surface would be annoying
 
         # TODO - Add alpha
         # TODO - Don't use composed frame since that preblends alpha which causes every surface to require alpha drawing instead of alpha mask
 
     @staticmethod
-    def fromMadhatter(assetData):
+    def fromMadhatter(assetData : AnimatedImage) -> AnimatedImageObject:
 
         # TODO - Break dependencies on original file so it can be reused (or implement multi-animation support)
 
@@ -100,16 +107,19 @@ class AnimatedImageObject():
         
         return output
 
-    def setVariables(self, variableDict):
+    def setVariables(self, variableDict : Dict[str, List[int]]) -> bool:
         if len(variableDict) == 16:
             self._variables = variableDict
+            return True
+        return False
 
-    def getVariable(self, name):
-        if name in self._variables:
-            return self._variables[name]
+    def getVariable(self, name) -> Optional[List[int]]:
+        for key in self._variables:
+            if strCmp(name, key):
+                return self._variables[key]
         return None
 
-    def _addAnimation(self, animation):
+    def _addAnimation(self, animation : AnimationSequence):
         self._indexToAnimationMap[len(self._animations)] = animation
         self._animations[animation.name] = animation
 
@@ -124,25 +134,21 @@ class AnimatedImageObject():
                 self.subAnimation.setAnimationFromIndex(self.animActive.subAnimationIndex)
                 self.subAnimation._offset = self.animActive.subAnimationOffset
 
-    def setAnimationFromName(self, name):
+    def setAnimationFromIndex(self, index : int) -> bool:
+        if index in self._indexToAnimationMap:  # TODO - index > 0 is given but leads to bad rendering
+            if self.animActive != self._indexToAnimationMap[index]:
+                self.animActive = self._indexToAnimationMap[index]
+                self._setAnimationFromActive()
+            return True
+        return False
 
-        def searchFirstNullTerminatedString(inString):
-            # Catches b2 normal on Layton.
-            # TODO - Check string compare function
-            # TODO - Check if anim reset if same anim set twice
-            inString = inString.split("\x00")[0]
-            for key in self._animations:
-                lengthShortest = min(len(name), len(key))
-                if key[0:lengthShortest] == inString[0:lengthShortest]:
-                    return self._animations[key]
-            return None 
-
-        if name in self._animations:
-            self.animActive = self._animations[name]
-        elif type(name) == str:
-            self.animActive = searchFirstNullTerminatedString(name)
-        self._setAnimationFromActive()
-        return not(self.animActive == None)
+    def setAnimationFromName(self, name : str) -> bool:
+        indexAnim = 0
+        for idxAnim, key in enumerate(self._animations):
+            if strCmp(name, key):
+                indexAnim = idxAnim
+                break
+        return self.setAnimationFromIndex(indexAnim)
     
     def setCurrentAnimationLoopStatus(self, isLooping : bool) -> bool:
         if self.animActive != None:
@@ -150,32 +156,24 @@ class AnimatedImageObject():
             return True
         return False
 
-    def setDimensions(self, dimensions):
+    def setDimensions(self, dimensions : Tuple[int,int]):
         self._dimensions = dimensions
     
-    def getDimensions(self):
+    def getDimensions(self) -> Tuple[int,int]:
         return self._dimensions
 
-    def setAnimationFromIndex(self, index):
-        if index in self._indexToAnimationMap:
-            self.animActive = self._indexToAnimationMap[index]
-        else:
-            self.animActive = None
-        self._setAnimationFromActive()
-        return not(self.animActive == None)
-
-    def setPos(self, pos):
+    def setPos(self, pos : Tuple[int,int]):
         self._pos = pos
         if self.subAnimation != None:
             self.subAnimation.setPos(pos)
     
-    def getPos(self):
+    def getPos(self) -> Tuple[int,int]:
         return self._pos
 
-    def getPosWithOffset(self):
+    def getPosWithOffset(self) -> Tuple[int,int]:
         return self._pos[0] + self._offset[0], self._pos[1] + self._offset[1]
 
-    def getActiveFrame(self):
+    def getActiveFrame(self) -> Optional[pygame.Surface]:
         if self.animActive != None:
             activeFrame = self.animActive.getActiveKeyframe()
             if activeFrame != None:
@@ -183,7 +181,7 @@ class AnimatedImageObject():
                     return self._frames[activeFrame]
         return None
     
-    def wasPressed(self, cursorPos):
+    def wasPressed(self, cursorPos : Tuple[int,int]) -> bool:
         if self._pos[0] <= cursorPos[0] and self._pos[1] <= cursorPos[1]:
             if (self._pos[0] + self._dimensions[0]) >= cursorPos[0] and (self._pos[1] + self._dimensions[1]) >= cursorPos[1]:
                 return True

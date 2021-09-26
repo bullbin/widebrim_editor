@@ -1,5 +1,6 @@
 from __future__ import annotations
-from typing import Callable, Optional, TYPE_CHECKING
+from typing import Callable, Dict, List, Optional, TYPE_CHECKING
+from widebrim.engine_ext.const import SHAKE_PIX
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
 from widebrim.gamemodes.dramaevent.popup.utils import FadingPopupAnimBackground, FadingPopupMultipleAnimBackground
 from widebrim.engine_ext.utils import getAnimFromPath, getAnimFromPathWithAttributes, getTxt2String
@@ -36,6 +37,7 @@ from ...madhatter.hat_io.binary import BinaryReader
 
 from pygame import Surface, MOUSEBUTTONUP, event
 from pygame.transform import flip
+from random import randint
 
 # TODO - During fading, the main screen doesn't actually seem to be updated.
 
@@ -54,12 +56,12 @@ class TextWindow(FadingPopupMultipleAnimBackground):
                   5:"RIGHT_L",
                   6:"RIGHT_R"}
 
-    def __init__(self, laytonState : Layton2GameState, screenController : ScreenController, text : str, targetCharacter : Optional[CharacterController], animNameOnSpawn : Optional[str] = None, animNameOnExit : Optional[str] = None, callbackOnTerminate : Optional[Callable] = None):
-        # TODO - Anim support in scroller
+    def __init__(self, laytonState : Layton2GameState, screenController : ScreenController, text : str, targetCharacter : Optional[CharacterController], animNameOnSpawn : Optional[str] = None, animNameOnExit : Optional[str] = None, funcSetAni : Optional[Callable[[int, str], None]] = None, callbackOnTerminate : Optional[Callable] = None):
         
         self.__textScroller = ScrollingFontHelper(laytonState.fontEvent)
         self.__textScroller.setText(text)
         self.__textScroller.setPos((8, RESOLUTION_NINTENDO_DS[1] + 141))
+        self.__textScroller.setFunctionSetAnimation(funcSetAni)
 
         self.__animNameOnExit = animNameOnExit
         self.__targetCharacter = targetCharacter
@@ -146,6 +148,7 @@ class CharacterController():
         self.imageName = getAnimFromPathWithAttributes(PATH_NAME_ROOT % (laytonState.language.value, characterIndex))
 
         self._visibilityFader = Fader(0, initialActiveState=True)
+        self._shakeFader      = Fader(0, initialActiveState=False)
         self._drawLocation = (0,0)
 
         self._characterIsFlipped = False
@@ -169,35 +172,45 @@ class CharacterController():
                     self._characterFlippedSurface = flip(self._characterFlippedSurface, True, False)
             
         self._visibilityFader.update(gameClockDelta)
+        self._shakeFader.update(gameClockDelta)
         self._characterFlippedSurface.set_alpha(round(255 * self._visibilityFader.getStrength()))
 
     def draw(self, gameDisplay):
         if self.getVisibility() and self.imageCharacter != None:
-            gameDisplay.blit(self._characterFlippedSurface, self._drawLocation)
+            if self._shakeFader.getActiveState():
+                # HACK - Screen isn't clipped for speed sake
+                gameDisplay.blit(self._characterFlippedSurface, (self._drawLocation[0] + randint(-SHAKE_PIX,SHAKE_PIX), self._drawLocation[1] + randint(-SHAKE_PIX,SHAKE_PIX)))
+            else:
+                gameDisplay.blit(self._characterFlippedSurface, self._drawLocation)
 
     def setVisibility(self, isVisible):
         self._visibilityFader.setDuration(0)
         self._visibilityFader.setInvertedState(not(isVisible))
     
-    def setVisibilityFading(self, isVisible, callback):
-        self._visibilityFader.setDuration(250)
+    def setVisibilityFading(self, isVisible, callback, durationInFrames=15):
+        self._visibilityFader.setDurationInFrames(durationInFrames)
         self._visibilityFader.setCallback(callback)
         self._visibilityFader.setInvertedState(not(isVisible))
 
     def getVisibility(self):
         return self._visibilityFader.getStrength() > 0
     
+    def setShakeDuration(self, durationInFrames):
+        self._shakeFader.setDurationInFrames(durationInFrames)
+
+    def _updateCharacterTalkState(self):
+        if self.imageCharacter != None:
+            if self._isCharacterTalking:
+                if not(self.imageCharacter.setAnimationFromName("*" + self._baseAnimName)):
+                    # TODO - Does the game even set the animation if its not found? Is the fallback just continuing past animation?
+                    self.imageCharacter.setAnimationFromName(self._baseAnimName)
+            else:
+                self.imageCharacter.setAnimationFromName(self._baseAnimName)
+
     def setCharacterTalkingState(self, isTalking):
         if isTalking != self._isCharacterTalking:
-            if self.imageCharacter != None:
-                if isTalking:
-                    if not(self.imageCharacter.setAnimationFromName("*" + self._baseAnimName)):
-                        # TODO - Does the game even set the animation if its not found? Is the fallback just continuing past animation?
-                        self.imageCharacter.setAnimationFromName(self._baseAnimName)
-                else:
-                    self.imageCharacter.setAnimationFromName(self._baseAnimName)
-
             self._isCharacterTalking = isTalking
+            self._updateCharacterTalkState()
 
     def setCharacterSlot(self, slot):
         def getImageOffset():
@@ -225,15 +238,18 @@ class CharacterController():
                 
                 self._characterFlippedSurfaceNeedsUpdate = True
 
+    # HACK - Anim check is modified in anim file, should probably use feedback to prevent error
     def setCharacterAnimationFromName(self, animName : str):
-        if self.imageCharacter != None:
+        if self.imageCharacter != None and animName != self._baseAnimName:
             if self.imageCharacter.setAnimationFromName(animName):
                 self._baseAnimName = self.imageCharacter.animActive.name
+                self._updateCharacterTalkState()
     
     def setCharacterAnimationFromIndex(self, animIndex):
         if self.imageCharacter != None:
             if self.imageCharacter.setAnimationFromIndex(animIndex):
                 self._baseAnimName = self.imageCharacter.animActive.name
+                self._updateCharacterTalkState()
 
 class EventPlayer(ScriptPlayer):
     def __init__(self, laytonState : Layton2GameState, screenController, overrideId : Optional[int] = None):
@@ -284,9 +300,9 @@ class EventPlayer(ScriptPlayer):
 
         self.talkScript     = GdScript()
 
-        self.characters = []
+        self.characters : List[CharacterController] = []
         self.nameCharacters = []
-        self.characterSpawnIdToCharacterMap = {}
+        self.characterSpawnIdToCharacterMap : Dict[int, CharacterController] = {}
 
         self._sharedImageHandler = EventStorage()
 
@@ -419,6 +435,10 @@ class EventPlayer(ScriptPlayer):
             return True
         return False
 
+    def __setAniCallback(self, idChar : int, nameAnim : str):
+        if idChar in self.characterSpawnIdToCharacterMap:
+            self.characterSpawnIdToCharacterMap[idChar].setCharacterAnimationFromName(nameAnim)
+
     def _spriteOffAllCharacters(self):
         # TODO - Not a good hack! If a fader doesn't need to activate, this can be called immediately, breaking the order of execution!
         for character in self.characters:
@@ -464,7 +484,7 @@ class EventPlayer(ScriptPlayer):
 
                 print("\tTalk script missing!", PATH_PACK_TALK % (self._idMain, self._idSub, operands[0].value))
             
-            self._popup = TextWindow(self.laytonState, self.screenController, text, targetController, animNameOnSpawn=animNameOn, animNameOnExit=animNameOff, callbackOnTerminate=self._makeActive)
+            self._popup = TextWindow(self.laytonState, self.screenController, text, targetController, animNameOnSpawn=animNameOn, animNameOnExit=animNameOff, funcSetAni=self.__setAniCallback, callbackOnTerminate=self._makeActive)
             self._makeInactive()
 
         elif opcode == OPCODES_LT2.EndingMessage.value:
@@ -499,8 +519,12 @@ class EventPlayer(ScriptPlayer):
                 self._makeActive()
 
             if isCharacterSlotValid(operands[0].value):
-                # TODO - Duration?
-                self.characters[operands[0].value].setVisibilityFading(operands[1].value >= 0, callbackCharacterFinishFading)
+                # Not accurate. Duration logic not fully understood, but this works...
+                customDurationInFrames = 20
+                if type(operands[1].value) == int and operands[1].value != 0:
+                    customDurationInFrames = (32 / abs(operands[1].value)) + 4
+
+                self.characters[operands[0].value].setVisibilityFading(operands[1].value >= 0, callbackCharacterFinishFading, durationInFrames=customDurationInFrames)
                 self._makeInactive()
 
         elif opcode == OPCODES_LT2.DrawChapter.value:
@@ -631,6 +655,10 @@ class EventPlayer(ScriptPlayer):
             self.laytonState.setMysteryUnlockedIndex(operands[0].value, True)
             self.screenController.fadeOut(callback=switchToMystery)
         
+        elif opcode == OPCODES_LT2.SetSpriteShake.value and len(operands) == 2:
+            if isCharacterSlotValid(operands[0].value) and type(operands[1].value) == int:
+                self.characters[operands[0].value].setShakeDuration(operands[1].value)
+
         elif opcode == OPCODES_LT2.DoPhotoPieceAddScreen.value:
             self.laytonState.saveSlot.photoPieceFlag.setSlot(True, operands[0].value)
             photoPieceAddCounter = bytearray(self.laytonState.saveSlot.eventCounter.toBytes(outLength=128))

@@ -1,3 +1,4 @@
+from widebrim.engine.string.cmp import strCmp
 from ...engine.state.layer import ScreenLayerNonBlocking
 from ...engine.state.enum_mode import STRING_TO_GAMEMODE_VALUE, GAMEMODES
 from ...engine.anim.fader import Fader
@@ -96,12 +97,14 @@ class ScriptPlayer(ScreenLayerNonBlocking):
             self.laytonState.setPlaceNum(operands[0].value)
 
         elif opcode == OPCODES_LT2.SetGameMode.value:
-            if operands[0].value in STRING_TO_GAMEMODE_VALUE:
-                self.laytonState.setGameMode(STRING_TO_GAMEMODE_VALUE[operands[0].value])
+            for key in STRING_TO_GAMEMODE_VALUE:
+                if strCmp(key, operands[0].value):
+                    self.laytonState.setGameMode(STRING_TO_GAMEMODE_VALUE[key])
 
         elif opcode == OPCODES_LT2.SetEndGameMode.value:
-            if operands[0].value in STRING_TO_GAMEMODE_VALUE:
-                self.laytonState.setGameModeNext(STRING_TO_GAMEMODE_VALUE[operands[0].value])
+            for key in STRING_TO_GAMEMODE_VALUE:
+                if strCmp(key, operands[0].value):
+                    self.laytonState.setGameModeNext(STRING_TO_GAMEMODE_VALUE[key])
 
         elif opcode == OPCODES_LT2.SetMovieNum.value:
             self.laytonState.setMovieNum(operands[0].value)

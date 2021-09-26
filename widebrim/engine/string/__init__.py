@@ -1,1 +1,2 @@
-from .substiter import getSubstitutedString
+from .substituter import getSubstitutedString
+from .cmp import strCmp, strLen

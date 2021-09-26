@@ -62,7 +62,7 @@ def getPackedData(pathPack, nameItem) -> Optional[bytes]:
     return pack.getFile(nameItem)
 
 def getPackedString(pathPack, nameString) -> str:
-    # TODO - Maybe decoding using substiter
+    # TODO - Maybe decoding using subtituter
     # TODO - sp... substituter
     tempString = getPackedData(pathPack, nameString)
     try:

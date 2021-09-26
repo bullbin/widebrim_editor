@@ -1,3 +1,4 @@
+from widebrim.engine.string.cmp import strCmp
 from ...engine.state.layer import ScreenLayerNonBlocking
 from ...engine.state.enum_mode import GAMEMODES
 from ...engine.const import RESOLUTION_NINTENDO_DS
@@ -65,7 +66,13 @@ class NamePlayer(ScreenLayerNonBlocking):
 
         def callbackOnOk():
             if len(self.entry) != 0:
-                if self.entry in NAMES_BLOCKED:
+                wasNameBad = False
+                for badName in NAMES_BLOCKED:
+                    if strCmp(badName, self.entry):
+                        wasNameBad = True
+                        break
+
+                if wasNameBad:
                     self.drawNamesBlockedScreen = True
                 else:
                     if self.laytonState.getGameMode() == GAMEMODES.Name:

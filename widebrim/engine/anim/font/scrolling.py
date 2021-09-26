@@ -1,3 +1,5 @@
+from typing import Callable, List, Optional, Tuple
+from widebrim.engine.string.cmp import strCmp
 from pygame import Surface, BLEND_RGB_MULT
 from ...const import RESOLUTION_NINTENDO_DS, TIME_FRAMECOUNT_TO_MILLISECONDS
 from .const import BLEND_MAP
@@ -31,7 +33,16 @@ class ScrollingFontHelper():
 
         self.setDurationPerCharacter(durationPerCharacter)
         self._isWaitingForTap = False
+
+        self._funcModifyVoice : Optional[Callable[[int], None]]         = None
+        self._funcSetAnimation : Optional[Callable[[int, str], None]]   = None
     
+    def setFunctionModifyVoice(self, funcModifyVoice : Optional[Callable[[int], None]]):
+        self._funcModifyVoice = funcModifyVoice
+    
+    def setFunctionSetAnimation(self, funcSetAnimation : Optional[Callable[[int, str], None]]):
+        self._funcSetAnimation = funcSetAnimation
+
     def setDurationPerCharacter(self, duration : float):
         if self._durationPerChar >= 0:
             self._durationPerChar = duration
@@ -95,7 +106,13 @@ class ScrollingFontHelper():
             return None
         else:
             # TODO - Check error hasn't occured
-            if self._text[self._offsetText] == "@" or self._text[self._offsetText] == "#":
+            if self._text[self._offsetText] == "@":
+                commandSize = 2
+                if self._text[self._offsetText + 1] == "v" or self._text[self._offsetText + 1] == "V":
+                    commandSize = 3
+                self._offsetText += commandSize
+                return self._text[self._offsetText - commandSize:self._offsetText]
+            if self._text[self._offsetText] == "#":
                 self._offsetText += 2
                 return self._text[self._offsetText - 2:self._offsetText]
             elif self._text[self._offsetText] == "&":
@@ -123,6 +140,34 @@ class ScrollingFontHelper():
         self._workingLineXOffset = 0
 
     def _updateTextChar(self):
+
+        def getNextCommandPacket(command : str) -> Tuple[str, str]:
+
+            def isCharInvalid(char : str):
+                return char == '\x20' or char == '\x09' or char == '\x0a' or char == '\x0d' or char == '\x00'
+
+            outParam = ""
+            segment = ""
+            idxStartChar = 0
+            while idxStartChar < len(command):
+                if isCharInvalid(command[idxStartChar]):
+                    idxStartChar += 1
+                else:
+                    break
+            if idxStartChar != len(command):
+                # Found segment
+                while idxStartChar < len(command):
+                    if isCharInvalid(command[idxStartChar]):
+                        break
+                    else:
+                        if command[idxStartChar] == "_":
+                            segment += " "
+                        else:
+                            segment += command[idxStartChar]
+                        idxStartChar += 1
+                outParam = command[idxStartChar:]
+            return (segment, outParam)
+
         # Returns True if the character contributed graphically
         nextChar = self._getNextChar()
         while nextChar != None and self._hasCharsRemaining and not(self.isWaiting()):
@@ -136,30 +181,48 @@ class ScrollingFontHelper():
             else:
                 if nextChar[0] == "@":
                     # Control character
-                    if nextChar[1] == "p":      # Wait until touch
+                    # TODO - s,S
+                    if nextChar[1] == "p" or nextChar[1] == "P":    # Wait until touch
                         self._isWaitingForTap = True
 
-                    elif nextChar[1] == "w":    # Wait during text
+                    elif nextChar[1] == "w" or nextChar[1] == "W":  # Wait during text
                         self._durationCarried -= 500
 
-                    elif nextChar[1] == "c":    # Clear the screen
+                    elif nextChar[1] == "c" or nextChar[1] == "C":  # Clear the screen
                         self._clearBufferAndResetLineCounter()
 
-                    elif nextChar[1] == "B":    # Line break
+                    elif nextChar[1] == "B":                        # Line break
                         self._workingLineSurfaceIndex += 1
                         self._workingLineXOffset = 0
+                    
+                    elif nextChar[1] == "v" or nextChar[1] == "V":  # Set voice effect
+                        try:
+                            if self._funcModifyVoice != None:
+                                self._funcModifyVoice(int(nextChar[2]))
+                        except Exception as e:
+                            print(e)
                 
                 elif nextChar[0] == "#":
                     # Color character
                     if nextChar[1] in BLEND_MAP:
                         self.setColor(BLEND_MAP[nextChar[1]])
-                    else:
-                        print("Missing color", nextChar[1])
 
                 else:
-                    # TODO - Command characters
-                    print("TODO - Encountered anim command :: ", nextChar)
-                    pass
+                    # HACK - Works around some length limits that could cause crashes. SetAni has a hard limit of 256 for string total, and the animation must be under 32 chars.
+                    commandString = nextChar[1:-1]
+                    commandName, commandString = getNextCommandPacket(commandString)
+                    idChar, commandString = getNextCommandPacket(commandString)
+                    nameAnim, commandString = getNextCommandPacket(commandString)
+                    if strCmp(commandName, "SetAni"):
+                        if idChar.isdigit():
+                            idChar = int(idChar)
+                        else:
+                            idChar = 0
+                        try:
+                            if self._funcSetAnimation != None:
+                                self._funcSetAnimation(idChar, nameAnim)
+                        except Exception as e:
+                            print(e)
 
             return False
 

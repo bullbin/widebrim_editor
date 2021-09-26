@@ -1,3 +1,4 @@
+from widebrim.engine.string.cmp import strCmp
 from .base import BaseQuestionObject
 from ....engine.const import RESOLUTION_NINTENDO_DS
 from ....engine_ext.utils import getAnimFromPath, getAnimFromPathWithAttributes, getButtonFromPath
@@ -108,8 +109,9 @@ class HandlerTraceButton(BaseQuestionObject):
                 
         elif opcode == OPCODES_LT2.AddTracePoint.value and len(operands) == 4:
             if self._indexSolution < 4 and len(self._traceZones[self._indexSolution]) < 24:
+                wasTrue = strCmp("true", operands[3].value)
                 self._traceZones[self._indexSolution].append(TraceZone(operands[0].value, operands[1].value,
-                                                                       operands[2].value, operands[3].value == "true"))
+                                                                       operands[2].value, wasTrue))
         elif opcode == OPCODES_LT2.AddSolution.value and len(operands) == 0:
             if self._maxIndexSolution < 4:
                 self._indexSolution += 1
