@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Callable, Dict, List, Optional, TYPE_CHECKING
+from widebrim.engine.string.cmp import strCmp
 from widebrim.engine_ext.const import SHAKE_PIX
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
 from widebrim.gamemodes.dramaevent.popup.utils import FadingPopupAnimBackground, FadingPopupMultipleAnimBackground
@@ -48,7 +49,7 @@ from random import randint
 
 class TextWindow(FadingPopupMultipleAnimBackground):
 
-    SPRITE_WINDOW = getAnimFromPathWithAttributes(PATH_EVENT_ROOT % "twindow.arc")
+    SPRITE_WINDOW = getAnimFromPathWithAttributes(PATH_EVENT_ROOT % "twindow.arc", enableSubAnimation=True)
     DICT_SLOTS = {0:"LEFT",
                   2:"RIGHT",
                   3:"LEFT_L",
@@ -135,13 +136,13 @@ class CharacterController():
 
     def __init__(self, laytonState, characterIndex, characterInitialAnimIndex=0, characterVisible=False, characterSlot=0):
 
-        self._baseAnimName = "Create an Animation"
+        self._baseAnimIndex = None
         self._isCharacterTalking = False
 
         if characterIndex == 86 or characterIndex == 87:
-            self.imageCharacter = getAnimFromPath((PATH_BODY_ROOT_LANG_DEP % characterIndex).replace("?", laytonState.language.value))
+            self.imageCharacter = getAnimFromPath((PATH_BODY_ROOT_LANG_DEP % characterIndex).replace("?", laytonState.language.value), enableSubAnimation=True)
         else:
-            self.imageCharacter = getAnimFromPath(PATH_BODY_ROOT % characterIndex)
+            self.imageCharacter = getAnimFromPath(PATH_BODY_ROOT % characterIndex, enableSubAnimation=True)
 
         if self.imageCharacter != None:
             self.setCharacterAnimationFromIndex(characterInitialAnimIndex)
@@ -167,13 +168,13 @@ class CharacterController():
             
             if self.imageCharacter.update(gameClockDelta) or self._characterFlippedSurfaceNeedsUpdate:
                 self._characterFlippedSurface.fill((0,0,0,0))
+                self.imageCharacter.setAlpha(round(255 * self._visibilityFader.getStrength()))
                 self.imageCharacter.draw(self._characterFlippedSurface)
                 if self._characterIsFlipped:
                     self._characterFlippedSurface = flip(self._characterFlippedSurface, True, False)
             
         self._visibilityFader.update(gameClockDelta)
         self._shakeFader.update(gameClockDelta)
-        self._characterFlippedSurface.set_alpha(round(255 * self._visibilityFader.getStrength()))
 
     def draw(self, gameDisplay):
         if self.getVisibility() and self.imageCharacter != None:
@@ -201,11 +202,10 @@ class CharacterController():
     def _updateCharacterTalkState(self):
         if self.imageCharacter != None:
             if self._isCharacterTalking:
-                if not(self.imageCharacter.setAnimationFromName("*" + self._baseAnimName)):
-                    # TODO - Does the game even set the animation if its not found? Is the fallback just continuing past animation?
-                    self.imageCharacter.setAnimationFromName(self._baseAnimName)
+                if self.imageCharacter.doesTalkAnimExistForCurrentAnim():
+                    self.imageCharacter.setAnimationFromIndex(self._baseAnimIndex + 1)
             else:
-                self.imageCharacter.setAnimationFromName(self._baseAnimName)
+                self.imageCharacter.setAnimationFromIndex(self._baseAnimIndex)
 
     def setCharacterTalkingState(self, isTalking):
         if isTalking != self._isCharacterTalking:
@@ -238,17 +238,18 @@ class CharacterController():
                 
                 self._characterFlippedSurfaceNeedsUpdate = True
 
-    # HACK - Anim check is modified in anim file, should probably use feedback to prevent error
     def setCharacterAnimationFromName(self, animName : str):
-        if self.imageCharacter != None and animName != self._baseAnimName:
-            if self.imageCharacter.setAnimationFromName(animName):
-                self._baseAnimName = self.imageCharacter.animActive.name
-                self._updateCharacterTalkState()
+        if self.imageCharacter != None:
+            activeAnimName = self.imageCharacter.getAnimationName()
+            if activeAnimName == None or not(strCmp(activeAnimName, animName)):
+                newIndex = self.imageCharacter.getAnimationIndexIfNameIsValid(animName)
+                if newIndex != None:
+                    self.setCharacterAnimationFromIndex(newIndex)
     
     def setCharacterAnimationFromIndex(self, animIndex):
         if self.imageCharacter != None:
-            if self.imageCharacter.setAnimationFromIndex(animIndex):
-                self._baseAnimName = self.imageCharacter.animActive.name
+            if self._baseAnimIndex != animIndex and animIndex != 0 and self.imageCharacter.isAnimationIndexValid(animIndex):
+                self._baseAnimIndex = animIndex
                 self._updateCharacterTalkState()
 
 class EventPlayer(ScriptPlayer):

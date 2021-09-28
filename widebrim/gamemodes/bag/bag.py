@@ -307,7 +307,7 @@ class BagPlayer(ScreenLayerNonBlocking):
                     x += 0x1c
 
     def __drawTopScreen(self, gameDisplay):
-        def drawText(renderer : StaticImageAsNumericalFont, pos, value : int, usePadding : bool = False, maxNum : int =999):
+        def drawText(renderer : StaticImageAsNumericalFont, pos, value : int, usePadding : bool = False, maxNum : int = 999):
             renderer.setUsePadding(usePadding)
             renderer.setPos(pos)
             renderer.setMaxNum(maxNum)

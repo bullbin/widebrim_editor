@@ -1,3 +1,10 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from widebrim.engine.state.state import Layton2GameState
+    from widebrim.engine_ext.state_game import ScreenController
+    from widebrim.madhatter.hat_io.asset_script import GdScript
+
 from widebrim.engine.string.cmp import strCmp
 from ...engine.state.layer import ScreenLayerNonBlocking
 from ...engine.state.enum_mode import STRING_TO_GAMEMODE_VALUE, GAMEMODES
@@ -12,7 +19,7 @@ from pygame import MOUSEBUTTONDOWN
 # TODO - Add callback support
 
 class ScriptPlayer(ScreenLayerNonBlocking):
-    def __init__(self, laytonState, screenController, script):
+    def __init__(self, laytonState : Layton2GameState, screenController : ScreenController, script : GdScript):
         ScreenLayerNonBlocking.__init__(self)
         self.laytonState        = laytonState
         self.screenController   = screenController

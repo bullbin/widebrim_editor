@@ -59,25 +59,26 @@ class AnimationSequence(Animation):
         return output
 
 class AnimatedImageObject():
-    def __init__(self):
+    def __init__(self, workaroundEnableHiddenAnim=False):
         self._variables : Dict[str, List[int]]                      = {}
         self._frames : List[pygame.Surface]                         = []
         self._animations : Dict[str, AnimationSequence]             = {}
         self._indexToAnimationMap : Dict[int, AnimationSequence]    = {}
 
-        self.subAnimation : Optional[AnimatedImageObject]   = None
         self.animActive : Optional[AnimationSequence]       = None
 
         self._pos : Tuple[int,int]          = (0,0)
-        self._offset : Tuple[int,int]       = (0,0)
+        self._offset : Tuple[int,int]       = (0,0) # Offset. Only used when rendering subanimation, controls the distance between subanim and main frame
         self._dimensions : Tuple[int,int]   = (0,0) # Not guarenteed reliable, workaround for alignment techniques since measuring the surface would be annoying
 
-        # TODO - Add alpha
+        # Alpha support isn't accurate to the game but its good enough visually
         # TODO - Don't use composed frame since that preblends alpha which causes every surface to require alpha drawing instead of alpha mask
+        self._alpha                         = 255
+        self._lastAlpha                     = 255
+        self._useAlphaDrawMethods           = False
+        self._workaroundEnableHidden = workaroundEnableHiddenAnim
 
-    @staticmethod
-    def fromMadhatter(assetData : AnimatedImage) -> AnimatedImageObject:
-
+    def _setFromMadhatter(self, assetData : AnimatedImage):
         # TODO - Break dependencies on original file so it can be reused (or implement multi-animation support)
 
         def convertPilRgbaToPygame(imageIn):
@@ -88,23 +89,23 @@ class AnimatedImageObject():
                 targetImage = imageIn.convert("RGBA")
             return pygame.image.fromstring(targetImage.tobytes("raw", "RGBA"), imageIn.size, "RGBA").convert_alpha()
 
-        output = AnimatedImageObject()
-        output.setVariables(assetData.variables)
+        self.setVariables(assetData.variables)
         tempDimensions = (0,0)
         for frame in assetData.frames:
             tempPygameFrame = convertPilRgbaToPygame(frame.getComposedFrame())
-            output._frames.append(tempPygameFrame)
+            self._frames.append(tempPygameFrame)
             tempDimensions = (max(tempPygameFrame.get_width(), tempDimensions[0]),
                               max(tempPygameFrame.get_height(), tempDimensions[1]))
 
-        output.setDimensions(tempDimensions)
+        self.setDimensions(tempDimensions)
 
         for anim in assetData.animations:
-            output._addAnimation(AnimationSequence.fromMadhatter(anim))
-        
-        if assetData.subAnimation != None:
-            output.subAnimation = AnimatedImageObject.fromMadhatter(assetData.subAnimation)
-        
+            self._addAnimation(AnimationSequence.fromMadhatter(anim))
+
+    @staticmethod
+    def fromMadhatter(assetData : AnimatedImage, workaroundEnableHiddenAnim=False) -> AnimatedImageObject:
+        output = AnimatedImageObject(workaroundEnableHiddenAnim)
+        output._setFromMadhatter(assetData)
         return output
 
     def setVariables(self, variableDict : Dict[str, List[int]]) -> bool:
@@ -124,18 +125,11 @@ class AnimatedImageObject():
         self._animations[animation.name] = animation
 
     def _setAnimationFromActive(self):
-        if self.animActive == None:
-            if self.subAnimation != None:
-                self.subAnimation.setAnimationFromName(None)
-                self.subAnimation._offset = (0,0)
-        else:
+        if self.animActive != None:
             self.animActive.reset()
-            if self.subAnimation != None:
-                self.subAnimation.setAnimationFromIndex(self.animActive.subAnimationIndex)
-                self.subAnimation._offset = self.animActive.subAnimationOffset
 
     def setAnimationFromIndex(self, index : int) -> bool:
-        if index in self._indexToAnimationMap:  # TODO - index > 0 is given but leads to bad rendering
+        if index in self._indexToAnimationMap and (index > 0 or self._workaroundEnableHidden):
             if self.animActive != self._indexToAnimationMap[index]:
                 self.animActive = self._indexToAnimationMap[index]
                 self._setAnimationFromActive()
@@ -149,7 +143,7 @@ class AnimatedImageObject():
                 indexAnim = idxAnim
                 break
         return self.setAnimationFromIndex(indexAnim)
-    
+
     def setCurrentAnimationLoopStatus(self, isLooping : bool) -> bool:
         if self.animActive != None:
             self.animActive.isLooping = isLooping
@@ -157,23 +151,62 @@ class AnimatedImageObject():
         return False
 
     def setDimensions(self, dimensions : Tuple[int,int]):
+        """Set custom dimensions for this image. This affects the clickable area for this image.
+
+        Args:
+            dimensions (Tuple[int,int]): [description]
+        """
         self._dimensions = dimensions
     
     def getDimensions(self) -> Tuple[int,int]:
+        """Get bounding dimensions for this image. Note that if used for positioning, this is the maximal dimensions so may not be relevant for a particular animation.
+
+        Returns:
+            Tuple[int,int]: Dimensions in form (x,y)
+        """
         return self._dimensions
 
     def setPos(self, pos : Tuple[int,int]):
         self._pos = pos
-        if self.subAnimation != None:
-            self.subAnimation.setPos(pos)
     
     def getPos(self) -> Tuple[int,int]:
         return self._pos
 
+    def getOffset(self) -> Tuple[int,int]:  # TODO - Need third class to hide this. Only used for subanimation
+        return self._offset
+
+    def setAlpha(self, alpha : int):
+        """Set the transparency factor for this image.
+
+        Args:
+            alpha (int): Clamped to 0-255. 255 will make the image opaque
+        """
+        self._alpha = min(max(alpha, 0), 255)
+        if self._alpha != self._lastAlpha:
+            if self._alpha != 255:
+                self._useAlphaDrawMethods = True
+            else:
+                self._useAlphaDrawMethods = False
+            self._lastAlpha = self._alpha
+    
+    def setAlpha5Bit(self, alpha : int):
+        """Set the transparency factor for this image. The game uses 5-bit values, so these are scaled to 8-bit for convenience.
+
+        Args:
+            alpha (int): 5-bit unsigned alpha value.
+        """
+        self.setAlpha((alpha * 255) / 31)
+
     def getPosWithOffset(self) -> Tuple[int,int]:
+        # TODO - Probably safe to replace getPos with this instead...
         return self._pos[0] + self._offset[0], self._pos[1] + self._offset[1]
 
     def getActiveFrame(self) -> Optional[pygame.Surface]:
+        """Get the current surface prior to drawing for this image. This is the raw image, so does not include subanimations, positioning, etc
+
+        Returns:
+            Optional[pygame.Surface]: Raw surface relevant to the current animation. None if there are no frames to be drawn
+        """
         if self.animActive != None:
             activeFrame = self.animActive.getActiveKeyframe()
             if activeFrame != None:
@@ -189,19 +222,158 @@ class AnimatedImageObject():
 
     def update(self, gameClockDelta):
         hasMainFrameChanged = False
-        hasSubFrameChanged = False
         if self.animActive != None:
             hasMainFrameChanged = self.animActive.updateCurrentFrame(gameClockDelta)
-        if self.subAnimation != None:
-            hasSubFrameChanged = self.subAnimation.update(gameClockDelta)
-        return hasMainFrameChanged or hasSubFrameChanged
+        return hasMainFrameChanged
 
-    def draw(self, gameDisplay):
+    def _drawWithAlpha(self, gameDisplay : pygame.Surface):
+        # TODO - Depreciate methods to grab surfaces, have to ensure alpha is untouched...
+        # TODO - Slight performance loss from using these methods. Strange
         surface = self.getActiveFrame()
         if surface != None:
-            # TODO - would really like to integrate offset in (getPosWithOffset) but unsure if safe
-            offset = (self._pos[0] + self._offset[0], self._pos[1] + self._offset[1])
-            gameDisplay.blit(surface, offset)
+            surface.set_alpha(self._alpha)
+            gameDisplay.blit(surface, self.getPosWithOffset())
+            surface.set_alpha(255)  # Reset the alpha to prevent getActiveFrame from catching a surface with transparency...
 
+    def _drawNoAlpha(self, gameDisplay : pygame.Surface):
+        self._drawWithAlpha(gameDisplay)
+
+    def draw(self, gameDisplay : pygame.Surface):
+        if self._useAlphaDrawMethods:
+            if self._alpha != 0:
+                self._drawWithAlpha(gameDisplay)
+        else:
+            self._drawNoAlpha(gameDisplay)
+
+class AnimatedImageObjectWithSubAnimation(AnimatedImageObject):
+
+    def __init__(self):
+        """Variant of AnimatedImageObject with support for subanimations. Useful for accurate sprite rendering, as includes looser logic (eg can set void animations)
+        """
+        super().__init__()
+        self._baseDimensions = (0,0)
+        self.subAnimation : Optional[AnimatedImageObject]   = None
+        self._alphaBufferSurfaceOffset                      = (0,0)
+        self._alphaBufferSurfaceDimensions                  = (0,0)
+        self._alphaBufferSurface : Optional[pygame.Surface] = None
+    
+    def _setFromMadhatter(self, assetData: AnimatedImage):
+        super()._setFromMadhatter(assetData)
+        if assetData.subAnimation != None:
+            self.subAnimation = AnimatedImageObject.fromMadhatter(assetData.subAnimation, True)
+            self._baseDimensions = self.getDimensions()
+            dimensionsSubImage = self.subAnimation.getDimensions()
+            tempDimensions = (0,0)
+
+            # Generate accurate dimensions encompassing subanimation as well (required for alpha buffer surface dimensions)
+            for idxAnim in self._indexToAnimationMap:
+                if self.setAnimationFromIndex(idxAnim):
+                    offsetSubImage = self.subAnimation.getOffset()
+                    tempDimensions = (max(tempDimensions[0], self._baseDimensions[0], dimensionsSubImage[0] + offsetSubImage[0]), max(tempDimensions[1], self._baseDimensions[1], dimensionsSubImage[1] + offsetSubImage[1]))
+            self.setDimensions(tempDimensions)
+            self._alphaBufferSurfaceDimensions = tempDimensions
+
+    @staticmethod
+    def fromMadhatter(assetData : AnimatedImage) -> AnimatedImageObjectWithSubAnimation:
+        output = AnimatedImageObjectWithSubAnimation()
+        output._setFromMadhatter(assetData)
+        return output
+    
+    def setAlpha(self, alpha: int):
+        super().setAlpha(alpha)
+        if self._useAlphaDrawMethods:
+            if self._alphaBufferSurface == None and self._alphaBufferSurfaceDimensions != (0,0):
+                self._alphaBufferSurface = pygame.Surface(self._alphaBufferSurfaceDimensions).convert_alpha()
+
+    def _setAnimationFromActive(self):
+        super()._setAnimationFromActive()
+        if self.animActive == None:
+            if self.subAnimation != None:
+                self.subAnimation.setAnimationFromIndex(0)
+                self.subAnimation._offset = (0,0)
+        else:
+            if self.subAnimation != None:
+                self.subAnimation.setAnimationFromIndex(self.animActive.subAnimationIndex)
+                self.subAnimation._offset = self.animActive.subAnimationOffset
+
+        self._alphaBufferSurfaceOffset = (0, 0)
+        if self.subAnimation != None:
+            if self.subAnimation.getOffset()[0] < 0 or self.subAnimation.getOffset()[1] < 0:
+                self._alphaBufferSurfaceOffset = (min(self.subAnimation.getOffset()[0], 0), min(self.subAnimation.getOffset()[1], 0))
+
+    def setAnimationFromIndex(self, index : int) -> bool:
+        if index in self._indexToAnimationMap:
+            if self.animActive != self._indexToAnimationMap[index]:
+                self.animActive = self._indexToAnimationMap[index]
+                self._setAnimationFromActive()
+            return True
+        return False
+
+    def getAnimationIndex(self) -> Optional[int]:
+        if self.animActive != None:
+            return list(self._animations.keys()).index(self.animActive.name)
+        return None
+
+    def getBaseImageDimensions(self) -> Tuple[int, int]:
+        """Get dimensions for the base component of this image (without additional subimages).
+
+        Returns:
+            Tuple[int, int]: Dimensions in form (x,y)
+        """
+        return self._baseDimensions
+
+    # HACK - Anim rendering is improved but still work on correct animation routines
+    def isAnimationIndexValid(self, index : int) -> bool:
+        return index in self._indexToAnimationMap
+    
+    def getAnimationIndexIfNameIsValid(self, name : str) -> Optional[int]:
+        for idxAnim, key in enumerate(self._animations):
+            if strCmp(name, key):
+                return idxAnim
+        return None
+    
+    def getAnimationName(self) -> Optional[str]:
+        if self.animActive != None:
+            return self.animActive.name
+        return None
+
+    def doesTalkAnimExistForCurrentAnim(self) -> bool:
+        if self.animActive != None:
+            indexAnim = self.getAnimationIndex() + 1
+            if indexAnim in self._indexToAnimationMap:
+                targetAnim = self._indexToAnimationMap[indexAnim]
+                if len(targetAnim.name) > 0 and targetAnim.name[0] == "*":
+                    return True
+        return False
+
+    def setPos(self, pos: Tuple[int, int]):
+        super().setPos(pos)
+        if self.subAnimation != None:
+            self.subAnimation.setPos(pos)
+
+    def update(self, gameClockDelta):
+        hasSubFrameChanged = False
+        if self.subAnimation != None:
+            hasSubFrameChanged = self.subAnimation.update(gameClockDelta)
+        return super().update(gameClockDelta) or hasSubFrameChanged
+
+    def _drawWithAlpha(self, gameDisplay : pygame.Surface):
+        if self._alphaBufferSurface != None:
+            self._alphaBufferSurface.fill((0,0,0,0))
+            self._alphaBufferSurface.set_alpha(self._alpha)
+
+            if (surf := self.getActiveFrame()) != None:
+                self._alphaBufferSurface.blit(surf, (-self._alphaBufferSurfaceOffset[0], -self._alphaBufferSurfaceOffset[1]))
+            if self.subAnimation != None:
+                if (surf := self.subAnimation.getActiveFrame()) != None:
+                    self._alphaBufferSurface.blit(surf, (self._alphaBufferSurfaceOffset[0] + self.subAnimation.getOffset()[0], self._alphaBufferSurfaceOffset[1] + self.subAnimation.getOffset()[1]))
+            
+            gameDisplay.blit(self._alphaBufferSurface, (self.getPosWithOffset()[0] + self._alphaBufferSurfaceOffset[0], self.getPosWithOffset()[1] + self._alphaBufferSurfaceOffset[1]))
+        else:
+            self._drawNoAlpha(gameDisplay)
+
+    def _drawNoAlpha(self, gameDisplay: pygame.Surface):
+        if (surface := self.getActiveFrame()) != None:
+            gameDisplay.blit(surface, self.getPosWithOffset())
         if self.subAnimation != None:
             self.subAnimation.draw(gameDisplay)

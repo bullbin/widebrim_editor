@@ -1,4 +1,4 @@
-PATH_BG_SUB         = "menu/bag/%s/jiten_sub.bgx"           # Actually ends with spr. Game doesn't validate string for bgx...
+PATH_BG_SUB         = "menu/bag/%s/jiten_sub.bgx"           # Actually ends with spr. Game doesn't validate string for bgx... # TODO - Bugfix, RomGrabFailed here!
 PATH_BG_SUB_WIFI    = "menu/secret/?/wifi_jiten_sub.bgx"
 PATH_BG_MAIN_WIFI   = "menu/bag/?/wifi_jiten_bg.bgx"
 PATH_BG_MAIN        = "menu/bag/jiten_bg.bgx"

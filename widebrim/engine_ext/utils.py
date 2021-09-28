@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Callable, Optional, TYPE_CHECKING, Tuple
+from typing import Callable, Optional, TYPE_CHECKING, Tuple, Union
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
     from PIL.Image import Image as ImageType
@@ -10,7 +10,7 @@ from ..engine.const import PATH_BG_ROOT, PATH_ANI, PATH_FACE_ROOT, RESOLUTION_NI
 from ..engine.file import FileInterface
 from ..madhatter.hat_io.asset_image import AnimatedImage
 from ..madhatter.hat_io.asset import LaytonPack
-from ..engine.anim.image_anim import AnimatedImageObject
+from ..engine.anim.image_anim import AnimatedImageObject, AnimatedImageObjectWithSubAnimation
 from ..engine.const import PATH_PACK_TXT2, PATH_PACK_TXT
 from .const import PATH_TEMP
 
@@ -167,7 +167,7 @@ def getClickableButtonFromPath(laytonState : Layton2GameState, inPath : str, cal
         button = button.asClickable(animClick, unclickOnCallback)
     return button
 
-def getAnimFromPath(inPath, spawnAnimName=None, pos=(0,0)) -> Optional[AnimatedImageObject]:
+def getAnimFromPath(inPath, spawnAnimName=None, pos=(0,0), enableSubAnimation=False) -> Optional[Union[AnimatedImageObject, AnimatedImageObjectWithSubAnimation]]:
 
     def functionGetAnimationFromName(name):
         name = name.split(".")[0] + ".arc"
@@ -185,15 +185,18 @@ def getAnimFromPath(inPath, spawnAnimName=None, pos=(0,0)) -> Optional[AnimatedI
         else:
             tempImage = AnimatedImage.fromBytesArc(tempAsset, functionGetFileByName=functionGetAnimationFromName)
 
-        tempImage = AnimatedImageObject.fromMadhatter(tempImage)
+        if enableSubAnimation:
+            tempImage = AnimatedImageObjectWithSubAnimation.fromMadhatter(tempImage)
+        else:
+            tempImage = AnimatedImageObject.fromMadhatter(tempImage)
         tempImage.setPos(pos)
         if type(spawnAnimName) == str:
             tempImage.setAnimationFromName(spawnAnimName)
         return tempImage
     return tempAsset
 
-def getAnimFromPathWithAttributes(inPath, spawnAnimName="gfx", posVariable="pos") -> Optional[AnimatedImageObject]:
-    tempImage = getAnimFromPath(inPath, spawnAnimName=spawnAnimName)
+def getAnimFromPathWithAttributes(inPath, spawnAnimName="gfx", posVariable="pos", enableSubAnimation=False) -> Optional[Union[AnimatedImageObject, AnimatedImageObjectWithSubAnimation]]:
+    tempImage = getAnimFromPath(inPath, spawnAnimName=spawnAnimName, enableSubAnimation=enableSubAnimation)
     if tempImage != None:
         if tempImage.getVariable(posVariable) != None:
             tempImage.setPos((tempImage.getVariable(posVariable)[0],

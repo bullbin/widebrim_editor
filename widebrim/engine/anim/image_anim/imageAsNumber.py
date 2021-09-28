@@ -53,11 +53,11 @@ class StaticImageAsFont():
                 stride = self._stride
 
             for char in text:
-                self._image.setAnimationFromName(char)
-                frame = self._image.getActiveFrame()
-                if frame != None:
-                    gameDisplay.blit(frame, (x,y))
-                    x += stride
+                if self._image.setAnimationFromName(char):
+                    frame = self._image.getActiveFrame()
+                    if frame != None:
+                        gameDisplay.blit(frame, (x,y))
+                x += stride
         else:
             if fromRight:
                 multiplier = -1
@@ -65,11 +65,11 @@ class StaticImageAsFont():
                 multiplier = 1
             
             for char in text:
-                self._image.setAnimationFromName(char)
-                frame = self._image.getActiveFrame()
-                if frame != None:
-                    gameDisplay.blit(frame, (x,y))
-                    y += (frame.get_width() * multiplier)
+                if self._image.setAnimationFromName(char):
+                    frame = self._image.getActiveFrame()
+                    if frame != None:
+                        gameDisplay.blit(frame, (x,y))
+                        y += (frame.get_width() * multiplier)
             
 class StaticImageAsNumericalFont(StaticImageAsFont):
     def __init__(self, image, text=None, stride=None, maxNum=None, usePadding=False):
@@ -128,5 +128,4 @@ class StaticImageAsNumericalFont(StaticImageAsFont):
                 output = str(self._text)
         else:
             output = ""
-
         return output

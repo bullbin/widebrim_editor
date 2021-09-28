@@ -1,5 +1,6 @@
 import ndspy.rom
 from ..madhatter.hat_io import asset
+from widebrim.madhatter.common import log, logSevere
 from .config import PATH_ROM
 from os import path
 from .exceptions import PathInvalidRom, RomInvalid
@@ -23,7 +24,6 @@ class FileInterface():
 
     @staticmethod
     def _isPathAvailableRom(filepath):
-        # debugSeverePrint("RomCheck", resolveFilepath(filepath))
         if FileInterface._rom.filenames.idOf(filepath) != None:
             return True
         return False
@@ -33,9 +33,9 @@ class FileInterface():
         if FileInterface._isPathAvailableRom(filepath):
             testFile = asset.File(data=FileInterface._rom.getFileByName(filepath))
             testFile.decompress()
-            #debugPrint("RomGrab", resolveFilepath(filepath))
+            log("RomGrab", filepath)
             return testFile.data
-        #debugErrorPrint("RomGrabFailed", resolveFilepath(filepath))
+        logSevere("RomGrabFailed", filepath)
         return None
 
     @staticmethod

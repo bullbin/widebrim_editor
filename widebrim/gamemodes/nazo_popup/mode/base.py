@@ -1,11 +1,15 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from widebrim.engine.state.state import Layton2GameState
+    from widebrim.engine_ext.state_game import ScreenController
+
 from ....engine.state.enum_mode import GAMEMODES
-from ....engine.file import FileInterface
 from ....engine.const import PATH_PUZZLE_SCRIPT, PATH_PACK_PUZZLE, PATH_PUZZLE_BG, PATH_PUZZLE_BG_LANGUAGE, PATH_PUZZLE_BG_NAZO_TEXT, RESOLUTION_NINTENDO_DS
-from ....engine_ext.utils import getButtonFromPath, getAnimFromPath
+from ....engine_ext.utils import getButtonFromPath, getAnimFromPath, getPackedData
 from ....engine.anim.font.scrolling import ScrollingFontHelper
 from ....engine.anim.image_anim import ImageFontRenderer
 from ...core_popup.script import ScriptPlayer
-from ....madhatter.hat_io.asset import LaytonPack
 from ....madhatter.hat_io.asset_script import GdScript
 from .const import PATH_ANI_SUB_TEXT, PATH_ANI_BTN_MEMO, PATH_ANI_BTN_QUIT, PATH_ANI_BTN_RESTART, PATH_ANI_BTN_SUBMIT
 
@@ -34,7 +38,7 @@ class BaseQuestionObject(ScriptPlayer):
 
     POS_QUESTION_TEXT = (13,22)
 
-    def __init__(self, laytonState, screenController, callbackOnTerminate):
+    def __init__(self, laytonState : Layton2GameState, screenController : ScreenController, callbackOnTerminate):
         super().__init__(laytonState, screenController, GdScript())
 
         self._callbackOnTerminate = callbackOnTerminate
@@ -46,7 +50,6 @@ class BaseQuestionObject(ScriptPlayer):
         self.__useButtons = True
 
         # TODO - Per-handler X limiting
-        # self.__puzzleXLimit = RESOLUTION_NINTENDO_DS[1]
         self.__puzzleXLimit = RESOLUTION_NINTENDO_DS[0]
         
         self.__isPuzzleElementsActive = False
@@ -64,14 +67,8 @@ class BaseQuestionObject(ScriptPlayer):
         # Some wifi check here
         
         # Initialise script
-        # TODO - getPackedData
-        packPuzzleScript = LaytonPack()
-        packPuzzleScriptData = FileInterface.getData(PATH_PUZZLE_SCRIPT)
-        if packPuzzleScriptData != None:
-            packPuzzleScript.load(packPuzzleScriptData)
-
         if nzLstEntry != None:
-            scriptData = packPuzzleScript.getFile(PATH_PACK_PUZZLE % nzLstEntry.idInternal)
+            scriptData = getPackedData(PATH_PUZZLE_SCRIPT, PATH_PACK_PUZZLE % nzLstEntry.idInternal)
             if scriptData != None:
                 self._script.load(scriptData)
 

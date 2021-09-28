@@ -1,5 +1,6 @@
 from typing import Callable, List, Optional
-from widebrim.engine.anim.image_anim.image import AnimatedImageObject
+from widebrim.madhatter.hat_io.asset_image.image import AnimatedImage
+from widebrim.engine.anim.image_anim.image import AnimatedImageObject, AnimatedImageObjectWithSubAnimation
 from ...core_popup.utils import MainScreenPopup
 from ....engine.anim.fader import Fader
 from ....engine.const import RESOLUTION_NINTENDO_DS
@@ -86,7 +87,8 @@ class FadingPopupAnimBackground(FadingPopup):
             if (frame := anim.getActiveFrame()) != None:
                 frame.set_alpha(round(self._alphaFader.getStrength() * 255))
                 gameDisplay.blit(frame, anim.getPosWithOffset())
-            self._drawBgAnimRecursive(anim.subAnimation, gameDisplay)
+            if type(anim) == AnimatedImageObjectWithSubAnimation:
+                self._drawBgAnimRecursive(anim.subAnimation, gameDisplay)
     
     def _updateBase(self, gameClockDelta : float):
         super().update(gameClockDelta)

@@ -223,12 +223,14 @@ class JitenPlayer(ScreenLayerNonBlocking):
             self.__lastSelectedNormalIndex = targetIdExternal
 
         if targetIndex >= len(self.__ids):
-            # If this tab is empty, reset scrollY and don't select anything (leave past selection)
+            # If this tab is empty, reset scrollY
             self.__applyScrollOffset(0)
         else:
             # Else, select the puzzle from this tab and keep going
             self.__applyScrollOffset(targetIndex * BIAS_HITBOX_SELECT_Y)
-            self.__updateSelectedPuzzle()
+        
+        # Update selection to ensure correct puzzle highlighted
+        self.__updateSelectedPuzzle()
 
     def __getFavouriteIds(self):
         self.__ids = []
@@ -287,6 +289,47 @@ class JitenPlayer(ScreenLayerNonBlocking):
             self.__loadTab()
 
     def __updateSelectedPuzzle(self):
+        
+        def generateGraphics(nzLstEntry):
+            if nzLstEntry != None:
+                self.__indexOverlay = self.__ids.index(puzzleId)
+
+                self.__laytonState.setPuzzleId(nzLstEntry.idInternal)
+                if self.__laytonState.loadCurrentNazoData():
+                    nazoData = self.__laytonState.getNazoData()
+                    nazoType = nazoData.idHandler
+                    if nazoType == 0x23:
+                        nazoType = 0x16
+                    
+                    textType = getPackedString(PATH_PACK_JITEN.replace("?", self.__laytonState.language.value), PATH_TEXT_NAZO_TYPE % nazoType)
+                    self.__textRendererType.setText(textType[0:min(len(textType), 64)])
+
+                    # TODO - Unk validation check (2_Nazo_ValidateAndGetUnkData)
+                    
+                    if puzzleData.enableNazoba:
+                        textLocation = getPackedString(PATH_PACK_JITEN.replace("?", self.__laytonState.language.value), PATH_TEXT_JITEN_MISSING)
+                    else:
+                        textLocation = getPackedString(PATH_PACK_JITEN.replace("?", self.__laytonState.language.value), PATH_TEXT_JITEN_PLACE % nazoData.indexPlace)
+
+                    # TODO - madhatter needs nazoData variable scope changes
+                    self.__textRendererLocation.setText(textLocation[0:min(len(textLocation), 64)])
+                    self.__textRendererName.setText(nazoData.getTextName()[0:min(len(nazoData.getTextName()), 64)])
+        
+                # TODO - pretty sure gfx is automatic
+                self.__animPreview = getAnimFromPath(PATH_ANIM_PREVIEW % nzLstEntry.idInternal, pos=POS_ANIM_PREVIEW)
+                if self.__animPreview != None:
+                    self.__animPreview.setAnimationFromIndex(1)
+
+            if self.__animPrize != None:
+                if not(puzzleData.wasSolved):
+                    self.__animPrize.setAnimationFromIndex(4)
+                elif puzzleData.levelDecay == 2:
+                    self.__animPrize.setAnimationFromIndex(3)
+                elif puzzleData.levelDecay == 1:
+                    self.__animPrize.setAnimationFromIndex(2)
+                else:
+                    self.__animPrize.setAnimationFromIndex(1)
+
         if self.__sourceGameMode != GAMEMODES.JitenWiFi:
             if self.__inFavouriteMode:
                 puzzleId = self.__lastSelectedFavouriteIndex
@@ -294,52 +337,20 @@ class JitenPlayer(ScreenLayerNonBlocking):
                 puzzleId = self.__lastSelectedNormalIndex
 
             # TODO - Text renderers and preview will be voided before check, since game does it in awkward way (and can't decide when to use stack)
-            if puzzleId != 0:
+            if puzzleId != 0 and puzzleId in self.__ids:
+                nzLstEntry = self.__laytonState.getNazoListEntryByExternal(puzzleId)
+
+                # Separate the overlay index to prevent tabs from interfering with intended behaviour
+                if nzLstEntry != None:
+                    self.__indexOverlay = self.__ids.index(puzzleId)
+                else:
+                    self.__indexOverlay = None
+
                 if puzzleId != self.__loadedExternalPuzzleId:
                     self.__loadedExternalPuzzleId = puzzleId
-                    nzLstEntry = self.__laytonState.getNazoListEntryByExternal(puzzleId)
                     puzzleData = self.__laytonState.saveSlot.puzzleData.getPuzzleData(puzzleId - 1)
-
                     self.__canBeSolved = puzzleData.wasSolved
-
-                    if nzLstEntry != None:
-                        self.__indexOverlay = self.__ids.index(puzzleId)
-
-                        self.__laytonState.setPuzzleId(nzLstEntry.idInternal)
-                        if self.__laytonState.loadCurrentNazoData():
-                            nazoData = self.__laytonState.getNazoData()
-                            nazoType = nazoData.idHandler
-                            if nazoType == 0x23:
-                                nazoType = 0x16
-                            
-                            textType = getPackedString(PATH_PACK_JITEN.replace("?", self.__laytonState.language.value), PATH_TEXT_NAZO_TYPE % nazoType)
-                            self.__textRendererType.setText(textType[0:min(len(textType), 64)])
-
-                            # TODO - Unk validation check (2_Nazo_ValidateAndGetUnkData)
-                            
-                            if puzzleData.enableNazoba:
-                                textLocation = getPackedString(PATH_PACK_JITEN.replace("?", self.__laytonState.language.value), PATH_TEXT_JITEN_MISSING)
-                            else:
-                                textLocation = getPackedString(PATH_PACK_JITEN.replace("?", self.__laytonState.language.value), PATH_TEXT_JITEN_PLACE % nazoData.indexPlace)
-
-                            # TODO - madhatter needs nazoData variable scope changes
-                            self.__textRendererLocation.setText(textLocation[0:min(len(textLocation), 64)])
-                            self.__textRendererName.setText(nazoData.getTextName()[0:min(len(nazoData.getTextName()), 64)])
-                
-                        # TODO - pretty sure gfx is automatic
-                        self.__animPreview = getAnimFromPath(PATH_ANIM_PREVIEW % nzLstEntry.idInternal, pos=POS_ANIM_PREVIEW)
-                        if self.__animPreview != None:
-                            self.__animPreview.setAnimationFromIndex(1)
-
-                    if self.__animPrize != None:
-                        if not(puzzleData.wasSolved):
-                            self.__animPrize.setAnimationFromIndex(4)
-                        elif puzzleData.levelDecay == 2:
-                            self.__animPrize.setAnimationFromIndex(3)
-                        elif puzzleData.levelDecay == 1:
-                            self.__animPrize.setAnimationFromIndex(2)
-                        else:
-                            self.__animPrize.setAnimationFromIndex(1)
+                    generateGraphics(nzLstEntry)
             else:
                 self.__indexOverlay = None
 
