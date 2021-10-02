@@ -11,7 +11,7 @@ from widebrim.gamemodes.core_popup.utils import FullScreenPopup
 from ....engine.anim.font.scrolling import ScrollingFontHelper
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS, TIME_FRAMECOUNT_TO_MILLISECONDS
 from .const import *
-from ...nazo_popup.mode.base import BaseQuestionObject
+from widebrim.gamemodes.nazo_popup.mode.base import BaseQuestionObject
 
 class QuestionEndPopup(FullScreenPopup):
     def __init__(self, laytonState : Layton2GameState, screenController : ScreenController, callbackOnTerminate):

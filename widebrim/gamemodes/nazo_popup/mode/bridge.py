@@ -1,13 +1,13 @@
 from __future__ import annotations
 from typing import Callable, Optional, TYPE_CHECKING
-from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
+
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
 
 from widebrim.engine.anim.image_anim.image import AnimatedImageObject
 from widebrim.engine_ext.utils import getAnimFromPath
-from .onOff import HandlerOnOff, OnOffButton
+from .onOff import HandlerOnOff
 from ....engine.const import RESOLUTION_NINTENDO_DS
 from .const import PATH_ANI_BRIDGE
 

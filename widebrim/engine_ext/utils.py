@@ -20,6 +20,7 @@ from shutil import rmtree
 from pygame import image, Surface
 
 def getImageFromPath(laytonState, pathBg) -> Optional[Surface]:
+    # TODO - Fix weird behaviour addressing multiple strings... should be addressing languages with %s
 
     def fetchBgxImage(path) -> Optional[ImageType]:
         # TODO - Fix unwanted behaviour with reading null-terminated strings, where a null character is left at the end
@@ -86,7 +87,7 @@ def getTxt2String(laytonState, nameString) -> str:
     return getPackedString(PATH_PACK_TXT2 % laytonState.language.value, nameString)
 
 def getButtonFromPath(laytonState : Layton2GameState, inPath : str, callback : Optional[Callable] = None, animOff : str="off", animOn : str="on", pos=(0,0), customDimensions=None, namePosVariable=None) -> Optional[AnimatedButton]:
-    """Returns an image-based button from path. Note that by default, this button will be offset onto the bottom screen already.
+    """Returns an image-based button from path. Note that by default, this button will be offset onto the bottom screen already. Language strings will be substituted where possible.
 
     Args:
         laytonState (Layton2GameState): Game state
@@ -167,6 +168,7 @@ def getClickableButtonFromPath(laytonState : Layton2GameState, inPath : str, cal
         button = button.asClickable(animClick, unclickOnCallback)
     return button
 
+# TODO - Swith anim name to anim index, more accurate and faster (index 1 will be target in 99% of cases)
 def getAnimFromPath(inPath, spawnAnimName=None, pos=(0,0), enableSubAnimation=False) -> Optional[Union[AnimatedImageObject, AnimatedImageObjectWithSubAnimation]]:
 
     def functionGetAnimationFromName(name):
@@ -195,6 +197,7 @@ def getAnimFromPath(inPath, spawnAnimName=None, pos=(0,0), enableSubAnimation=Fa
         return tempImage
     return tempAsset
 
+# TODO - This is the more accurate function... by default, game will use position given by value. If that is 0,0, it will use the pos variable
 def getAnimFromPathWithAttributes(inPath, spawnAnimName="gfx", posVariable="pos", enableSubAnimation=False) -> Optional[Union[AnimatedImageObject, AnimatedImageObjectWithSubAnimation]]:
     tempImage = getAnimFromPath(inPath, spawnAnimName=spawnAnimName, enableSubAnimation=enableSubAnimation)
     if tempImage != None:

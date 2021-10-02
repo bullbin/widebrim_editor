@@ -3,7 +3,7 @@ from ..const import TIME_FRAMECOUNT_TO_MILLISECONDS
 
 class Fader():
 
-    def __init__(self, durationHighToLow : float, initialActiveState=True, invertOutput=False, callbackOnDone : Optional[Callable]=None, callbackClearOnDone=True):
+    def __init__(self, durationHighToLow : float, initialActiveState = True, invertOutput = False, callbackOnDone : Optional[Callable] = None, callbackClearOnDone = True):
         """Linear timing object that hooks into the update loop. Can trigger callbacks on completion of specified duration.
            Call getStrength() to see the current progress across its duration.
            The precision of timing is dependent on framerate - callbacks are executed on the next frame after the duration has completed.
@@ -15,39 +15,49 @@ class Fader():
             callbackOnDone (Callable, optional): Callback to execute when duration ends. Should have no arguments. Defaults to None.
             callbackClearOnDone (bool, optional): True will clear the callback after execution. Defaults to True.
         """
-        self._duration = durationHighToLow
-        self._isActive = initialActiveState
-        self._timeElapsed = 0
-        self._inverted = invertOutput
-        self._callbackClearOnDone = callbackClearOnDone
-        self._callback = None
-        self._isCallbackNew = False
+        self._duration : float              = durationHighToLow
+        self._isActive : bool               = initialActiveState
+        self._timeElapsed : float           = 0
+        self._inverted : bool               = invertOutput
+        self._callbackClearOnDone : bool    = callbackClearOnDone
+        self._callback : Optional[Callable] = None
+        self._isCallbackNew : bool          = False
         
         self.setCallback(callbackOnDone)
     
-    def update(self, gameClockDelta):
+    def update(self, gameClockDelta : float):
         if self.getActiveState():
             self._timeElapsed += gameClockDelta
             if self._timeElapsed > self._duration:
                 self.skip()
     
     def skip(self):
+        """Jumps to actions at end of this fader, including disabling it and calling any attached callback.
+        """
         if self.getActiveState():
             self._timeElapsed = self._duration
             self.setActiveState(False)
             self._doCallback()
 
-    def setDuration(self, duration):
+    def setDuration(self, duration : float):
+        """Set the duration for the phase of this fader. Will reset the timer and make it active.
 
-        # Change the duration of the fader. Will also reset the timer.
+        Args:
+            duration (float): Duration in milliseconds
+        """
 
         self._duration = duration
         self.reset()
     
-    def setDurationInFrames(self, framecount):
+    def setDurationInFrames(self, framecount : float):
+        """Set the duration for the phase of this fader. Will reset the timer and make it active.
+
+        Args:
+            framecount (float): Duration in frames aligned to a 60fps blanking rate
+        """
         self.setDuration(TIME_FRAMECOUNT_TO_MILLISECONDS * framecount)
     
-    def setCallback(self, callback):
+    def setCallback(self, callback : Optional[Callable]):
         if self._isCallbackNew:
             self._doCallback()
         if callable(callback):
@@ -61,16 +71,21 @@ class Fader():
             if self._callbackClearOnDone and not(self._isCallbackNew):
                 self._callback = None
 
-    def setInvertedState(self, isInverted):
+    def setInvertedState(self, isInverted : bool):
         self._inverted = isInverted
 
-    def setActiveState(self, isActive):
+    def getInvertedState(self) -> bool:
+        return self._inverted
+
+    def setActiveState(self, isActive : bool):
         self._isActive = isActive
     
-    def getActiveState(self):
+    def getActiveState(self) -> bool:
         return self._isActive
 
     def reset(self):
+        """Re-initialises this fader and re-activates it.
+        """
         self._timeElapsed = 0
         self.setActiveState(True)
     
@@ -80,7 +95,12 @@ class Fader():
         except ZeroDivisionError:
             return 1
     
-    def getStrength(self):
+    def getStrength(self) -> float:
+        """Returns the percentage of which this fader has completed its phase.
+
+        Returns:
+            float: Percentage of phase, from 0.0 to 1.0
+        """
         strength = self._calcStrength()
         if self._inverted:
             return 1 - strength

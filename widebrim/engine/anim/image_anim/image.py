@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Dict, List, Optional, Tuple, TYPE_CHECKING, Union
 from widebrim.engine.string.cmp import strCmp
 from ....madhatter.hat_io.asset_image import Animation, getTransparentLaytonPaletted
 from ...const import TIME_FRAMECOUNT_TO_MILLISECONDS
@@ -189,13 +189,13 @@ class AnimatedImageObject():
                 self._useAlphaDrawMethods = False
             self._lastAlpha = self._alpha
     
-    def setAlpha5Bit(self, alpha : int):
+    def setAlpha5Bit(self, alpha : Union[float,int]):
         """Set the transparency factor for this image. The game uses 5-bit values, so these are scaled to 8-bit for convenience.
 
         Args:
-            alpha (int): 5-bit unsigned alpha value.
+            alpha (Union[float,int]): 5-bit unsigned alpha value. Can be a float, but should be in 5-bit range
         """
-        self.setAlpha((alpha * 255) / 31)
+        self.setAlpha(round((alpha * 255) / 31))
 
     def getPosWithOffset(self) -> Tuple[int,int]:
         # TODO - Probably safe to replace getPos with this instead...

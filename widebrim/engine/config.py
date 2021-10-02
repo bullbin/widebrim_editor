@@ -15,3 +15,9 @@ WINDOW_SCALE_TO_VIEW    = True                  # For high DPI devices, widebrim
 PATH_ROM        = getcwd() + "\\rom2.nds"
 PATH_SAVE       = getcwd() + "\\rom2.sav"
 PATH_NDS_FIRM   = getcwd() + "\\firmware.bin"   # Path to DS (DSi unsupported) firmware file containing the WiFi configuration data
+
+
+
+# Debug configurations below. Don't change these unless you know what you're doing!
+
+DEBUG_BYPASS_PUZZLE_INTRO   = False             # Bypass puzzle intro scene - good for rapid puzzle testing

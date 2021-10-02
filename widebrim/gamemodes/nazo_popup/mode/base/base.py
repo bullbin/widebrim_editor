@@ -1,17 +1,22 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Union
+from widebrim.engine.anim.button import AnimatedButton, AnimatedClickableButton
+from widebrim.gamemodes.nazo_popup.mode.base.const import NAME_ANIM_HINT_OFF, NAME_ANIM_HINT_ON, PATH_ANIM_HINT_GLOW, POS_ANIM_HINT_GLOW
+from widebrim.gamemodes.nazo_popup.mode.base.screenHint import BottomScreenOverlayHint
+from widebrim.gamemodes.nazo_popup.mode.base.screenQuit import BottomScreenOverlayQuit
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
 
-from ....engine.state.enum_mode import GAMEMODES
-from ....engine.const import PATH_PUZZLE_SCRIPT, PATH_PACK_PUZZLE, PATH_PUZZLE_BG, PATH_PUZZLE_BG_LANGUAGE, PATH_PUZZLE_BG_NAZO_TEXT, RESOLUTION_NINTENDO_DS
-from ....engine_ext.utils import getButtonFromPath, getAnimFromPath, getPackedData
-from ....engine.anim.font.scrolling import ScrollingFontHelper
-from ....engine.anim.image_anim import ImageFontRenderer
-from ...core_popup.script import ScriptPlayer
-from ....madhatter.hat_io.asset_script import GdScript
-from .const import PATH_ANI_SUB_TEXT, PATH_ANI_BTN_MEMO, PATH_ANI_BTN_QUIT, PATH_ANI_BTN_RESTART, PATH_ANI_BTN_SUBMIT
+from widebrim.engine.state.enum_mode import GAMEMODES
+from widebrim.engine.const import PATH_PUZZLE_SCRIPT, PATH_PACK_PUZZLE, PATH_PUZZLE_BG, PATH_PUZZLE_BG_LANGUAGE, PATH_PUZZLE_BG_NAZO_TEXT, RESOLUTION_NINTENDO_DS
+from widebrim.engine_ext.utils import getButtonFromPath, getAnimFromPath, getClickableButtonFromPath, getPackedData, offsetVectorToSecondScreen
+from widebrim.engine.anim.font.scrolling import ScrollingFontHelper
+from widebrim.engine.anim.image_anim import ImageFontRenderer
+from widebrim.engine.anim.fader import Fader
+from widebrim.gamemodes.core_popup.script import ScriptPlayer
+from widebrim.madhatter.hat_io.asset_script import GdScript
+from widebrim.gamemodes.nazo_popup.mode.const import ANIM_TOUCH_5BIT_ALPHA_BOUNDS, PATH_ANI_BTN_HINT, PATH_ANI_BTN_HINT_WIFI, PATH_ANI_SUB_TEXT, PATH_ANI_BTN_MEMO, PATH_ANI_BTN_QUIT, PATH_ANI_BTN_RESTART, PATH_ANI_BTN_SUBMIT, PATH_ANI_WAIT_FOR_TOUCH
 
 from pygame import MOUSEBUTTONDOWN, MOUSEBUTTONUP
 
@@ -58,6 +63,9 @@ class BaseQuestionObject(ScriptPlayer):
 
         # TODO - Unify language replacement, like bg
         self.__animSubText = getAnimFromPath(PATH_ANI_SUB_TEXT.replace("?", laytonState.language.value))
+        self.__animHintGlow = getAnimFromPath(PATH_ANIM_HINT_GLOW.replace("?", laytonState.language.value), pos=offsetVectorToSecondScreen(POS_ANIM_HINT_GLOW))
+        if self.__animHintGlow != None:
+            self.__animHintGlow.setAnimationFromIndex(1)
 
         self._loadPuzzleBg()
         if nazoData != None:
@@ -82,11 +90,62 @@ class BaseQuestionObject(ScriptPlayer):
 
         # TODO - Create hint mode popup and buttons to grab
         self.__buttons = []
+        self.__btnHintLevel = -1
+        self.__btnHint : Optional[Union[AnimatedButton, AnimatedClickableButton]] = None
+        self.__btnHintWiFiPathway = False
         self.__getButtons()
+
+        self.__screenHint   = BottomScreenOverlayHint(laytonState, screenController, self.__switchFromHintMode)
+        self.__inHintMode   = False
+        
+        self.__popup        : Optional[BottomScreenOverlayHint] = None
 
         self._isTerminating = False
         self.__isInteractingWithPuzzle = False
+        self.__hasDoneInitialTouch = False
+
+        def resetFader():
+            self.__faderTouchAlpha.reset()
+            self.__faderTouchAlpha.setInvertedState(not(self.__faderTouchAlpha.getInvertedState()))
+
+        self.__faderTouchAlpha = Fader(0, callbackOnDone=resetFader, callbackClearOnDone=False)
+        self.__faderTouchAlpha.setDurationInFrames(60)
+
+        self.__animWaitForTouch = getAnimFromPath(PATH_ANI_WAIT_FOR_TOUCH % laytonState.language.value)
+        if self.__animWaitForTouch != None:
+            self.__animWaitForTouch.setAnimationFromIndex(1)
+            # TODO - Replicate the anim width and height getters. Uses current frame to get values, solving some button issues elsewhere
+            self.__animWaitForTouch.setPos((0, RESOLUTION_NINTENDO_DS[1]))
+            if (surface := self.__animWaitForTouch.getActiveFrame()) != None:
+                width = surface.get_width()
+                height = surface.get_height()
+                pos = offsetVectorToSecondScreen(((RESOLUTION_NINTENDO_DS[0] - width) // 2, (RESOLUTION_NINTENDO_DS[1] - height) // 2))
+                self.__animWaitForTouch.setPos(pos)
+            self.__setAnimTouchAlpha()
     
+    def __updateHintButtonLevel(self):
+        if self.__btnHint != None:
+            if not(self.__btnHintWiFiPathway):
+                # TODO - Add hint level getter to state
+                targetLevel = None
+                if (nzLstEntry := self.laytonState.getCurrentNazoListEntry()) != None:
+                    puzzleData = self.laytonState.saveSlot.puzzleData.getPuzzleData(nzLstEntry.idExternal - 1)
+                    if puzzleData != None:
+                        targetLevel = puzzleData.levelHint
+                if targetLevel != None and targetLevel != self.__btnHintLevel:
+                    self.__btnHintLevel = targetLevel
+                    self.__btnHint.setAnimNameUnpressed(NAME_ANIM_HINT_OFF % self.__btnHintLevel)
+                    self.__btnHint.setAnimNamePressed(NAME_ANIM_HINT_ON % self.__btnHintLevel)
+
+    def __switchToHintMode(self):
+        self.__screenHint.doBeforeSwitching()
+        self.__inHintMode = True
+
+    def __switchFromHintMode(self):
+        self._loadPuzzleBg()
+        self.__updateHintButtonLevel()
+        self.__inHintMode = False
+
     def __enablePuzzleElements(self):
         self.__isPuzzleElementsActive = True
     
@@ -106,28 +165,60 @@ class BaseQuestionObject(ScriptPlayer):
     def _setButtonEnabled(self):
         pass
 
+    def __setAnimTouchAlpha(self):
+        lower, upper = ANIM_TOUCH_5BIT_ALPHA_BOUNDS
+        diff = (upper - lower) * self.__faderTouchAlpha.getStrength()
+        self.__animWaitForTouch.setAlpha5Bit(lower + diff)
+
     def update(self, gameClockDelta):
         # TODO - Maybe patch update on doOnComplete from script to ensure that unintended blocking behaviour from calling bad commands
         #        doesn't lead the puzzle handler to start prematurely (even though this would be an invalid state)
         if not(self._isTerminating):
             super().update(gameClockDelta)
             if self.__getPuzzleElementsEnabledState():
-                self.__scrollerPrompt.update(gameClockDelta)
-
-                if self.__useButtons:
-                    for button in self.__buttons:
-                        button.update(gameClockDelta)
-                self.updatePuzzleElements(gameClockDelta)
+                if self.__hasDoneInitialTouch:
+                    if self.__inHintMode:
+                        self.__screenHint.update(gameClockDelta)
+                    elif self.__popup != None:
+                        self.__popup.update(gameClockDelta)
+                    else:
+                        if self.__useButtons:
+                            for button in self.__buttons:
+                                button.update(gameClockDelta)
+                        if self.__animHintGlow != None and not(self.__btnHintWiFiPathway):
+                            self.__animHintGlow.update(gameClockDelta)
+                        self.updatePuzzleElements(gameClockDelta)
+                else:
+                    if self.__animWaitForTouch != None:
+                        self.__setAnimTouchAlpha()
+                        self.__animWaitForTouch.update(gameClockDelta)
+                        self.__faderTouchAlpha.update(gameClockDelta)
+                    self.__scrollerPrompt.update(gameClockDelta)
+        
+        self.__screenHint.update(gameClockDelta)
     
     def draw(self, gameDisplay):
         super().draw(gameDisplay)
         self.__drawSubScreenOverlay(gameDisplay)
         self.__scrollerPrompt.draw(gameDisplay)
 
-        if self.__useButtons:
-            for button in self.__buttons:
-                button.draw(gameDisplay)
-        self.drawPuzzleElements(gameDisplay)
+        if self.__inHintMode:
+            self.__screenHint.draw(gameDisplay)
+        elif self.__popup != None:
+            self.__popup.draw(gameDisplay)
+        else:
+            if self.__useButtons:
+                for button in self.__buttons:
+                    button.draw(gameDisplay)
+            
+            if self.__animHintGlow != None and not(self.__btnHintWiFiPathway):
+                self.__animHintGlow.draw(gameDisplay)
+
+            self.drawPuzzleElements(gameDisplay)
+
+            if not(self.__hasDoneInitialTouch):
+                if self.__animWaitForTouch != None:
+                    self.__animWaitForTouch.draw(gameDisplay)
     
     def _setPuzzleTouchBounds(self, xLimit):
         self.__puzzleXLimit = xLimit
@@ -142,30 +233,44 @@ class BaseQuestionObject(ScriptPlayer):
         # TODO - TOUCH! animation
         if not(self._isTerminating):
             # TODO - Get mouse region, it's somewhere in binary
-            if self.__useButtons:
-                for button in self.__buttons:
-                    if button.handleTouchEvent(event):
+            if self.__hasDoneInitialTouch:
+                if self.__inHintMode:
+                    if self.__screenHint.handleTouchEvent(event):
                         return True
-
-            if event.type == MOUSEBUTTONDOWN:
-                x,y = event.pos
-                if 0 <= x < self.__puzzleXLimit:
-                    self.__isInteractingWithPuzzle = True
+                elif self.__popup != None:
+                    if self.__popup.handleTouchEvent(event):
+                        return True
                 else:
-                    self.__isInteractingWithPuzzle = False
-            
-            if self.__isInteractingWithPuzzle:
-                x, y = event.pos
-                if x > self.__puzzleXLimit:
-                    x = self.__puzzleXLimit
-                if y < RESOLUTION_NINTENDO_DS[1]:
-                    y = RESOLUTION_NINTENDO_DS[1]
-                event.pos = x,y
-                self.handleTouchEventPuzzleElements(event)
-            
-                if event.type == MOUSEBUTTONUP:
-                    self.__isInteractingWithPuzzle = False
-                return True
+                    if self.__useButtons:
+                        for button in self.__buttons:
+                            if button.handleTouchEvent(event):
+                                return True
+
+                    if event.type == MOUSEBUTTONDOWN:
+                        x,y = event.pos
+                        if 0 <= x < self.__puzzleXLimit:
+                            self.__isInteractingWithPuzzle = True
+                        else:
+                            self.__isInteractingWithPuzzle = False
+                    
+                    if self.__isInteractingWithPuzzle:
+                        x, y = event.pos
+                        if x > self.__puzzleXLimit:
+                            x = self.__puzzleXLimit
+                        if y < RESOLUTION_NINTENDO_DS[1]:
+                            y = RESOLUTION_NINTENDO_DS[1]
+                        event.pos = x,y
+                        self.handleTouchEventPuzzleElements(event)
+                    
+                        if event.type == MOUSEBUTTONUP:
+                            self.__isInteractingWithPuzzle = False
+                        # TODO - Should return handleTouchEventPuzzleElements probably
+                        return True
+            else:
+                if event.type == MOUSEBUTTONDOWN:
+                    self.__hasDoneInitialTouch = True
+                    self.__scrollerPrompt.skip()
+                    return True
         return False
 
     def updatePuzzleElements(self, gameClockDelta):
@@ -211,6 +316,16 @@ class BaseQuestionObject(ScriptPlayer):
         def addIfNotNone(button):
             if button != None:
                 self.__buttons.append(button)
+        
+        if (nzLstEntry := self.laytonState.getCurrentNazoListEntry()) != None:
+            # TODO - Constants on story puzzles...
+            if 0 < nzLstEntry.idExternal < 0x9a:
+                self.__btnHint = getButtonFromPath(self.laytonState, PATH_ANI_BTN_HINT, self.__switchToHintMode)
+            else:
+                self.__btnHintWiFiPathway = True
+                self.__btnHint = getClickableButtonFromPath(self.laytonState, PATH_ANI_BTN_HINT_WIFI, self.__switchToHintMode)
+            addIfNotNone(self.__btnHint)
+            self.__updateHintButtonLevel()
 
         if self.hasQuitButton():
             addIfNotNone(getButtonFromPath(self.laytonState, PATH_ANI_BTN_QUIT, callback=self.__doQuit))
@@ -221,9 +336,16 @@ class BaseQuestionObject(ScriptPlayer):
         if self.hasSubmitButton():
             addIfNotNone(getButtonFromPath(self.laytonState, PATH_ANI_BTN_SUBMIT, callback=self._doOnJudgementPress))
 
-    def __doQuit(self):
+    def __callbackOnQuit(self):
         self.laytonState.wasPuzzleSkipped = True
         self.screenController.fadeOut(callback=self._callbackOnTerminate)
+    
+    def __callbackOnRemovePopup(self):
+        self.__popup = None
+        self._loadPuzzleBg()
+
+    def __doQuit(self):
+        self.__popup = BottomScreenOverlayQuit(self.laytonState, self.screenController, self.__callbackOnRemovePopup, self.__callbackOnQuit, self.__animSubText)
 
     def _loadPuzzleBg(self):
         nzLstEntry = self.laytonState.getCurrentNazoListEntry()

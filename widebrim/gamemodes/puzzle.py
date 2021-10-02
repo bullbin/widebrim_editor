@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+from widebrim.engine.config import DEBUG_BYPASS_PUZZLE_INTRO
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
@@ -79,7 +80,10 @@ class PuzzlePlayer(ScreenLayerNonBlocking):
 
         if self.laytonState.loadCurrentNazoData():
             # Do intro screen and start loading chain
-            self.__callbackSpawnPuzzleIntro()
+            if DEBUG_BYPASS_PUZZLE_INTRO:
+                self.__callbackSpawnPuzzleObject()
+            else:
+                self.__callbackSpawnPuzzleIntro()
         else:
             # I think this will cause a softlock. Bypass potentially required (switch to next gamemode?)
             # TODO - Check the nazo data grabbing function for what it does under failure condition
@@ -89,7 +93,10 @@ class PuzzlePlayer(ScreenLayerNonBlocking):
     def update(self, gameClockDelta):
         if self._waitingToUnrollAndRestart:
             self._waitingToUnrollAndRestart = False
-            self.__callbackSpawnPuzzleIntro()
+            if DEBUG_BYPASS_PUZZLE_INTRO:
+                self.__callbackSpawnPuzzleObject()
+            else:
+                self.__callbackSpawnPuzzleIntro()
         if self._popup != None:
             self._popup.update(gameClockDelta)
     
