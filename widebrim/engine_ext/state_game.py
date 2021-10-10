@@ -73,12 +73,11 @@ class BgLayer(ScreenLayerNonBlocking):
         self._faderShakeSub.update(gameClockDelta)
 
     def _setBg(self, pathBg):
-        bg = getImageFromPath(self._laytonState, pathBg)
-        if bg != None:
-            output = bg
-        else:
-            output = Surface(RESOLUTION_NINTENDO_DS)
-        return output
+        if pathBg != None:
+            bg = getImageFromPath(self._laytonState, pathBg)
+            if bg != None:
+                return bg
+        return Surface(RESOLUTION_NINTENDO_DS)
     
     def _updatePal(self, inImage, darkness):
         tempImage = inImage.copy()

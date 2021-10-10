@@ -128,6 +128,10 @@ class AnimatedImageObject():
         if self.animActive != None:
             self.animActive.reset()
 
+    def resetActiveAnim(self):
+        if self.animActive != None:
+            self.animActive.reset()
+
     def setAnimationFromIndex(self, index : int) -> bool:
         if index in self._indexToAnimationMap and (index > 0 or self._workaroundEnableHidden):
             if self.animActive != self._indexToAnimationMap[index]:

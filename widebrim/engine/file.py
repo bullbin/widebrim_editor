@@ -24,9 +24,12 @@ class FileInterface():
 
     @staticmethod
     def _isPathAvailableRom(filepath):
-        if FileInterface._rom.filenames.idOf(filepath) != None:
-            return True
-        return False
+        try:
+            if FileInterface._rom.filenames.idOf(filepath) != None:
+                return True
+            return False
+        except:
+            return False
 
     @staticmethod
     def _dataFromRom(filepath):

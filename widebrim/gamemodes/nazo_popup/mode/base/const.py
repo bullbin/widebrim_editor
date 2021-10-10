@@ -12,14 +12,23 @@ PATH_ANIM_BTN_HINTUNLOCK_1  = "nazo/system/%s/hint1.spr"
 PATH_ANIM_BTN_HINTUNLOCK_2  = "nazo/system/%s/hint2.spr"
 PATH_ANIM_BTN_HINTUNLOCK_3  = "nazo/system/%s/hint3.spr"
 
+PATH_ANIM_BTN_TUTORIAL      = "nazo/system/%s/t_next.spr"
+
 PATH_ANIM_HINT_GLOW         = "system/btn/?/hint_pica.spr"
 
 NAME_ANIM_VAR_POS_BACK_HINT = "pos_h"
 NAME_ANIM_VAR_POS_UNLOCK    = "hint_p"
 NAME_ANIM_VAR_POS_QUIT      = "atode_p"
+NAME_ANIM_VAR_POS_TUT_BACK  = "pos_b"
+NAME_ANIM_VAR_POS_TUT_NEXT  = "pos_n"
 
 NAME_ANIM_HINT_ON           = "%i_on"
 NAME_ANIM_HINT_OFF          = "%i_off"
+
+NAME_ANIM_TUTORIAL_BACK_ON  = "back2"
+NAME_ANIM_TUTORIAL_BACK_OFF = "back1"
+NAME_ANIM_TUTORIAL_NEXT_ON  = "next2"
+NAME_ANIM_TUTORIAL_NEXT_OFF = "next1"
 
 PATH_BG_JITEN_WAIT_UNLOCK   = "nazo/system/%s/jitenhint_1.bgx"
 PATH_BG_JITEN_UNLOCKED      = "nazo/system/%s/hint_1.bgx"
@@ -40,6 +49,7 @@ PATH_BG_UNLOCKED            = "nazo/system/%s/hint_%i.bgx"
 PATH_BG_UNLOCKED_3          = "nazo/system/%s/hint_3.bgx"
 
 PATH_BG_QUIT                = "nazo/system/%s/atode_bg.bgx"
+PATH_BG_TUTORIAL            = "nazo/system/%s/puzzlet%i_%i.bgx"        # Stored as absolute, but make relative...
 
 POS_HINTTEXT                = (20,42)    # TODO - Where is this??
 POS_ANIM_HINT_GLOW          = (0xc3,0x5)

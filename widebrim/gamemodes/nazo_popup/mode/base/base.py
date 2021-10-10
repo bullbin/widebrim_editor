@@ -4,6 +4,7 @@ from widebrim.engine.anim.button import AnimatedButton, AnimatedClickableButton
 from widebrim.gamemodes.nazo_popup.mode.base.const import NAME_ANIM_HINT_OFF, NAME_ANIM_HINT_ON, PATH_ANIM_HINT_GLOW, POS_ANIM_HINT_GLOW
 from widebrim.gamemodes.nazo_popup.mode.base.screenHint import BottomScreenOverlayHint
 from widebrim.gamemodes.nazo_popup.mode.base.screenQuit import BottomScreenOverlayQuit
+from widebrim.gamemodes.nazo_popup.mode.base.screenTutorial import BottomScreenOverlayTutorial, shouldTutorialSpawn
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
@@ -21,6 +22,7 @@ from widebrim.gamemodes.nazo_popup.mode.const import ANIM_TOUCH_5BIT_ALPHA_BOUND
 from pygame import MOUSEBUTTONDOWN, MOUSEBUTTONUP
 
 # TODO - What happens if the scroller draws too many lines for the top screen? Does it go to the bottom?
+# TODO - Fix popup... ScriptPlayer has its own system. But this should operate after completion.
 
 # TODO - This is from intro...
 def getNumberFontRendererFromImage(anim, varName):
@@ -122,7 +124,7 @@ class BaseQuestionObject(ScriptPlayer):
                 pos = offsetVectorToSecondScreen(((RESOLUTION_NINTENDO_DS[0] - width) // 2, (RESOLUTION_NINTENDO_DS[1] - height) // 2))
                 self.__animWaitForTouch.setPos(pos)
             self.__setAnimTouchAlpha()
-    
+
     def __updateHintButtonLevel(self):
         if self.__btnHint != None:
             if not(self.__btnHintWiFiPathway):
@@ -136,6 +138,10 @@ class BaseQuestionObject(ScriptPlayer):
                     self.__btnHintLevel = targetLevel
                     self.__btnHint.setAnimNameUnpressed(NAME_ANIM_HINT_OFF % self.__btnHintLevel)
                     self.__btnHint.setAnimNamePressed(NAME_ANIM_HINT_ON % self.__btnHintLevel)
+
+    def __switchToTutorialMode(self):
+        if shouldTutorialSpawn(self.laytonState):
+            self.__popup = BottomScreenOverlayTutorial(self.laytonState, self.screenController, self.__callbackOnRemovePopup)
 
     def __switchToHintMode(self):
         self.__screenHint.doBeforeSwitching()
@@ -267,9 +273,10 @@ class BaseQuestionObject(ScriptPlayer):
                         # TODO - Should return handleTouchEventPuzzleElements probably
                         return True
             else:
-                if event.type == MOUSEBUTTONDOWN:
+                if event.type == MOUSEBUTTONUP:
                     self.__hasDoneInitialTouch = True
                     self.__scrollerPrompt.skip()
+                    self.__switchToTutorialMode()
                     return True
         return False
 

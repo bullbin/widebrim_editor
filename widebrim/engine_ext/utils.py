@@ -19,16 +19,71 @@ from shutil import rmtree
 
 from pygame import image, Surface
 
-def getImageFromPath(laytonState, pathBg) -> Optional[Surface]:
-    # TODO - Fix weird behaviour addressing multiple strings... should be addressing languages with %s
+def substituteLanguageString(laytonState : Layton2GameState, string : str) -> str:
+    """Get substituted strings for a given path. Will substitute language if there is one missing string or a "?" symbol.
 
+    Args:
+        laytonState (Layton2GameState): Game state used for language substitution
+        string (str): Any path
+
+    Returns:
+        str: Path with language substituted or original if substitution not possible
+    """
+    if "?" in string:
+        string = string.replace("?", laytonState.language.value)
+    elif string.count("%s") == 1:
+        string = string.replace("%s", laytonState.language.value)
+    return string
+
+def getFormatString(path : str, extension : str) -> str:
+    if len(path) >= len(extension):
+        return path[0:- len(extension)] + extension
+    return path
+
+def doesAnimExist(laytonState : Layton2GameState, pathAnim : str) -> bool:
+    """Check for presence of file with anim extension in animation folder. Will substitute language if there is one missing string or a "?" symbol. Does not guarentee file is of anim type or can be read.
+
+    Args:
+        laytonState (Layton2GameState): Game state used for language substitution
+        pathAnim (str): Path to animation. Extension included but root anim path excluded
+
+    Returns:
+        bool: True if file exists, may not be anim
+    """
+    if ".spr" in pathAnim:
+        pathAnim = getFormatString(pathAnim, "arc")
+    elif ".sbj" in pathAnim:
+        pathAnim = getFormatString(pathAnim, "arj")
+    else: # yes this will maybe cause bugs but the game really doesn't care about last 3 digits
+        pathAnim = getFormatString(pathAnim, "arc")
+    
+    return FileInterface.doesFileExist(substituteLanguageString(laytonState, PATH_ANI % pathAnim))
+
+def doesImageExist(laytonState : Layton2GameState, pathBg : str) -> bool:
+    """Check for presence of file with image extension in background folder. Will substitute language if there is one missing string or a "?" symbol. Does not guarentee file is of image type or can be read.
+
+    Args:
+        laytonState (Layton2GameState): Game state used for language substitution
+        pathBg (str): Path to background. Extension included but root background path excluded
+
+    Returns:
+        bool: True if file exists, may not be image
+    """
+    return FileInterface.doesFileExist(substituteLanguageString(laytonState, PATH_BG_ROOT % getFormatString(pathBg, "arc")))
+
+def getImageFromPath(laytonState : Layton2GameState, pathBg : str) -> Optional[Surface]:
+    """Get Surface representing some background image at the given path. Will substitute language if there is one missing string or a "?" symbol.
+
+    Args:
+        laytonState (Layton2GameState): Game state used for language substitution
+        pathBg (str): Path to background. Extension included but root background path excluded
+
+    Returns:
+        Optional[Surface]: Surface if image was readable, else None
+    """
     def fetchBgxImage(path) -> Optional[ImageType]:
         # TODO - Fix unwanted behaviour with reading null-terminated strings, where a null character is left at the end
-        if "bgx" in path:
-            tempPath = path.split(".")
-            path = ".".join(tempPath[:-1]) + ".arc"
-
-        imageFile = FileInterface.getData(PATH_BG_ROOT % path)
+        imageFile = FileInterface.getData(PATH_BG_ROOT % substituteLanguageString(laytonState, getFormatString(path, "arc")))
         if imageFile != None:
             try:
                 imageFile = StaticImage.fromBytesArc(imageFile)
@@ -37,25 +92,12 @@ def getImageFromPath(laytonState, pathBg) -> Optional[Surface]:
                 return None
         return imageFile
 
-    if type(pathBg) == str:
-        if "?" not in pathBg:
-            langPath = pathBg.split("/")
-            langPath.insert(-1, laytonState.language.value)
-            langPath = '/'.join(langPath)
-        else:
-            langPath = pathBg.replace("?", laytonState.language.value)
-
-        bg = fetchBgxImage(langPath)
-        if bg == None:
-            bg = fetchBgxImage(pathBg)
-        
-        if bg != None:
-            # HACK - Reword transparencies to support colormasking
-            output = image.fromstring(bg.convert("RGB").tobytes("raw", "RGB"), bg.size, "RGB").convert()
-            if bg.mode == "P":
-                output.set_colorkey(bg.getpalette()[0:3])
-            return output
-    return None
+    if (bg := fetchBgxImage(pathBg)) != None:
+        # HACK - Reword transparencies to support colormasking
+        output = image.fromstring(bg.convert("RGB").tobytes("raw", "RGB"), bg.size, "RGB").convert()
+        if bg.mode == "P":
+            output.set_colorkey(bg.getpalette()[0:3])
+        return output
 
 def getPackedData(pathPack, nameItem) -> Optional[bytes]:
     pack = LaytonPack()
@@ -63,8 +105,7 @@ def getPackedData(pathPack, nameItem) -> Optional[bytes]:
     return pack.getFile(nameItem)
 
 def getPackedString(pathPack, nameString) -> str:
-    # TODO - Maybe decoding using subtituter
-    # TODO - sp... substituter
+    # TODO - Maybe decoding using substituter
     tempString = getPackedData(pathPack, nameString)
     try:
         return tempString.decode('shift-jis')

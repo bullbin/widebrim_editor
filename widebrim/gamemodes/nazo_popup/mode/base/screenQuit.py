@@ -1,18 +1,18 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING, Callable, List, Optional
+
 from widebrim.engine.anim.button import AnimatedButton
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
 from widebrim.engine.anim.image_anim.image import AnimatedImageObject
-from widebrim.engine.const import RESOLUTION_NINTENDO_DS
+
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
 
-from pygame import Surface
-from widebrim.engine.state.enum_mode import GAMEMODES
-from widebrim.gamemodes.nazo_popup.mode.base.const import NAME_ANIM_VAR_POS_BACK_HINT, NAME_ANIM_VAR_POS_QUIT, NAME_ANIM_VAR_POS_UNLOCK, PATH_ANIM_BTN_BACK, PATH_ANIM_BTN_HINTLOCK_1, PATH_ANIM_BTN_HINTLOCK_2, PATH_ANIM_BTN_HINTLOCK_3, PATH_ANIM_BTN_HINTUNLOCK_1, PATH_ANIM_BTN_HINTUNLOCK_2, PATH_ANIM_BTN_HINTUNLOCK_3, PATH_ANIM_BTN_UNLOCK_NO, PATH_ANIM_BTN_UNLOCK_YES, PATH_BG_JITEN_UNLOCKED, PATH_BG_JITEN_WAIT_UNLOCK, PATH_BG_JITEN_WAIT_UNLOCK_1, PATH_BG_JITEN_WAIT_UNLOCK_2, PATH_BG_JITEN_WAIT_UNLOCK_3, PATH_BG_NO_HINT_COIN_1, PATH_BG_NO_HINT_COIN_2, PATH_BG_NO_HINT_COIN_3, PATH_BG_QUIT, PATH_BG_UNLOCKED, PATH_BG_UNLOCKED_3, PATH_BG_WAIT_UNLOCK_1, PATH_BG_WAIT_UNLOCK_2, PATH_BG_WAIT_UNLOCK_3, POS_HINTTEXT
-from widebrim.gamemodes.core_popup.utils import MainScreenPopup
 from widebrim.engine_ext.utils import getButtonFromPath, offsetVectorToSecondScreen
+from widebrim.gamemodes.core_popup.utils import MainScreenPopup
+from widebrim.gamemodes.nazo_popup.mode.base.const import NAME_ANIM_VAR_POS_QUIT, PATH_ANIM_BTN_UNLOCK_NO, PATH_ANIM_BTN_UNLOCK_YES, PATH_BG_QUIT
 
 # TODO - Not accurate, consier Jiten limitations
 

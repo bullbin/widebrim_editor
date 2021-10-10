@@ -379,7 +379,8 @@ class RoomPlayer(ScreenLayerNonBlocking):
                     return True
                 
                 if self.__animTouchIcon != None and event.type == MOUSEBUTTONDOWN and event.pos[1] >= RESOLUTION_NINTENDO_DS[1]:
-                    if self.__animTouchIcon.setAnimationFromIndex(1) and self.__animTouchIcon.getActiveFrame != None:
+                    self.__animTouchIcon.resetActiveAnim()
+                    if self.__animTouchIcon.getActiveFrame != None:
                         width, height = self.__animTouchIcon.getDimensions()
                         self.__animTouchIcon.setPos((event.pos[0] - width // 2, event.pos[1] - height // 2))
 
