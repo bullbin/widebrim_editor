@@ -92,3 +92,15 @@ class CIPHER_IV(Enum):
     Default     = 0x59
     Future      = 0x55
     Pandora     = 0x4b
+
+ADDRESS_ARM9_POINTER_FUNC_LANGUAGE  = 0x0200094c
+
+DICT_ID_TO_LANGUAGE = {0 : LANGUAGES.Japanese,
+                       1 : LANGUAGES.English,
+                       2:  LANGUAGES.Spanish,
+                       3 : LANGUAGES.French,
+                       4 : LANGUAGES.Italian,
+                       5 : LANGUAGES.German,
+                       6 : LANGUAGES.Dutch,
+                       7 : LANGUAGES.Korean,
+                       8 : LANGUAGES.Chinese}

@@ -8,4 +8,4 @@ COUNT_MAX_SUBTITLES             = 32
 
 # TODO - Pipe and remove temp folder, not a fan
 PATH_TEMP_MOVIE_FILE            = "movie.mods"
-COUNT_BUFFER_FRAMES = 5
+COUNT_BUFFER_FRAMES             = 5

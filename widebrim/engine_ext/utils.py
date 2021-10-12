@@ -101,7 +101,8 @@ def getImageFromPath(laytonState : Layton2GameState, pathBg : str) -> Optional[S
 
 def getPackedData(pathPack, nameItem) -> Optional[bytes]:
     pack = LaytonPack()
-    pack.load(FileInterface.getData(pathPack))
+    if (data := FileInterface.getData(pathPack)) != None:
+        pack.load(data)
     return pack.getFile(nameItem)
 
 def getPackedString(pathPack, nameString) -> str:

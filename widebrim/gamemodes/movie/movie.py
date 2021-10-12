@@ -9,6 +9,7 @@ from widebrim.engine.keybinds import KEY_START
 from widebrim.engine_ext.const import PATH_TEMP
 from widebrim.engine.state.enum_mode import GAMEMODES
 from widebrim.engine.file import FileInterface
+from widebrim.engine.config import TIME_FRAMERATE
 from widebrim.engine.const import PATH_PACK_TXT, RESOLUTION_NINTENDO_DS
 from widebrim.engine_ext.utils import decodeArchiveString, ensureTempFolder, getPackedData
 from widebrim.gamemodes.core_popup.script import ScriptPlayer
@@ -21,6 +22,7 @@ from pygame import Surface
 from pygame.image import frombuffer
 from .const import *
 from os import remove
+from math import ceil
 
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
@@ -76,7 +78,15 @@ class MovieSurface():
                         '-vcodec', 'rawvideo',
                         '-' ]
             
-            self.__procConv = Popen(command, stdout=PIPE, bufsize=self.__bufferSize * COUNT_BUFFER_FRAMES)
+            if framerate > 0:
+                # Scale the amount of frames by the actual framerate. Eg at 12fps, we need 2 frames of 24fps video to keep display smooth
+                bufferFrameCount = framerate / TIME_FRAMERATE
+                bufferFrameCount *= COUNT_BUFFER_FRAMES
+                bufferFrameCount = max(ceil(bufferFrameCount), COUNT_BUFFER_FRAMES) # Ensure that there is always at least COUNT_BUFFER_FRAMES in background
+            else:
+                bufferFrameCount = COUNT_BUFFER_FRAMES
+
+            self.__procConv = Popen(command, stdout=PIPE, bufsize=self.__bufferSize * bufferFrameCount)
         else:
             self.cleanup()
 
@@ -182,7 +192,7 @@ class MoviePlayer(ScriptPlayer):
         self.__textRendererSubtitle.drawXYCenterPointNoBias(gameDisplay)
     
     def __updateOnScriptComplete(self, gameClockDelta):
-        self.__timeElapsedSeconds += gameClockDelta / 1000
+        self.__timeElapsedSeconds += gameClockDelta / 1000      # TODO - What happens if ffmpeg is losing time due to overload?
         self.__updateRenderedSubtitle()
         self.__surfaceMovie.update(gameClockDelta)
     

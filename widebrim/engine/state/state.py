@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Optional, TYPE_CHECKING
+from widebrim.madhatter.common import logSevere
 
 if TYPE_CHECKING:
     from widebrim.madhatter.hat_io.asset_dlz.nz_lst import DlzEntryNzLst
@@ -27,14 +28,26 @@ from math import floor
 from .enum_mode import GAMEMODES
 
 class Layton2GameState():
-    def __init__(self, language=LANGUAGES.Japanese):
+    def __init__(self, language=LANGUAGES.Japanese, forceUseLanguage=False):
+        """Convenience object to store entire game state required for playback. Where possible, language will be extracted from the asset data.
+
+        Args:
+            language (LANGUAGES Enum member, optional): Language for filesystem access. Defaults to LANGUAGES.Japanese
+            forceUseLanguage (bool, optional): True to override detected with specified language. Defaults to False
+
+        Raises:
+            FileInvalidCritical: Raised if any immediate asset required for gameplay is missing. Further missing assets are not counted
+        """
         
         # Save header is unused during gameplay
         self.saveSlot       = Layton2SaveSlot()
         # TODO - Index slot
         self.wiFiData       = WiFiState()
 
-        self.language       = language
+        if forceUseLanguage or (fileLanguage := FileInterface.getLanguage()) == None:
+            self.language = language
+        else:
+            self.language = fileLanguage
 
         self._gameMode       = GAMEMODES.INVALID
         self._gameModeNext   = GAMEMODES.INVALID
@@ -271,7 +284,7 @@ class Layton2GameState():
         # Load nz info entry, set id
         self.entryNzList = self.getNazoListEntry(idInternal)
         if self.entryNzList == None:
-            print("Failed to update entry!")
+            logSevere("Failed to update entry!")
 
     def getCurrentNazoListEntry(self) -> Optional[DlzEntryNzLst]:
         return self.entryNzList

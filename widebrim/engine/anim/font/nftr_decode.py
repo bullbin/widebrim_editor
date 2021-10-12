@@ -1,3 +1,4 @@
+from widebrim.madhatter.common import logSevere
 from ....madhatter.hat_io.binary import BinaryReader
 from ....engine.convenience import initDisplay
 
@@ -138,5 +139,10 @@ class NftrTiles():
         self.glyphs = []
         self.glyphMap = {}
         
-        loadGlyphs(data)
+        try:
+            if data != None and type(data) == bytearray:
+                loadGlyphs(data)
+        except:
+            logSevere("NTFR decoding error!")
+        
         buildGlyphMap()
