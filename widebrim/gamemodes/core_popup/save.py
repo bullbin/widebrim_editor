@@ -1,9 +1,11 @@
 from typing import List
+
+from widebrim.engine.file import FileInterface
 from ...engine.anim.font.static import generateImageFromString
 from ...engine.anim.button import NullButton
 from ...engine.config import PATH_SAVE
 from ...engine.const import PATH_TEXT_GENERIC, PATH_PACK_PLACE_NAME, PATH_TEXT_PLACE_NAME, RESOLUTION_NINTENDO_DS
-from ...engine_ext.utils import getButtonFromPath, getTxt2String, getPackedString
+from ...engine_ext.utils import getButtonFromPath, getTxt2String
 from ...madhatter.hat_io.asset_sav import Layton2SaveFile
 
 from .const import COLOR_SLOT_B, COLOR_SLOT_G, COLOR_SLOT_R, COLOR_UNUSED_SLOT, OFFSET_Y_SLOT_0, PATH_BG_FILELOAD, PATH_BG_FILESAVE, PATH_ANI_BTN_BACK, ID_SAVE_EMPTY, POS_TOP_SLOT_Y
@@ -103,7 +105,8 @@ class SaveLoadScreenPopup(MainScreenPopup):
                 indexPlace = self.saveData.getSlotData(indexSlot).roomIndex
                 if indexPlace == 0x5c:
                     indexPlace = 0x26
-                self.surfacePlace[indexSlot] = generateImageFromString(laytonState.fontQ, getPackedString(PATH_PACK_PLACE_NAME % laytonState.language.value, PATH_TEXT_PLACE_NAME % indexPlace))
+                # TODO - Decode...?
+                self.surfacePlace[indexSlot] = generateImageFromString(laytonState.fontQ, FileInterface.getPackedString(PATH_PACK_PLACE_NAME % laytonState.language.value, PATH_TEXT_PLACE_NAME % indexPlace))
                 self.surfacePlaceX[indexSlot] = SaveLoadScreenPopup.OFFSET_X_BOX_TEXT - self.surfacePlace[indexSlot].get_width() // 2
             except:
                 pass

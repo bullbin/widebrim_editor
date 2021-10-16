@@ -15,14 +15,13 @@ from ...engine.state.enum_mode import GAMEMODES
 from ...engine.anim.fader import Fader
 from ...engine.anim.font.scrolling import ScrollingFontHelper
 from ...engine.exceptions import FileInvalidCritical
-from ...engine.file import FileInterface
+from ...engine.file import FileInterface, VirtualArchive
 from ..core_popup.script import ScriptPlayer
 
 from ...engine.const import PATH_EVENT_BG_LANG_DEP, PATH_TEXT_GENERIC, PATH_TEXT_PURPOSE, RESOLUTION_NINTENDO_DS, PATH_CHAP_ROOT
 from ...engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C
 from ...engine.const import PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, PATH_PACK_TALK, PATH_EVENT_BG, PATH_PLACE_BG, PATH_EVENT_ROOT, PATH_NAME_ROOT
 
-from ...madhatter.hat_io.asset import LaytonPack
 from ...madhatter.hat_io.asset_script import GdScript
 from ...madhatter.hat_io.asset_sav import FlagsAsArray
 from ...madhatter.typewriter.stringsLt2 import OPCODES_LT2
@@ -41,8 +40,6 @@ from pygame.transform import flip
 from random import randint
 
 # TODO - During fading, the main screen doesn't actually seem to be updated.
-
-# TODO - Remove references to LaytonPack, we're beyond that now
 
 # TODO - Set up preparations for many hardcoded event IDs which are called for various tasks in binary
 #        aka nazoba hell, since there's so much back and forth to spawn the extra handler due to memory constraints on NDS
@@ -284,7 +281,7 @@ class EventPlayer(ScriptPlayer):
         self.laytonState : Layton2GameState
 
         self.laytonState.setGameMode(GAMEMODES.Room)
-        self._packEventTalk = LaytonPack()
+        self._packEventTalk : Optional[VirtualArchive] = None
 
         if overrideId != None:
             spawnId = overrideId
@@ -315,12 +312,11 @@ class EventPlayer(ScriptPlayer):
             print("Loaded event", spawnId)
             # Centralise this so it can be deleted when finished
             try:
-                packEventScript = LaytonPack()
-                packEventScript.load(FileInterface.getData(getEventScriptPath()))
-                self._packEventTalk.load(FileInterface.getData(getEventTalkPath()))
+                packEventScript = FileInterface.getPack(getEventScriptPath())
+                self._packEventTalk = FileInterface.getPack(getEventTalkPath())
 
-                self._script.load(packEventScript.getFile(PATH_PACK_EVENT_SCR % (self._idMain, self._idSub)))
-                eventData = packEventScript.getFile(PATH_PACK_EVENT_DAT % (self._idMain, self._idSub))
+                self._script.load(packEventScript.getData(PATH_PACK_EVENT_SCR % (self._idMain, self._idSub)))
+                eventData = packEventScript.getData(PATH_PACK_EVENT_DAT % (self._idMain, self._idSub))
 
                 # TODO - Rewrite event info module
 
@@ -460,7 +456,8 @@ class EventPlayer(ScriptPlayer):
             animNameOff = None
             text = ""
 
-            tempTalkScript = self._packEventTalk.getFile(PATH_PACK_TALK % (self._idMain, self._idSub, operands[0].value))
+            # No need to check for None, script can't execute without this loading
+            tempTalkScript = self._packEventTalk.getData(PATH_PACK_TALK % (self._idMain, self._idSub, operands[0].value))
             if tempTalkScript != None:
                 self.talkScript = GdScript()
                 self.talkScript.load(tempTalkScript, isTalkscript=True)

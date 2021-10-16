@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 from widebrim.engine.cipher import generatePasscode
+from widebrim.engine.file import FileInterface
 from widebrim.gamemodes.codeinput.const import COUNT_KEYS, ID_EVENT_CONCEPT_ART, ID_EVENT_SECRET, LEN_SECRET, PATH_ANIM_BAD_CODE, PATH_ANIM_BTN_CANCEL, PATH_ANIM_BTN_KESU, PATH_ANIM_BTN_KETTEI, PATH_ANIM_CURSOR, PATH_BG_MAIN, PATH_BG_SUB_FUTURE, PATH_BG_SUB_PANDORA, PATH_PACK_TEXT, PATH_SECRET, POS_ANIM_CURSOR, POS_BAD_CODE, POS_KEY_CORNER, POS_KEY_CORNER_19, POS_KEY_CORNER_28, POS_KEY_CORNER_9, POS_TEXT, SIZE_KEY, STRIDE_KEY_X, STRIDE_TEXT_X, VAR_CANCEL_POS
 from ...engine.state.layer import ScreenLayerNonBlocking
 from ...engine.state.enum_mode import GAMEMODES
@@ -9,7 +10,7 @@ from ...engine.const import CIPHER_IV, RESOLUTION_NINTENDO_DS
 from ...engine.exceptions import FileInvalidCritical
 from ...engine.anim.button import NullButton
 from ...engine.anim.font.static import generateImageFromStringStrided
-from ...engine_ext.utils import getAnimFromPath, getButtonFromPath, getPackedString
+from ...engine_ext.utils import getAnimFromPath, getButtonFromPath
 
 from pygame import MOUSEBUTTONUP, BLEND_RGB_SUB, BLEND_RGB_MULT, Surface
 if TYPE_CHECKING:
@@ -42,7 +43,7 @@ class CodeInputPlayer(ScreenLayerNonBlocking):
         self.__activeMap = ""
 
         try:
-            self.__activeMap = getPackedString(PATH_PACK_TEXT, PATH_SECRET)
+            self.__activeMap = FileInterface.getPackedString(PATH_PACK_TEXT, PATH_SECRET)
             self.__activeMap = self.__activeMap[0:min(len(self.__activeMap), LEN_SECRET)]
         except:
             raise FileInvalidCritical

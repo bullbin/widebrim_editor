@@ -14,7 +14,6 @@ from .const import BTN_NORMAL_NAME, BTN_NORMAL_POS, BTN_ACCENT_NAME, BTN_ACCENT_
 from .const import NAMES_BLOCKED, PATH_BAD_NAME, POS_BAD_NAME
 
 from ...engine.file import FileInterface
-from ...madhatter.hat_io.asset import LaytonPack
 from pygame import MOUSEBUTTONUP, BLEND_RGB_SUB, BLEND_RGB_MULT, Surface
 
 # TODO - This needs rewrite. Especially after doing CodeInput some of this is stupid
@@ -42,12 +41,11 @@ class NamePlayer(ScreenLayerNonBlocking):
         self.activeMap = ""
 
         try:
-            tempPack = LaytonPack()
-            tempPack.load(FileInterface.getData(PATH_PACK_TEXT))
-            self.mapKigou = getSubstitutedString(tempPack.getFile(PATH_KIGOU).decode('shift-jis'))
-            self.mapKomoji = getSubstitutedString(tempPack.getFile(PATH_KOMOJI).decode('shift-jis'))
-            self.mapOomoji = getSubstitutedString(tempPack.getFile(PATH_OOMOJI).decode('shift-jis'))
-            self.mapTokushu = getSubstitutedString(tempPack.getFile(PATH_TOKUSHU).decode('shift-jis'))
+            tempPack = FileInterface.getPack(PATH_PACK_TEXT)
+            self.mapKigou = getSubstitutedString(tempPack.getString(PATH_KIGOU))
+            self.mapKomoji = getSubstitutedString(tempPack.getString(PATH_KOMOJI))
+            self.mapOomoji = getSubstitutedString(tempPack.getString(PATH_OOMOJI))
+            self.mapTokushu = getSubstitutedString(tempPack.getString(PATH_TOKUSHU))
             del tempPack
 
         except:

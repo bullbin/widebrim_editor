@@ -13,7 +13,7 @@ from widebrim.madhatter.hat_io.asset_dat import NazoDataNds
 from widebrim.madhatter.hat_io.asset_placeflag import PlaceFlag
 from widebrim.madhatter.hat_io.asset_storyflag import StoryFlag
 from widebrim.madhatter.hat_io.asset_autoevent import AutoEvent
-from widebrim.madhatter.hat_io.asset import LaytonPack, File
+from widebrim.madhatter.hat_io.asset import File
 
 from ..const import LANGUAGES, EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_AUTOEVENT, PATH_DB_EV_INF2, PATH_DB_HTEVENT, PATH_DB_PLACEFLAG, PATH_DB_SM_INF, PATH_DB_STORYFLAG, PATH_PROGRESSION_DB, PATH_DB_RC_ROOT, PATH_DB_GOAL_INF, PATH_DB_NZ_LST, PATH_DB_TM_DEF, PATH_DB_RC_ROOT_LANG, PATH_DB_CHP_INF
 from ..const import PATH_NAZO_A, PATH_NAZO_B, PATH_NAZO_C, PATH_PACK_NAZO
@@ -82,12 +82,10 @@ class Layton2GameState():
 
         # Safe to assume always loaded
         try:
-            packedProgressionDbs = LaytonPack()
-            packedProgressionDbs.load(FileInterface.getData(PATH_PROGRESSION_DB))
-
-            self.dbPlaceFlag.load(packedProgressionDbs.getFile(PATH_DB_PLACEFLAG))
-            self.dbStoryFlag.load(packedProgressionDbs.getFile(PATH_DB_STORYFLAG))
-            self.dbAutoEvent.load(packedProgressionDbs.getFile(PATH_DB_AUTOEVENT))
+            packedProgressionDbs = FileInterface.getPack(PATH_PROGRESSION_DB)
+            self.dbPlaceFlag.load(packedProgressionDbs.getData(PATH_DB_PLACEFLAG))
+            self.dbStoryFlag.load(packedProgressionDbs.getData(PATH_DB_STORYFLAG))
+            self.dbAutoEvent.load(packedProgressionDbs.getData(PATH_DB_AUTOEVENT))
 
         except:
             raise FileInvalidCritical()
@@ -309,16 +307,10 @@ class Layton2GameState():
             else:
                 pathNazo = PATH_NAZO_C
             
-            packPuzzleData = FileInterface.getData(pathNazo % self.language.value)
-            
-            if packPuzzleData != None:
-                tempPackPuzzle = LaytonPack()
-                tempPackPuzzle.load(packPuzzleData)
-                packPuzzleData = tempPackPuzzle.getFile(PATH_PACK_NAZO % idInternal)
-                if packPuzzleData != None:
-                    output = NazoDataNds()
-                    if output.load(packPuzzleData):
-                        return output
+            if (data := FileInterface.getPackedData(pathNazo % self.language.value, PATH_PACK_NAZO % idInternal)) != None:
+                output = NazoDataNds()
+                if output.load(data):
+                    return output
         return None
 
     def loadCurrentNazoData(self) -> bool:

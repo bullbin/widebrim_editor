@@ -9,7 +9,6 @@ from ..madhatter.hat_io.asset_image import StaticImage
 from ..engine.const import PATH_BG_ROOT, PATH_ANI, PATH_FACE_ROOT, RESOLUTION_NINTENDO_DS
 from ..engine.file import FileInterface
 from ..madhatter.hat_io.asset_image import AnimatedImage
-from ..madhatter.hat_io.asset import LaytonPack
 from ..engine.anim.image_anim import AnimatedImageObject, AnimatedImageObjectWithSubAnimation
 from ..engine.const import PATH_PACK_TXT2, PATH_PACK_TXT
 from .const import PATH_TEMP
@@ -99,34 +98,23 @@ def getImageFromPath(laytonState : Layton2GameState, pathBg : str) -> Optional[S
             output.set_colorkey(bg.getpalette()[0:3])
         return output
 
-def getPackedData(pathPack, nameItem) -> Optional[bytes]:
-    pack = LaytonPack()
-    if (data := FileInterface.getData(pathPack)) != None:
-        pack.load(data)
-    return pack.getFile(nameItem)
-
-def getPackedString(pathPack, nameString) -> str:
-    # TODO - Maybe decoding using substituter
-    tempString = getPackedData(pathPack, nameString)
-    try:
-        return tempString.decode('shift-jis')
-    except:
-        return ""
-
-# TODO - Use in above commands
-def decodeArchiveString(pack : LaytonPack, nameString) -> Optional[str]:
-    if (stringData := pack.getFile(nameString)) != None:
-        try:
-            return stringData.decode('shift-jis')
-        except UnicodeDecodeError:
+def getTxtString(laytonState, nameString, reportFailure=False) -> Optional[str]:
+    output = FileInterface.getPackedString(PATH_PACK_TXT % laytonState.language.value, nameString)
+    if output == None:
+        if reportFailure:
+            return None
+        else:
             return ""
-    return None
+    return output
 
-def getTxtString(laytonState, nameString) -> str:
-    return getPackedString(PATH_PACK_TXT % laytonState.language.value, nameString)
-
-def getTxt2String(laytonState, nameString) -> str:
-    return getPackedString(PATH_PACK_TXT2 % laytonState.language.value, nameString)
+def getTxt2String(laytonState, nameString, reportFailure=False) -> Optional[str]:
+    output = FileInterface.getPackedString(PATH_PACK_TXT2 % laytonState.language.value, nameString)
+    if output == None:
+        if reportFailure:
+            return None
+        else:
+            return ""
+    return output
 
 def getButtonFromPath(laytonState : Layton2GameState, inPath : str, callback : Optional[Callable] = None, animOff : str="off", animOn : str="on", pos=(0,0), customDimensions=None, namePosVariable=None) -> Optional[AnimatedButton]:
     """Returns an image-based button from path. Note that by default, this button will be offset onto the bottom screen already. Language strings will be substituted where possible.
@@ -145,11 +133,7 @@ def getButtonFromPath(laytonState : Layton2GameState, inPath : str, callback : O
         Optional[AnimatedButton]: Image-based button
     """
 
-    if "?" in inPath:
-        inPath = inPath.replace("?", laytonState.language.value)
-    elif "%s" in inPath:
-        inPath = inPath.replace("%s", laytonState.language.value)
-    
+    inPath = substituteLanguageString(laytonState, inPath)
     if (anim := getAnimFromPathWithAttributes(inPath)) != None:
         anim : AnimatedImageObject
         anim.setPos((pos[0], pos[1] + RESOLUTION_NINTENDO_DS[1]))

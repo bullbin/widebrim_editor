@@ -8,13 +8,12 @@ from widebrim.engine.keybinds import KEY_START
 
 from widebrim.engine_ext.const import PATH_TEMP
 from widebrim.engine.state.enum_mode import GAMEMODES
-from widebrim.engine.file import FileInterface
+from widebrim.engine.file import FileInterface, VirtualArchive
 from widebrim.engine.config import TIME_FRAMERATE
 from widebrim.engine.const import PATH_PACK_TXT, RESOLUTION_NINTENDO_DS
-from widebrim.engine_ext.utils import decodeArchiveString, ensureTempFolder, getPackedData
+from widebrim.engine_ext.utils import ensureTempFolder, substituteLanguageString
 from widebrim.gamemodes.core_popup.script import ScriptPlayer
 
-from widebrim.madhatter.hat_io.asset import LaytonPack
 from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
 
 from subprocess import Popen, PIPE
@@ -135,8 +134,8 @@ class MovieSurface():
         gameDisplay.blit(self.__surfVideo, self.__pos)
 
 class SubtitleCommand():
-    def __init__(self, packSubtitle : LaytonPack, indexMovie : int, indexSubtitle : int, timeStart : float, timeEnd : float):
-        self.text = decodeArchiveString(packSubtitle, PATH_TXT_SUBTITLE % (indexMovie, indexSubtitle))
+    def __init__(self, packSubtitle : VirtualArchive, indexMovie : int, indexSubtitle : int, timeStart : float, timeEnd : float):
+        self.text = packSubtitle.getString(PATH_TXT_SUBTITLE % (indexMovie, indexSubtitle))
         if self.text == None:
             self.text = ""
         self.timeStart = timeStart
@@ -147,15 +146,12 @@ class MoviePlayer(ScriptPlayer):
         ScriptPlayer.__init__(self, laytonState, screenController, GdScript())
         self.__surfaceMovie = MovieSurface(laytonState.getMovieNum(), self.__fadeOutAndTerminate)
 
-        if (scriptData := getPackedData(PATH_ARCHIVE_MOVIE_SUBTITLES.replace("?", laytonState.language.value), PATH_NAME_SUBTITLE_SCRIPT % laytonState.getMovieNum())) != None:
+        if (scriptData := FileInterface.getPackedData(PATH_ARCHIVE_MOVIE_SUBTITLES.replace("?", laytonState.language.value), PATH_NAME_SUBTITLE_SCRIPT % laytonState.getMovieNum())) != None:
             self._script.load(scriptData)
         else:
             self.doOnComplete()
 
-        self.__packTxt : LaytonPack = LaytonPack()
-        if (packData := FileInterface.getData(PATH_PACK_TXT % laytonState.language.value)) != None:
-            self.__packTxt.load(packData)
-
+        self.__packTxt = FileInterface.getPack(substituteLanguageString(laytonState, PATH_PACK_TXT))
         self.__indexActiveSubtitle = -1
         self.__waitingForNextSubtitle = False
         self.__textRendererSubtitle = StaticTextHelper(laytonState.fontEvent, yBias=2)

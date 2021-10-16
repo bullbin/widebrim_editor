@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Optional, Union
 from widebrim.engine.anim.button import AnimatedButton, AnimatedClickableButton
+from widebrim.engine.file import FileInterface
 from widebrim.gamemodes.nazo_popup.mode.base.const import NAME_ANIM_HINT_OFF, NAME_ANIM_HINT_ON, PATH_ANIM_HINT_GLOW, POS_ANIM_HINT_GLOW
 from widebrim.gamemodes.nazo_popup.mode.base.screenHint import BottomScreenOverlayHint
 from widebrim.gamemodes.nazo_popup.mode.base.screenQuit import BottomScreenOverlayQuit
@@ -11,7 +12,7 @@ if TYPE_CHECKING:
 
 from widebrim.engine.state.enum_mode import GAMEMODES
 from widebrim.engine.const import PATH_PUZZLE_SCRIPT, PATH_PACK_PUZZLE, PATH_PUZZLE_BG, PATH_PUZZLE_BG_LANGUAGE, PATH_PUZZLE_BG_NAZO_TEXT, RESOLUTION_NINTENDO_DS
-from widebrim.engine_ext.utils import getButtonFromPath, getAnimFromPath, getClickableButtonFromPath, getPackedData, offsetVectorToSecondScreen
+from widebrim.engine_ext.utils import getButtonFromPath, getAnimFromPath, getClickableButtonFromPath, offsetVectorToSecondScreen
 from widebrim.engine.anim.font.scrolling import ScrollingFontHelper
 from widebrim.engine.anim.image_anim import ImageFontRenderer
 from widebrim.engine.anim.fader import Fader
@@ -78,7 +79,7 @@ class BaseQuestionObject(ScriptPlayer):
         
         # Initialise script
         if nzLstEntry != None:
-            scriptData = getPackedData(PATH_PUZZLE_SCRIPT, PATH_PACK_PUZZLE % nzLstEntry.idInternal)
+            scriptData = FileInterface.getPackedData(PATH_PUZZLE_SCRIPT, PATH_PACK_PUZZLE % nzLstEntry.idInternal)
             if scriptData != None:
                 self._script.load(scriptData)
 

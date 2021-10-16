@@ -1,12 +1,13 @@
 from __future__ import annotations
 from typing import Callable, Optional, TYPE_CHECKING
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
+from widebrim.engine.file import FileInterface
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
     
 from widebrim.gamemodes.dramaevent.popup.utils import FadingPopupAnimBackground
-from widebrim.engine_ext.utils import getAnimFromPathWithAttributes, getAnimFromPath, getPackedString
+from widebrim.engine_ext.utils import getAnimFromPathWithAttributes, getAnimFromPath
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
 from .const import NAME_ANIM_CURSOR_WAIT, PATH_ANIM_CURSOR_WAIT, PATH_ANIM_TOBJ_WINDOW, PATH_ANIM_TOBJ_ICON, PATH_FILE_HINTCOIN, PATH_FILE_TOBJ, PATH_PACK_TOBJ, POS_CURSOR_WAIT, POS_TOBJ_ICON, POS_TOBJ_TEXT_CENTRAL_LINE
 
@@ -49,8 +50,8 @@ class TObjPopup(FadingPopupAnimBackground):
     def __getTObjText(self, indexTObj : int) -> str:
         # TODO - usage of getPackedString in room
         if indexTObj != -1:
-            return getPackedString(PATH_PACK_TOBJ % self.laytonState.language.value, PATH_FILE_TOBJ % indexTObj)
-        return getPackedString(PATH_PACK_TOBJ % self.laytonState.language.value, PATH_FILE_HINTCOIN)
+            return FileInterface.getPackedString(PATH_PACK_TOBJ % self.laytonState.language.value, PATH_FILE_TOBJ % indexTObj)
+        return FileInterface.getPackedString(PATH_PACK_TOBJ % self.laytonState.language.value, PATH_FILE_HINTCOIN)
 
     def drawForegroundElements(self, gameDisplay):
         self.__animIcon.draw(gameDisplay)
