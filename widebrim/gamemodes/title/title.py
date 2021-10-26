@@ -1,5 +1,5 @@
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
-from widebrim.engine_ext.utils import getAnimFromPathWithAttributes
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
 from ...engine.state.layer import ScreenLayerNonBlocking
 from ...madhatter.hat_io.asset_sav import Layton2SaveFile
 from ...engine.anim.fader import Fader
@@ -39,7 +39,7 @@ class TitlePlayer(ScreenLayerNonBlocking):
         except FileNotFoundError:
             pass
 
-        self.__animTitleScreen = getAnimFromPathWithAttributes(PATH_ANIM_TITLE % laytonState.language.value)
+        self.__animTitleScreen = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_TITLE)
         if self.__animTitleScreen != None:
             self.__animTitleScreen.setPos((self.__animTitleScreen.getPos()[0], self.__animTitleScreen.getPos()[1] - RESOLUTION_NINTENDO_DS[1]))
         self.popup = None

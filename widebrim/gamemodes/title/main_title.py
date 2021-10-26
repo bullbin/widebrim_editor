@@ -1,7 +1,7 @@
 from typing import List, Union
 from widebrim.engine.anim.image_anim.image import AnimatedImageObject
 from widebrim.engine.anim.button import AnimatedButton
-from ...engine_ext.utils import getAnimFromPathWithAttributes, getButtonFromPath
+from ...engine_ext.utils import getBottomScreenAnimFromPath, getButtonFromPath
 from ...engine_ext.utils import getImageFromPath
 from .const import PATH_ANIM_SENRO, PATH_ANIM_TRAIN, PATH_ANIM_WAKU, PATH_BG_TITLE, PATH_BUTTON_NEW_GAME, PATH_BUTTON_CONTINUE, PATH_BUTTON_BONUS
 from ...engine.const import RESOLUTION_NINTENDO_DS
@@ -16,10 +16,9 @@ class TitlePlayerBottomScreenOverlay(ScreenLayerNonBlocking):
 
 class MenuScreen(TitlePlayerBottomScreenOverlay):
 
-    ANIM_TRAIN  = getAnimFromPathWithAttributes(PATH_ANIM_TRAIN)
-    ANIM_SENRO  = getAnimFromPathWithAttributes(PATH_ANIM_SENRO)
-    ANIM_WAKU   = getAnimFromPathWithAttributes(PATH_ANIM_WAKU)
-
+    ANIM_TRAIN      : AnimatedImageObject = None
+    ANIM_SENRO      : AnimatedImageObject = None
+    ANIM_WAKU       : AnimatedImageObject = None
     BUTTON_NEW      = None
     BUTTON_CONT     = None
     BUTTON_BONUS    = None
@@ -31,6 +30,13 @@ class MenuScreen(TitlePlayerBottomScreenOverlay):
     def __init__(self, laytonState, screenController, saveData, routineTitleScreen, routineContinue, routineBonus, routineTerminate):
         TitlePlayerBottomScreenOverlay.__init__(self, laytonState, screenController, saveData, routineTitleScreen, routineContinue, routineBonus, routineTerminate)
         screenController.setBgMain(PATH_BG_TITLE)
+
+        if MenuScreen.ANIM_TRAIN == None:
+            MenuScreen.ANIM_TRAIN = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_TRAIN)
+        if MenuScreen.ANIM_SENRO == None:
+            MenuScreen.ANIM_SENRO = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_SENRO)
+        if MenuScreen.ANIM_WAKU == None:
+            MenuScreen.ANIM_WAKU = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_WAKU)
 
         self.__drawables : List[Union[AnimatedButton, AnimatedImageObject]] = []
 

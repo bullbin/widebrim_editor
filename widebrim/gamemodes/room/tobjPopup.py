@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from widebrim.engine_ext.state_game import ScreenController
     
 from widebrim.gamemodes.dramaevent.popup.utils import FadingPopupAnimBackground
-from widebrim.engine_ext.utils import getAnimFromPathWithAttributes, getAnimFromPath
+from widebrim.engine_ext.utils import getAnimFromPath, getBottomScreenAnimFromPath
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
 from .const import NAME_ANIM_CURSOR_WAIT, PATH_ANIM_CURSOR_WAIT, PATH_ANIM_TOBJ_WINDOW, PATH_ANIM_TOBJ_ICON, PATH_FILE_HINTCOIN, PATH_FILE_TOBJ, PATH_PACK_TOBJ, POS_CURSOR_WAIT, POS_TOBJ_ICON, POS_TOBJ_TEXT_CENTRAL_LINE
 
@@ -25,8 +25,7 @@ class TObjPopup(FadingPopupAnimBackground):
 
         self.__animCursorWait = getAnimFromPath(PATH_ANIM_CURSOR_WAIT, spawnAnimName=NAME_ANIM_CURSOR_WAIT, pos=(POS_CURSOR_WAIT[0], POS_CURSOR_WAIT[1] + RESOLUTION_NINTENDO_DS[1]))
 
-        if (bgAnim := getAnimFromPathWithAttributes(PATH_ANIM_TOBJ_WINDOW)) != None:
-            bgAnim.setAnimationFromIndex(1)
+        if (bgAnim := getBottomScreenAnimFromPath(laytonState, PATH_ANIM_TOBJ_WINDOW)) != None:
             FadingPopupAnimBackground.__init__(self, laytonState, screenController, callback, bgAnim)
         else:
             FadingPopupAnimBackground.__init__(self, laytonState, screenController, callback, None)

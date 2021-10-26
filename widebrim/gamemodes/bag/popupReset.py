@@ -3,7 +3,7 @@ from typing import Optional, TYPE_CHECKING
 from widebrim.engine.const import PATH_TEXT_GENERIC, RESOLUTION_NINTENDO_DS
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
 from widebrim.gamemodes.bag.const import PATH_ANI_RESET_WINDOW, POS_TEXT_RESET_CENTER, VARIABLE_BTN_RESET_POS, PATH_BTN_RESET_YES, PATH_BTN_RESET_NO
-from widebrim.engine_ext.utils import getAnimFromPathWithAttributes, getButtonFromPath, getTxt2String
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getButtonFromPath, getTxt2String
 
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
@@ -14,14 +14,15 @@ from .const import ID_TEXT2_RESET, PATH_ANI_RESET_FONT
 
 class ResetPopup(FadingPopupAnimBackground):
     def __init__(self, laytonState : Layton2GameState, screenController : ScreenController, callbackOnYes : Optional[callable], callbackOnNo : Optional[callable]):
-        super().__init__(laytonState, screenController, callbackOnNo, getAnimFromPathWithAttributes(PATH_ANI_RESET_WINDOW))
+        super().__init__(laytonState, screenController, callbackOnNo, getBottomScreenAnimFromPath(laytonState, PATH_ANI_RESET_WINDOW))
 
         def callbackNo():
             self.startTerminateBehaviour()
 
         self.__btnYes   = getButtonFromPath(laytonState, PATH_BTN_RESET_YES, callbackOnYes, namePosVariable=VARIABLE_BTN_RESET_POS)
         self.__btnNo    = getButtonFromPath(laytonState, PATH_BTN_RESET_NO, callbackNo, namePosVariable=VARIABLE_BTN_RESET_POS)
-        self.__animReset = getAnimFromPathWithAttributes(PATH_ANI_RESET_FONT % laytonState.language.value)
+        self.__animReset = getBottomScreenAnimFromPath(laytonState, PATH_ANI_RESET_FONT)
+
         self.__textRenderer = StaticTextHelper(laytonState.fontEvent)
         self.__textRenderer.setText(getTxt2String(laytonState, PATH_TEXT_GENERIC % ID_TEXT2_RESET))
         self.__textRenderer.setPos((POS_TEXT_RESET_CENTER[0], POS_TEXT_RESET_CENTER[1] + RESOLUTION_NINTENDO_DS[1]))

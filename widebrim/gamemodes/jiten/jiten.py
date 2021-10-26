@@ -12,7 +12,7 @@ from widebrim.engine.anim.fader import Fader
 from widebrim.engine.state.enum_mode import GAMEMODES
 
 from widebrim.engine.state.layer import ScreenLayerNonBlocking
-from widebrim.engine_ext.utils import getAnimFromPathWithAttributes, getButtonFromPath, getClickableButtonFromPath, getAnimFromPath
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getButtonFromPath, getClickableButtonFromPath, getAnimFromPath
 from .const import *
 
 from pygame import Surface
@@ -115,8 +115,8 @@ class JitenPlayer(ScreenLayerNonBlocking):
             # Setup BG and covers for WiFi mode
             self.__screenController.setBgMain(PATH_BG_MAIN_WIFI)
             self.__screenController.setBgSub(PATH_BG_SUB_WIFI.replace("?", laytonState.language.value))
-            addIfNotNone(self.__drawables, getAnimFromPathWithAttributes(PATH_ANIM_COVER_WIFI_1, posVariable=ANIM_VAR_POS_TAG_JITEN_GUARD))
-            addIfNotNone(self.__drawables, getAnimFromPathWithAttributes(PATH_ANIM_COVER_WIFI_2, posVariable=ANIM_VAR_POS_TAG_JITEN_GUARD))
+            addIfNotNone(self.__drawables, getBottomScreenAnimFromPath(self.__laytonState, PATH_ANIM_COVER_WIFI_1, namePosVar=ANIM_VAR_POS_TAG_JITEN_GUARD))
+            addIfNotNone(self.__drawables, getBottomScreenAnimFromPath(self.__laytonState, PATH_ANIM_COVER_WIFI_2, namePosVar=ANIM_VAR_POS_TAG_JITEN_GUARD))
         else:
             # Setup BG and covers for normal mode
             self.__screenController.setBgMain(PATH_BG_MAIN)
@@ -124,12 +124,12 @@ class JitenPlayer(ScreenLayerNonBlocking):
             
             self.__buttonsTab.append(getHitbox(POS_BTN_TO_FAV, DIM_BTN_TO_FAVOURITES, callback=self.__switchToFavourites))
             self.__buttonsTab.append(getHitbox(POS_BTN_FROM_FAV, DIM_BTN_FROM_FAVOURITES, callback=self.__switchToAll))
-            self.__animModeSelect = getAnimFromPathWithAttributes(PATH_ANIM_TABS % laytonState.language.value, posVariable=ANIM_VAR_POS_TAG_JITEN_GUARD)
+            self.__animModeSelect = getBottomScreenAnimFromPath(self.__laytonState, PATH_ANIM_TABS, namePosVar=ANIM_VAR_POS_TAG_JITEN_GUARD)
             self.__animPrize = getAnimFromPath(PATH_ANIM_PRIZE, pos=POS_ANIM_PRIZE)    # TODO - Spawn anim index
             
-            addIfNotNone(self.__drawables, getAnimFromPathWithAttributes(PATH_ANIM_COVER, posVariable=ANIM_VAR_POS_TAG_JITEN_GUARD))
+            addIfNotNone(self.__drawables, getBottomScreenAnimFromPath(self.__laytonState, PATH_ANIM_COVER, namePosVar=ANIM_VAR_POS_TAG_JITEN_GUARD))
             addIfNotNone(self.__drawables, self.__animModeSelect)
-            addIfNotNone(self.__drawables, getAnimFromPath(PATH_ANIM_INTRO_TEXT % laytonState.language.value, spawnAnimName="gfx", pos=(POS_ANIM_TITLE[0], POS_ANIM_TITLE[1] + RESOLUTION_NINTENDO_DS[1])))
+            addIfNotNone(self.__drawables, getAnimFromPath(PATH_ANIM_INTRO_TEXT, pos=(POS_ANIM_TITLE[0], POS_ANIM_TITLE[1] + RESOLUTION_NINTENDO_DS[1])))
 
             # TODO - Unk button 5
             self.__animHintbox = getAnimFromPath(PATH_ANIM_HINT)

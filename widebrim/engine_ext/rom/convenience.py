@@ -1,8 +1,15 @@
-from .banner import getBannerImageFromRom, getCodenameFromRom
+from .banner import getBannerImageFromRom, getCodenameFromRom, getNameStringFromRom
 from ...engine.config import ROM_LOAD_BANNER
 from ...engine.file import FileInterface
 from ...engine.convenience import initDisplay
 import pygame
+
+def cleanupNameString(name : str):
+    nameSplit = name.split("\n")
+    if len(nameSplit) > 1:
+        return " ".join(nameSplit[:-1])
+    else:
+        return getCodenameFromRom(FileInterface.getRom())
 
 def applyPygameBannerTweaks():
     if ROM_LOAD_BANNER and FileInterface.isRunningFromRom():
@@ -19,7 +26,11 @@ def applyPygameBannerTweaks():
             pass
 
         pygame.display.set_icon(bannerSurface)
-        pygame.display.set_caption(getCodenameFromRom(FileInterface.getRom()))
-
+        nameString = ""
+        if (language := FileInterface.getLanguage()) != None:
+            nameString = getNameStringFromRom(FileInterface.getRom(), language)
+        else:
+            nameString = getCodenameFromRom(FileInterface.getRom())
+        pygame.display.set_caption(cleanupNameString(nameString))
         return True
     return False

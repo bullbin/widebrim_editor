@@ -4,10 +4,11 @@ from widebrim.engine.string.cmp import strCmp
 from widebrim.engine_ext.const import SHAKE_PIX
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
 from widebrim.gamemodes.dramaevent.popup.utils import FadingPopupAnimBackground, FadingPopupMultipleAnimBackground
-from widebrim.engine_ext.utils import getAnimFromPath, getAnimFromPathWithAttributes, getTxt2String
+from widebrim.engine_ext.utils import getAnimFromPath, getBottomScreenAnimFromPath, getTxt2String
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
+    from widebrim.engine.anim.image_anim.image import AnimatedImageObjectWithSubAnimation
 
 from widebrim.gamemodes.mystery import MysteryPlayer
 
@@ -46,16 +47,19 @@ from random import randint
 
 class TextWindow(FadingPopupMultipleAnimBackground):
 
-    SPRITE_WINDOW = getAnimFromPathWithAttributes(PATH_EVENT_ROOT % "twindow.arc", enableSubAnimation=True)
     DICT_SLOTS = {0:"LEFT",
                   2:"RIGHT",
                   3:"LEFT_L",
                   4:"LEFT_R",
                   5:"RIGHT_L",
                   6:"RIGHT_R"}
+    spriteWindow : Optional[AnimatedImageObjectWithSubAnimation] = None
 
     def __init__(self, laytonState : Layton2GameState, screenController : ScreenController, text : str, targetCharacter : Optional[CharacterController], animNameOnSpawn : Optional[str] = None, animNameOnExit : Optional[str] = None, funcSetAni : Optional[Callable[[int, str], None]] = None, callbackOnTerminate : Optional[Callable] = None):
         
+        if TextWindow.spriteWindow == None:
+            TextWindow.spriteWindow = getBottomScreenAnimFromPath(laytonState, PATH_EVENT_ROOT % "twindow.arc", enableSubAnimation=True)
+
         self.__textScroller = ScrollingFontHelper(laytonState.fontEvent)
         self.__textScroller.setText(text)
         self.__textScroller.setPos((8, RESOLUTION_NINTENDO_DS[1] + 141))
@@ -64,15 +68,15 @@ class TextWindow(FadingPopupMultipleAnimBackground):
         self.__animNameOnExit = animNameOnExit
         self.__targetCharacter = targetCharacter
 
-        TextWindow.SPRITE_WINDOW.setAnimationFromIndex(1)
+        TextWindow.spriteWindow.setAnimationFromIndex(1)
 
-        bgAnims = [TextWindow.SPRITE_WINDOW]
+        bgAnims = [TextWindow.spriteWindow]
         if targetCharacter != None:
             bgAnims.insert(0, targetCharacter.imageName)
             if animNameOnSpawn != None:
                 targetCharacter.setCharacterAnimationFromName(animNameOnSpawn)
             if targetCharacter.slot in TextWindow.DICT_SLOTS and targetCharacter.getVisibility():
-                TextWindow.SPRITE_WINDOW.setAnimationFromName(TextWindow.DICT_SLOTS[targetCharacter.slot])
+                TextWindow.spriteWindow.setAnimationFromName(TextWindow.DICT_SLOTS[targetCharacter.slot])
 
         super().__init__(laytonState, screenController, callbackOnTerminate, bgAnims)
     
@@ -112,8 +116,7 @@ class MokutekiWindow(FadingPopupAnimBackground):
     # TODO - Timings are known for anim, cursor_wait, etc. Uses tm_def for aligned timing. Is this using TextWindow base (eg can span multiple pages)?
 
     def __init__(self, laytonState : Layton2GameState, screenController : ScreenController, text : str, callbackOnTerminate : Optional[Callable]):
-        bgAnim = getAnimFromPathWithAttributes(PATH_MOKUTEKI_WINDOW)
-        super().__init__(laytonState, screenController, callbackOnTerminate, bgAnim)
+        super().__init__(laytonState, screenController, callbackOnTerminate, getBottomScreenAnimFromPath(laytonState, PATH_MOKUTEKI_WINDOW))
         self.__text = StaticTextHelper(laytonState.fontEvent)
         self.__text.setText(text)
         self.__text.setPos((POS_MOKUTEKI_TEXT[0], POS_MOKUTEKI_TEXT[1] + RESOLUTION_NINTENDO_DS[1]))
@@ -143,7 +146,7 @@ class CharacterController():
 
         if self.imageCharacter != None:
             self.setCharacterAnimationFromIndex(characterInitialAnimIndex)
-        self.imageName = getAnimFromPathWithAttributes(PATH_NAME_ROOT % (laytonState.language.value, characterIndex))
+        self.imageName = getBottomScreenAnimFromPath(laytonState, PATH_NAME_ROOT % (laytonState.language.value, characterIndex))
 
         self._visibilityFader = Fader(0, initialActiveState=True)
         self._shakeFader      = Fader(0, initialActiveState=False)

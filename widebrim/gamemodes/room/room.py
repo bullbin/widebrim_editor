@@ -22,7 +22,7 @@ from widebrim.engine.anim.fader import Fader
 from widebrim.engine.state.layer import ScreenLayerNonBlocking
 from widebrim.engine.exceptions import FileInvalidCritical
 from widebrim.engine.anim.font.static import generateImageFromString
-from widebrim.engine_ext.utils import getAnimFromPath, getAnimFromPathWithAttributes, getClickableButtonFromPath, getTxt2String
+from widebrim.engine_ext.utils import getAnimFromPath, getBottomScreenAnimFromPath, getClickableButtonFromPath, getTxt2String
 from .const import *
 from .animJump import AnimJumpHelper
 from .tobjPopup import TObjPopup
@@ -52,7 +52,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
         self.__animFirstTouch : Optional[AnimatedImageObject] = None
         if self.laytonState.isFirstTouchEnabled:
-            self.__animFirstTouch = getAnimFromPathWithAttributes(PATH_ANIM_FIRSTTOUCH % laytonState.language.value)
+            self.__animFirstTouch = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_FIRSTTOUCH)
         
         self.__hasPhotoPieceInArea : bool = False
         self.__hasPhotoPieceInAreaBeenTaken : bool = False

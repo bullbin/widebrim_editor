@@ -1,5 +1,7 @@
 from __future__ import annotations
 from typing import Callable, Optional, TYPE_CHECKING, Tuple, Union
+
+from widebrim.madhatter.common import logSevere
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
     from PIL.Image import Image as ImageType
@@ -116,7 +118,7 @@ def getTxt2String(laytonState, nameString, reportFailure=False) -> Optional[str]
             return ""
     return output
 
-def getButtonFromPath(laytonState : Layton2GameState, inPath : str, callback : Optional[Callable] = None, animOff : str="off", animOn : str="on", pos=(0,0), customDimensions=None, namePosVariable=None) -> Optional[AnimatedButton]:
+def getButtonFromPath(laytonState : Layton2GameState, inPath : str, callback : Optional[Callable] = None, animOff : str="off", animOn : str="on", pos=(0,0), customDimensions=None, namePosVariable="pos") -> Optional[AnimatedButton]:
     """Returns an image-based button from path. Note that by default, this button will be offset onto the bottom screen already. Language strings will be substituted where possible.
 
     Args:
@@ -127,29 +129,16 @@ def getButtonFromPath(laytonState : Layton2GameState, inPath : str, callback : O
         animOn (str, optional): Name of animation when button is targetted. Defaults to "on".
         pos (tuple, optional): Position. Defaults to (0,0) and overriden by variable.
         customDimensions (tuple, optional): Size of interactable area. Defaults to None, which means the maximum dimensions of the animation is used.
-        namePosVariable ([type], optional): Name of variable storing position. Defaults to None, 'pos' will be used instead.
+        namePosVariable ([type], optional): Name of variable storing position. Defaults to "pos".
 
     Returns:
-        Optional[AnimatedButton]: Image-based button
+        AnimatedButton: Image-based button
     """
 
-    inPath = substituteLanguageString(laytonState, inPath)
-    if (anim := getAnimFromPathWithAttributes(inPath)) != None:
-        anim : AnimatedImageObject
-        anim.setPos((pos[0], pos[1] + RESOLUTION_NINTENDO_DS[1]))
-        # Verified behaviour
-        if namePosVariable == None:
-            namePosVariable = "pos"
-
-        if anim.getVariable(namePosVariable) != None:
-            anim.setPos((anim.getVariable(namePosVariable)[0],
-                         anim.getVariable(namePosVariable)[1] + RESOLUTION_NINTENDO_DS[1]))
-        
-        if customDimensions != None:
-            anim.setDimensions(customDimensions)
-
-        return AnimatedButton(anim, animOn, animOff, callback=callback)
-    return None
+    anim = getBottomScreenAnimFromPath(laytonState, inPath, pos=pos, namePosVar=namePosVariable)
+    if customDimensions != None:
+        anim.setDimensions(customDimensions)
+    return AnimatedButton(anim, animOn, animOff, callback=callback)
 
 def getStaticButtonFromAnim(anim : Optional[AnimatedImage], spawnAnimName : str, callback : Optional[Callable] = None, pos=(0,0), namePosVariable=None, clickOffset=(0,0)) -> Optional[StaticButton]:
     if anim != None:
@@ -194,6 +183,58 @@ def getClickableButtonFromPath(laytonState : Layton2GameState, inPath : str, cal
         button = button.asClickable(animClick, unclickOnCallback)
     return button
 
+# Accurate behaviour for game assets - divided into bottom and top screen (ARC and ARJ) and follow the given rules. If an animation is not found a void one is returned instead
+def getBottomScreenAnimFromPath(laytonState : Layton2GameState, inPath : str, spawnAnimIndex : Optional[int] = 1, spawnAnimName : Optional[str] = None, pos : Tuple[int,int] = (0,0), namePosVar : str = "pos", enableSubAnimation : bool = False) -> Optional[Union[AnimatedImageObject, AnimatedImageObjectWithSubAnimation]]:
+    """Gets animation located in the given path. Where possible, language substitution and format correction will be applied to the string. Animations returned are aligned to the bottom screen.
+
+    Args:
+        laytonState (Layton2GameState): Game state used for language substitution.
+        inPath (str): Path relative to animation root leading to animation. Should include 3-digit some extension, by default arc or spr.
+        spawnAnimIndex (Optional[int], optional): Index to set animation on spawn. Set to None to ignore this feature. Defaults to 1.
+        spawnAnimName (Optional[str], optional): Name to set animation on spawn. Set to None to ignore this feature. Defaults to None.
+        pos (Tuple[int,int], optional): Initial position for drawing. Offset onto bottom screen by default. Set to (0,0) to fallback to stored variable position. Defaults to (0,0).
+        namePosVar (str, optional): Variable name used for automatic positioning. Ignored if position is specified. Defaults to "pos".
+        enableSubAnimation (bool, optional): Allows the animation to load an additional animation. Rarely used. Defaults to False.
+
+    Returns:
+        Union[AnimatedImageObject, AnimatedImageObjectWithSubAnimation]: Animation object. Empty animation if no animation could be loaded at the given path.
+    """
+    
+    def functionGetAnimationFromName(name):
+        name = name.split(".")[0] + ".arc"
+        resolvedPath = PATH_FACE_ROOT % name
+        return FileInterface.getData(resolvedPath)
+
+    inPath = substituteLanguageString(laytonState, getFormatString(inPath, "arc"))
+
+    if (tempAsset := FileInterface.getData(PATH_ANI % inPath)) != None:
+        try:
+            tempImage = AnimatedImage.fromBytesArc(tempAsset, functionGetFileByName=functionGetAnimationFromName)
+        except:
+            logSevere("Failed to parse image at", inPath)
+            return AnimatedImageObject()
+
+        if enableSubAnimation:
+            tempImage = AnimatedImageObjectWithSubAnimation.fromMadhatter(tempImage)
+        else:
+            tempImage = AnimatedImageObject.fromMadhatter(tempImage)
+        
+        if pos == (0,0):
+            if (posData := tempImage.getVariable(namePosVar)) != None:
+                tempImage.setPos(offsetVectorToSecondScreen((posData[0], posData[1])))
+        else:
+            tempImage.setPos(offsetVectorToSecondScreen(pos))
+        
+        if spawnAnimIndex != None:
+            tempImage.setAnimationFromIndex(spawnAnimIndex)
+        elif spawnAnimName != None:
+            tempImage.setAnimationFromName(spawnAnimName)
+        
+        return tempImage
+    
+    logSevere("Could not fetch image for", inPath)
+    return AnimatedImageObject()
+
 # TODO - Swith anim name to anim index, more accurate and faster (index 1 will be target in 99% of cases)
 def getAnimFromPath(inPath, spawnAnimName=None, pos=(0,0), enableSubAnimation=False) -> Optional[Union[AnimatedImageObject, AnimatedImageObjectWithSubAnimation]]:
 
@@ -222,17 +263,6 @@ def getAnimFromPath(inPath, spawnAnimName=None, pos=(0,0), enableSubAnimation=Fa
             tempImage.setAnimationFromName(spawnAnimName)
         return tempImage
     return tempAsset
-
-# TODO - This is the more accurate function... by default, game will use position given by value. If that is 0,0, it will use the pos variable
-def getAnimFromPathWithAttributes(inPath, spawnAnimName="gfx", posVariable="pos", enableSubAnimation=False) -> Optional[Union[AnimatedImageObject, AnimatedImageObjectWithSubAnimation]]:
-    tempImage = getAnimFromPath(inPath, spawnAnimName=spawnAnimName, enableSubAnimation=enableSubAnimation)
-    if tempImage != None:
-        if tempImage.getVariable(posVariable) != None:
-            tempImage.setPos((tempImage.getVariable(posVariable)[0],
-                            tempImage.getVariable(posVariable)[1] + RESOLUTION_NINTENDO_DS[1]))
-        else:
-            tempImage.setPos((0, RESOLUTION_NINTENDO_DS[1]))
-    return tempImage
 
 # TODO - Remove this HACK (and use it wherever possible)
 def offsetVectorToSecondScreen(inPos : Tuple[int,int]):

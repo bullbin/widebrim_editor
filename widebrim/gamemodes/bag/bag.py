@@ -5,7 +5,7 @@ from widebrim.gamemodes.core_popup.save import SaveLoadScreenPopup
 from widebrim.gamemodes.core_popup.utils import FullScreenPopup
 from widebrim.gamemodes.dramaevent.const import PATH_ITEM_ICON
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
-from widebrim.engine_ext.utils import getAnimFromPath, getAnimFromPathWithAttributes, getButtonFromPath, getClickableButtonFromPath
+from widebrim.engine_ext.utils import getAnimFromPath, getBottomScreenAnimFromPath, getButtonFromPath, getClickableButtonFromPath
 from widebrim.engine.anim.image_anim.imageAsNumber import StaticImageAsNumericalFont
 from widebrim.engine.anim.button import AnimatedButton
 from widebrim.gamemodes.mystery import MysteryPlayer
@@ -245,7 +245,7 @@ class BagPlayer(ScreenLayerNonBlocking):
             else:
                 self.__addButton(getButtonFromPath(self.laytonState, PATH_BTN_CAMERA_BROKEN, namePosVariable=namePosVariable, callback=self.__callbackOnStartCamera))
         else:
-            self.__addAnim(getAnimFromPathWithAttributes(PATH_ANI_CAMERA_DISABLED, posVariable=VARIABLE_DEFAULT_POS))
+            self.__addAnim(getBottomScreenAnimFromPath(self.laytonState, PATH_ANI_CAMERA_DISABLED))
         
         if self.laytonState.isHamsterUnlocked():
             if self.laytonState.isHamsterCompleted():
@@ -253,7 +253,7 @@ class BagPlayer(ScreenLayerNonBlocking):
             else:
                 self.__addButton(getButtonFromPath(self.laytonState, PATH_BTN_HAMSTER_ENABLED, namePosVariable=namePosVariable))
         else:
-            self.__addAnim(getAnimFromPathWithAttributes(PATH_ANI_HAMSTER_DISABLED, posVariable=VARIABLE_DEFAULT_POS))
+            self.__addAnim(getBottomScreenAnimFromPath(self.laytonState, PATH_ANI_HAMSTER_DISABLED))
         
         if self.laytonState.isTeaEnabled():
             if self.laytonState.isTeaCompleted():
@@ -261,7 +261,7 @@ class BagPlayer(ScreenLayerNonBlocking):
             else:
                 self.__addButton(getButtonFromPath(self.laytonState, PATH_BTN_TEA_ENABLED, namePosVariable=namePosVariable))
         else:
-            self.__addAnim(getAnimFromPathWithAttributes(PATH_ANI_TEA_DISABLED, posVariable=VARIABLE_DEFAULT_POS))
+            self.__addAnim(getBottomScreenAnimFromPath(self.laytonState, PATH_ANI_TEA_DISABLED))
 
     def __drawNewButton(self, gameDisplay):
 

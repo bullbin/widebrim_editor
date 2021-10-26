@@ -30,6 +30,10 @@ class ScriptPlayer(ScreenLayerNonBlocking):
         self._isActive          = True
 
         self._script = script
+        # TODO - Set script method
+        if self._script != None:
+            self._script.cullUnreachableInstructions()
+
         self._indexScriptCommand = 0
 
     def update(self, gameClockDelta):
