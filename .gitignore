@@ -10,7 +10,6 @@ nopush_*
 *.sav
 *.ml*
 *.dlz
-*.fbp
 *.txt
 *.gds
 *.recipe
