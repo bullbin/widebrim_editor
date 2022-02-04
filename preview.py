@@ -5,8 +5,10 @@ def noLog(*args, **kwargs):
 
 common.log = noLog
 
-from wx import App
+from wx import App, CANCEL
 from embed_mod import EditorWindow
+from d_imp_back import DialogueImportBackground
+import pygame
 
 class App(App):
     def OnInit(self):
@@ -18,7 +20,17 @@ class App(App):
 debug = App()
 debug.MainLoop()
 
+#testDialog = DialogueImportBackground(None)
+#testDialog.ShowModal()
+#testDialog.Destroy()
+
+
+# TODO - Puzzle 24, wrong number of operations
+
+pygame.quit()
+
 # TODO - failure loading logo (oops) and broken border on title
 # TODO - String validation
 # TODO - Slashes not recognised
 # TODO - Try/except to prevent loading bad data
+# TODO - New patch format that combines nazo data and nazo list entry
