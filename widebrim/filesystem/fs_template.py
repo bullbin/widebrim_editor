@@ -1,5 +1,5 @@
-from typing import List, Optional
-from os.path import dirname, relpath, join
+from typing import List, Optional, Tuple
+from os.path import relpath, join, split
 from abc import ABC, abstractmethod
 
 class Filesystem(ABC):
@@ -35,12 +35,12 @@ class Filesystem(ABC):
         return False
 
     @abstractmethod
-    def _requiredAddNewFileToExistentFolder(self, folderPath : str, file : bytes) -> bool:
-        """Reimplement this in your filesystem. This method may be called on any existent folder path.
+    def _requiredAddNewFileToExistentFolder(self, filepath : str, file : bytes) -> bool:
+        """Reimplement this in your filesystem. This method may be called on any filepath that locates to an existing folder.
         This is expected to perform simple file addition to a known good folder path.
 
         Args:
-            folderPath (str): Folder path without any extension.
+            filepath (str): Folder path without any extension.
             file (bytes): File contents as raw data.
 
         Returns:
@@ -98,6 +98,15 @@ class Filesystem(ABC):
             List[str]: List of absolute (to filesystem) paths for any files inside the folder, including nestled directories. Empty if folder has no contents.
         """
         return []
+    
+    def _requiredFsSplit(self, filepath : str) -> Tuple[str, str]:
+        return split(filepath)
+    
+    def _requiredFsRelpath(self, filepath : str, folderPath : str) -> str:
+        return relpath(filepath, folderPath)
+    
+    def _requiredFsJoin(self, x : str, y : str) -> str:
+        return join(x,y)
 
 
 
@@ -113,8 +122,9 @@ class Filesystem(ABC):
         Returns:
             bool: True if the file was added successfully.
         """
-        if not(self.doesFolderExist(dirname(filepath))):
-            if not(self.addFolder(dirname(filepath))):
+        folderPath, filename = self._requiredFsSplit(filepath)
+        if not(self.doesFolderExist(folderPath)):
+            if not(self.addFolder(folderPath)):
                 return False
         return self._requiredAddNewFileToExistentFolder(filepath, file)
 
@@ -190,7 +200,7 @@ class Filesystem(ABC):
         # Source and Destination folders exist
         for filepath in self.getFilepathsInFolder(folderPathSource):
 
-            destFilepath = join(folderPathDest, relpath(filepath, folderPathSource))
+            destFilepath = self._requiredFsJoin(folderPathDest, self._requiredFsRelpath(filepath, folderPathSource))
             status = self.moveFile(filepath, destFilepath, overwriteIfExists)
             if not(status):
                 # Return False if the operation failed for any reason except we weren't allowed to overwrite
@@ -226,7 +236,6 @@ class Filesystem(ABC):
         Returns:
             bool: True if the file was added successfully.
         """
-
         if self.doesFileExist(filepath):
             if overwriteIfExists:
                 return self._replaceExistentFile(filepath, file)
@@ -385,6 +394,6 @@ class Filesystem(ABC):
         Returns:
             int: Count of how many items are within this folder.
         """
-        if self.doesFolderExist:
+        if self.doesFolderExist(folderPath):
             return self._getCountItemsInFolder(folderPath)
         return 0

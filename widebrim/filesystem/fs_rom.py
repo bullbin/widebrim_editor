@@ -75,6 +75,7 @@ class FilesystemRom():
     def addFolder(self, folderPath) -> bool:
 
         folderSubPath = folderPath[1:].split("/")
+        print(folderSubPath, "<--", folderPath)
         currentPath = ""
         currentTarget = None
         for segment in folderSubPath:
