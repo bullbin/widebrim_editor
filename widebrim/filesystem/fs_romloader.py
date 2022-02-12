@@ -3,11 +3,13 @@ from typing import Dict, List, Optional, Tuple
 from .fs_template import Filesystem
 import ndspy.rom, ndspy.fnt
 
+# TODO - Protect against modifying some files (/ftc is a no-no, contains banners. Don't allow deleting since it probably uses hardcoded file IDs (seems to start at 0))
+
 class FilesystemNds(Filesystem):
     def __init__(self, rom : ndspy.rom.NintendoDSRom):
         """Filesystem to work with Nintendo DS ROMs.
 
-        NOTE: The internal pathing does not follow all conventions. The root folder exists at the blank folder path. Path splits are handled by "/" rather than the backslash.
+        NOTE: The internal pathing does not follow all conventions. The root folder exists at the "/" path. Path splits are handled by "/" rather than the backslash.
 
         Args:
             rom (ndspy.rom.NintendoDSRom): Nintendo DS ROM to open filesystem of.
@@ -18,22 +20,27 @@ class FilesystemNds(Filesystem):
 
         def doRecursiveAdd(folder, nameFolder):
             self.__foldersInRom.append(folder)
-            self.__folderNameToFolder[nameFolder] = folder
+
+            # HACK - Why is the DS filesystem like this? Root of FS should be "/", not empty
+            if nameFolder == "":
+                self.__folderNameToFolder["/"] = folder
+            else:
+                self.__folderNameToFolder[nameFolder] = folder
+
             for name, childFolder in folder.folders:
                 doRecursiveAdd(childFolder, nameFolder + "/" + name)
 
         # Build some quick look-up tables
         doRecursiveAdd(rom.filenames, "")
-        print(self.__folderNameToFolder.keys())
     
-    def _requiredFsJoin(self, x: str, y: str) -> str:
-        return super()._requiredFsJoin(x, y).replace("\\", "/")
+    def _sensitiveFsJoin(self, x: str, y: str) -> str:
+        return super()._sensitiveFsJoin(x, y).replace("\\", "/")
     
-    def _requiredFsRelpath(self, filepath: str, folderPath: str) -> str:
-        return super()._requiredFsRelpath(filepath, folderPath).replace("\\", "/")
+    def _sensitiveFsRelpath(self, filepath: str, folderPath: str) -> str:
+        return super()._sensitiveFsRelpath(filepath, folderPath).replace("\\", "/")
     
-    def _requiredFsSplit(self, filepath: str) -> Tuple[str, str]:
-        head, tail = super()._requiredFsSplit(filepath)
+    def _sensitiveFsSplit(self, filepath: str) -> Tuple[str, str]:
+        head, tail = super()._sensitiveFsSplit(filepath)
         head = head.replace("\\", "/")
         tail = tail.replace("\\", "/") # TODO - Needed?
         return (head,tail)
@@ -47,13 +54,19 @@ class FilesystemNds(Filesystem):
             if shiftFolder.firstID >= newFileId and shiftFolder != folder:
                 shiftFolder.firstID += 1
         self.__rom.files.insert(newFileId, file)
-        return super()._requiredAddNewFileToExistentFolder(filepath, file)
+        return True
     
     def _requiredAddNewFolderNestled(self, folderPath: str) -> bool:
         # TODO - Use split (?)
-        folderSubPath = folderPath.split("/")
         currentPath = ""
-        currentTarget = None
+        if len(folderPath) > 0 and folderPath[0] == "/":
+            currentTarget = self.__folderNameToFolder["/"]
+            folderPath = folderPath[1:]
+            folderSubPath = folderPath.split("/")
+        else:
+            # Files not beginning at the FS root can't exist inside the ROM
+            return False
+
         for segment in folderSubPath:
             currentPath += "/" + segment
             if currentPath in self.__folderNameToFolder:
@@ -90,6 +103,7 @@ class FilesystemNds(Filesystem):
         return folderPath in self.__folderNameToFolder
     
     def _requiredGetFile(self, filepath: str) -> Optional[bytes]:
+        # TODO - Files on root path behaviour
         if self.__rom.filenames.idOf(filepath) != None:
             return self.__rom.getFileByName(filepath)
         return None
@@ -148,7 +162,7 @@ class FilesystemNds(Filesystem):
                 filenames = list(folder.files)
 
                 for file in filenames:
-                    if not(self.removeFile(folderPath + "/" + file)):
+                    if not(self.removeFile(self._requiredFsJoin(folderPath, file))):
                         # print("Failed to remove", folderPath + "/" + file)
                         return False
                 

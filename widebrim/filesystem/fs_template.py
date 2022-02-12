@@ -2,6 +2,8 @@ from typing import List, Optional, Tuple
 from os.path import relpath, join, split
 from abc import ABC, abstractmethod
 
+# TODO - Method for copy
+
 class Filesystem(ABC):
     """Class for lowest level abstraction of filesystem access.
     """
@@ -99,13 +101,42 @@ class Filesystem(ABC):
         """
         return []
     
-    def _requiredFsSplit(self, filepath : str) -> Tuple[str, str]:
+
+
+    # May need to be changed depending on the pathing behaviour of your filesystem
+    def _sensitiveFsSplit(self, filepath : str) -> Tuple[str, str]:
+        """May need to be reimplemented in your filesystem. Should take a filename and split it into (folderPath, filename) on output
+
+        Args:
+            filepath (str): Filepath with extension.
+
+        Returns:
+            Tuple[str, str]: Folder path followed by filename.
+        """
         return split(filepath)
     
-    def _requiredFsRelpath(self, filepath : str, folderPath : str) -> str:
+    def _sensitiveFsRelpath(self, filepath : str, folderPath : str) -> str:
+        """May need to be reimplemented in your filesystem. Should take a filepath and folder path and return the relative path from the folder to reach that file.
+
+        Args:
+            filepath (str): Filepath with extension.
+            folderPath (str): Folder path without any extension.
+
+        Returns:
+            str: Path from folder to file (including filename).
+        """
         return relpath(filepath, folderPath)
     
-    def _requiredFsJoin(self, x : str, y : str) -> str:
+    def _sensitiveFsJoin(self, x : str, y : str) -> str:
+        """May need to be reimplemented in your filesystem. Should take two paths and join them by the filesystem's native slash character.
+
+        Args:
+            x (str): Path 1.
+            y (str): Path 2.
+
+        Returns:
+            str: Path 1 joined by path 2.
+        """
         return join(x,y)
 
 
@@ -122,11 +153,27 @@ class Filesystem(ABC):
         Returns:
             bool: True if the file was added successfully.
         """
-        folderPath, filename = self._requiredFsSplit(filepath)
+        folderPath, filename = self._sensitiveFsSplit(filepath)
         if not(self.doesFolderExist(folderPath)):
             if not(self.addFolder(folderPath)):
                 return False
         return self._requiredAddNewFileToExistentFolder(filepath, file)
+
+    def _renameFile(self, filepathOld : str, filepathNew : str, overwriteIfExists : bool) -> bool:
+        """Internal method for renaming an existing file within the filesystem.
+        Basic implementation will perform a full copy of the original file. Override if there is a method which can directly modify the name of the source file.
+
+        Args:
+            filepathOld (str): Original filepath with extension.
+            filepathNew (str): New filepath with extension.
+            overwriteIfExists (bool): True to overwrite if data at the new path already exists.
+
+        Returns:
+            bool: True if the full renaming operation was completed. False may leave fragments of the operation.
+        """
+        if not(self.addFile(filepathNew, self.getFile(filepathOld), overwriteIfExists)):
+            return False
+        return self.removeFile(filepathOld)
 
     def _replaceExistentFile(self, filepath : str, file : bytes) -> bool:
         """Internal method for replacing existent files within the filesystem.
@@ -184,6 +231,22 @@ class Filesystem(ABC):
         """
         return self.getFile(filepath) != None
 
+    def _renameFolder(self, folderPathOld : str, folderPathNew : str) -> bool:
+        """Internal method to rename a folder. This will only be called if both the source and destination folders exist.
+        Basic implementation will perform a full copy to a new folder.
+        Override this if there's a direct or cheaper way to modify folder names.
+
+        Args:
+            folderPathOld (str): Full source folder path.
+            folderPathNew (str): Full destination folder path.
+
+        Returns:
+            bool: True if rename operation was successful. False may leave fragments of the operation.
+        """
+        if not(self.moveFolderContents(folderPathOld, folderPathNew)):
+            return False
+        return self.removeFolder(folderPathOld)
+
     def _moveFolderContents(self, folderPathSource : str, folderPathDest : str, overwriteIfExists : bool = True) -> bool:
         """Internal method called to move one folder's contents from one destination to another. This will only be called if a folder exists at both the source and destination paths.
         Basic implementation calls upon other external methods to create new folders and move files individually.
@@ -198,9 +261,9 @@ class Filesystem(ABC):
             bool: True if movement operation was successful or there was nothing to move. False may leave fragments of the operation.
         """  
         # Source and Destination folders exist
-        for filepath in self.getFilepathsInFolder(folderPathSource):
+        for filepath in self.getFilepathsInFolder(folderPathSource, sorted=False):
 
-            destFilepath = self._requiredFsJoin(folderPathDest, self._requiredFsRelpath(filepath, folderPathSource))
+            destFilepath = self._sensitiveFsJoin(folderPathDest, self._sensitiveFsRelpath(filepath, folderPathSource))
             status = self.moveFile(filepath, destFilepath, overwriteIfExists)
             if not(status):
                 # Return False if the operation failed for any reason except we weren't allowed to overwrite
@@ -220,7 +283,7 @@ class Filesystem(ABC):
         Returns:
             int: Count of how many items are within this folder.
         """
-        return len(self.getFilepathsInFolder(folderPath))
+        return len(self.getFilepathsInFolder(folderPath, sorted=False))
 
 
 
@@ -241,6 +304,25 @@ class Filesystem(ABC):
                 return self._replaceExistentFile(filepath, file)
             return False
         return self._addNewFile(filepath, file)
+
+    def renameFile(self, filepath : str, filenameRename : str, overwriteIfExists = True) -> bool:
+        """Rename the file at a path to a new filename.
+
+        Args:
+            filepath (str): Full filepath with extension.
+            filenameRename (str): New filename (no path) with extension.
+            overwriteIfExists (bool, optional): [description]. Overwrites any file already at the new location. Defaults to True.
+
+        Returns:
+            bool: True if the file was renamed successfully.
+        """
+        if self.doesFileExist(filepath):
+            folderPath, _filename = self._sensitiveFsSplit(filepath)
+            filenameRename = self._sensitiveFsJoin(folderPath, filenameRename)
+            if filepath == filenameRename:
+                return True
+            return self._renameFile(filepath, filenameRename, overwriteIfExists)
+        return False
 
     def replaceFile(self, filepath : str, file : bytes, createIfNotExists : bool = True) -> bool:
         """Replace the contents of a file in the filesystem.
@@ -284,6 +366,8 @@ class Filesystem(ABC):
         Returns:
             bool: [description]
         """
+        if filepathSource == filepathDest:
+            return True
         if self.doesFileExist(filepathSource):
             return self._moveExistentFile(filepathSource, filepathDest, overwriteIfExists)
         return False
@@ -317,7 +401,34 @@ class Filesystem(ABC):
             return False
         return self._requiredRemoveFolderNestled(folderPath)
     
+    def renameFolder(self, folderPath : str, folderName : str, mergeIfExists : bool = True) -> bool:
+        """Renames a folder within the filesystem.
+
+        Args:
+            folderPath (str): Folder path without any extension.
+            folderName (str): New folder name (not path) without any extension.
+            mergeIfExists (bool, optional): True to merge if the folder already exists. Defaults to True.
+
+        Returns:
+            bool: True if the folder name was changed successfully.
+        """
+        # TODO - Change to overwrite (simplifies moveFolderContents syntax)
+        folderPathSub, _folderName = self._sensitiveFsSplit(folderPath)
+        folderPathNew = self._sensitiveFsJoin(folderPathSub, folderName)
+        if folderPathNew == folderPath:
+            return True
+
+        if self.doesFolderExist(folderPathNew):
+            if not(mergeIfExists):
+                return False
+        else:
+            if not(self.addFolder(folderPathNew)):
+                return False
+
+        return self._renameFolder(folderPath, folderPathNew)
+
     def moveFolderContents(self, folderPathSource : str, folderPathDest : str, overwriteIfExists : bool = True) -> bool:
+        # TODO - Maybe just modify to normal move, or add a normal move method below
         """Moves the contents of one folder from one destination to another, including copying all (nestled) files at the source.
 
         Args:
@@ -367,12 +478,9 @@ class Filesystem(ABC):
         Returns:
             Optional[bytes]: None if the file does not exist or was unreachable, bytes otherwise
         """
-        # NOTE: Will grab file twice unless you override the doesFileExist internal method!
-        if self.doesFileExist(filepath):
-            return self._requiredGetFile(filepath)
-        return None
+        return self._requiredGetFile(filepath)
     
-    def getFilepathsInFolder(self, folderPath : str) -> List[str]:
+    def getFilepathsInFolder(self, folderPath : str, sorted=True) -> List[str]:
         """Returns a list of any paths of files accessible from within this folder.
 
         Args:
@@ -382,7 +490,13 @@ class Filesystem(ABC):
             List[str]: List of absolute (to filesystem) paths for any files inside the folder. Empty if folder doesn't exist or has no contents.
         """
         if self.doesFolderExist(folderPath):
-            return self._requiredGetFilepathsInFolder(folderPath)
+            if sorted:
+                # TODO - Sort by directory (not so great)
+                output = self._requiredGetFilepathsInFolder(folderPath)
+                output.sort()
+                return output
+            else:
+                return self._requiredGetFilepathsInFolder(folderPath)
         return []
     
     def getCountItemsInFolder(self, folderPath : str) -> int:
