@@ -3,6 +3,7 @@ from os.path import relpath, join, split
 from abc import ABC, abstractmethod
 
 # TODO - Method for copy
+# TODO - Unify delimiter (forward slash and backslash) to fix trailing join, etc
 
 class Filesystem(ABC):
     """Class for lowest level abstraction of filesystem access.
@@ -64,9 +65,9 @@ class Filesystem(ABC):
         return False
 
     @abstractmethod
-    def _requiredAddNewFolderNestled(self, folderPath : str) -> bool:
+    def _requiredAddNewFolderNested(self, folderPath : str) -> bool:
         """Reimplement this in your filesystem. This method may be called on any non-existent folder path.
-        This is expected to handle both nestled and simple folder addition.
+        This is expected to handle both nested and simple folder addition.
 
         Args:
             folderPath (str): Folder path without any extension.
@@ -77,9 +78,9 @@ class Filesystem(ABC):
         return False
 
     @abstractmethod
-    def _requiredRemoveFolderNestled(self, folderPath : str) -> bool:
+    def _requiredRemoveFolderNested(self, folderPath : str) -> bool:
         """Reimplement this in your filesystem. This method may be called on any existed folder path.
-        This is expected to handle both nestled and simple folder removal, as well as deletion of any contents.
+        This is expected to handle both nested and simple folder removal, as well as deletion of any contents.
 
         Args:
             folderPath (str): Folder path without any extension.
@@ -97,7 +98,7 @@ class Filesystem(ABC):
             folderPath (str): Folder path without any extension.
 
         Returns:
-            List[str]: List of absolute (to filesystem) paths for any files inside the folder, including nestled directories. Empty if folder has no contents.
+            List[str]: List of absolute (to filesystem) paths for any files inside the folder, including nested directories. Empty if folder has no contents.
         """
         return []
     
@@ -125,6 +126,7 @@ class Filesystem(ABC):
         Returns:
             str: Path from folder to file (including filename).
         """
+        # TODO - Bugs will happen if . is returned
         return relpath(filepath, folderPath)
     
     def _sensitiveFsJoin(self, x : str, y : str) -> str:
@@ -373,7 +375,7 @@ class Filesystem(ABC):
         return False
 
     def addFolder(self, folderPath : str) -> bool:
-        """Adds folder(s) to the filesystem. May take in a nestled folder path.
+        """Adds folder(s) to the filesystem. May take in a nested folder path.
 
         Args:
             folderPath (str): Folder path without any extension.
@@ -383,7 +385,7 @@ class Filesystem(ABC):
         """
         if self.doesFolderExist(folderPath):
             return True
-        return self._requiredAddNewFolderNestled(folderPath)
+        return self._requiredAddNewFolderNested(folderPath)
                 
     def removeFolder(self, folderPath : str, removeIfFull : bool = True) -> bool:
         """Removes a folder from the filesystem.
@@ -399,7 +401,7 @@ class Filesystem(ABC):
             return True
         elif self.getCountItemsInFolder(folderPath) > 0 and not(removeIfFull):
             return False
-        return self._requiredRemoveFolderNestled(folderPath)
+        return self._requiredRemoveFolderNested(folderPath)
     
     def renameFolder(self, folderPath : str, folderName : str, mergeIfExists : bool = True) -> bool:
         """Renames a folder within the filesystem.
@@ -429,7 +431,7 @@ class Filesystem(ABC):
 
     def moveFolderContents(self, folderPathSource : str, folderPathDest : str, overwriteIfExists : bool = True) -> bool:
         # TODO - Maybe just modify to normal move, or add a normal move method below
-        """Moves the contents of one folder from one destination to another, including copying all (nestled) files at the source.
+        """Moves the contents of one folder from one destination to another, including copying all (nested) files at the source.
 
         Args:
             folderPathSource (str): Full source folder path.

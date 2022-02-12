@@ -4,6 +4,9 @@ from .fs_template import Filesystem
 import ndspy.rom, ndspy.fnt
 
 # TODO - Protect against modifying some files (/ftc is a no-no, contains banners. Don't allow deleting since it probably uses hardcoded file IDs (seems to start at 0))
+# TODO - Sensitive methods might fail on zero-length folder names
+# TODO - Disallow zero length folders
+# TODO - String verification
 
 class FilesystemNds(Filesystem):
     def __init__(self, rom : ndspy.rom.NintendoDSRom):
@@ -56,7 +59,7 @@ class FilesystemNds(Filesystem):
         self.__rom.files.insert(newFileId, file)
         return True
     
-    def _requiredAddNewFolderNestled(self, folderPath: str) -> bool:
+    def _requiredAddNewFolderNested(self, folderPath: str) -> bool:
         # TODO - Use split (?)
         currentPath = ""
         if len(folderPath) > 0 and folderPath[0] == "/":
@@ -143,7 +146,7 @@ class FilesystemNds(Filesystem):
         self.__rom.files.pop(fileId)
         return True
     
-    def _requiredRemoveFolderNestled(self, folderPath: str) -> bool:
+    def _requiredRemoveFolderNested(self, folderPath: str) -> bool:
         def recursiveFolderDelete(folderPath : str, parentFolder : ndspy.fnt.Folder = None):
 
             if folderPath in self.__folderNameToFolder:
