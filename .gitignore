@@ -1,5 +1,6 @@
 firmware.bin
 assets/
+patch/
 nopush_*
 *.vscode*
 *.pyc

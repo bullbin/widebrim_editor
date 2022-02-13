@@ -1,5 +1,5 @@
 from typing import List, Optional
-from .fs_template import Filesystem
+from .fs_base import FilesystemBase
 from os import getcwd, makedirs, remove, walk
 from os.path import exists, isfile
 from shutil import rmtree
@@ -8,7 +8,7 @@ from shutil import rmtree
 # TODO - Should mark filesystem slashes in method or some return method
 # TODO - Maybe convert everything to remove initial slash (more conformant to everything...)
 
-class FilesystemNative(Filesystem):
+class FilesystemNative(FilesystemBase):
     def __init__(self, pathFsRootFolder : str = getcwd()):
         """Filesystem to work with your native platform.
 

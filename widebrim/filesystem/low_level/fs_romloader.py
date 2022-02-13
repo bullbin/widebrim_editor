@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional, Tuple
 
-from .fs_template import Filesystem
+from .fs_base import FilesystemBase
 import ndspy.rom, ndspy.fnt
 
 # TODO - Protect against modifying some files (/ftc is a no-no, contains banners. Don't allow deleting since it probably uses hardcoded file IDs (seems to start at 0))
@@ -8,7 +8,7 @@ import ndspy.rom, ndspy.fnt
 # TODO - Disallow zero length folders
 # TODO - String verification
 
-class FilesystemNds(Filesystem):
+class FilesystemNds(FilesystemBase):
     def __init__(self, rom : ndspy.rom.NintendoDSRom):
         """Filesystem to work with Nintendo DS ROMs.
 
@@ -49,7 +49,7 @@ class FilesystemNds(Filesystem):
         return (head,tail)
 
     def _requiredAddNewFileToExistentFolder(self, filepath: str, file: bytes) -> bool:
-        folderPath, filename = self._requiredFsSplit(filepath)
+        folderPath, filename = self._sensitiveFsSplit(filepath)
         folder = self.__folderNameToFolder[folderPath]
         newFileId = folder.firstID + len(folder.files)
         folder.files.append(filename)
@@ -116,9 +116,9 @@ class FilesystemNds(Filesystem):
 
         def recursiveSearch(folder : ndspy.fnt.Folder, parentPath : str):
             for file in list(folder.files):
-                output.append(self._requiredFsJoin(parentPath, file))
+                output.append(self._sensitiveFsJoin(parentPath, file))
             for nameFolder, childFolder in list(folder.folders):
-                recursiveSearch(childFolder, self._requiredFsJoin(parentPath, nameFolder))
+                recursiveSearch(childFolder, self._sensitiveFsJoin(parentPath, nameFolder))
 
         if folderPath in self.__folderNameToFolder:
             folder = self.__folderNameToFolder[folderPath]
@@ -133,7 +133,7 @@ class FilesystemNds(Filesystem):
             return True
 
         # Remove from parent folder
-        folderPath, filename = self._requiredFsSplit(filepath)
+        folderPath, filename = self._sensitiveFsSplit(filepath)
         folder = self.__folderNameToFolder[folderPath]
         folder.files.remove(filename)
         
@@ -153,19 +153,19 @@ class FilesystemNds(Filesystem):
                 folder = self.__folderNameToFolder[folderPath]
 
                 if parentFolder == None:
-                    parentFolderPath = self._requiredFsSplit(folderPath)[0]
+                    parentFolderPath = self._sensitiveFsSplit(folderPath)[0]
                     if parentFolderPath in self.__folderNameToFolder:
                         parentFolder = self.__folderNameToFolder[parentFolderPath]
 
                 for nameFolder, dumpFolder in folder.folders:
-                    if not(recursiveFolderDelete(self._requiredFsJoin(folderPath, nameFolder), parentFolder=parentFolder)):
+                    if not(recursiveFolderDelete(self._sensitiveFsJoin(folderPath, nameFolder), parentFolder=parentFolder)):
                         return False
                 
                 # Weird bug in iteration of folder.files that causes every other filename to be lost
                 filenames = list(folder.files)
 
                 for file in filenames:
-                    if not(self.removeFile(self._requiredFsJoin(folderPath, file))):
+                    if not(self.removeFile(self._sensitiveFsJoin(folderPath, file))):
                         # print("Failed to remove", folderPath + "/" + file)
                         return False
                 
