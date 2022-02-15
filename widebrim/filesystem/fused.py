@@ -2,9 +2,10 @@
 from os.path import splitext
 from typing import List, Optional
 from ndspy.rom import NintendoDSRom
-from widebrim.filesystem.builder import BuildLoadFromSource, GeneralFileBuilder
+from widebrim.filesystem.builder import BuildCommand, BuildLoadFromSource, GeneralFileBuilder
 from widebrim.filesystem.const import EXTENSION_FILE_NEEDS_BUILDING
 from widebrim.filesystem.fusedError import FusedPatchFailedToInitialise, FusedPatchFolderNotEmpty, FusedPatchOperationInvalid, FusedPatchOperationInvalidatesFilesystem, FusedPatchRenameOperationExtensionNotPreserved
+from widebrim.filesystem.logFs import fsLog, fsLogSevere, fsLogSpam
 from widebrim.filesystem.low_level import FilesystemNative, FilesystemNds
 from widebrim.filesystem.low_level.fs_template import Filesystem
 
@@ -32,8 +33,21 @@ class FusedFilesystem(Filesystem):
                         raise FusedPatchFailedToInitialise()
 
     def __compileAsset(self, pathAssetRecipe : str) -> bytes:
+        builder = GeneralFileBuilder(self)
         assetExtension = splitext(splitext(pathAssetRecipe)[0])[1]
-        return b''
+
+        fsLog("Compiling", pathAssetRecipe)
+
+        scriptData = self.__fsPatch.getFile(pathAssetRecipe)
+        try:
+            scriptData = scriptData.decode('utf-8')
+            for line in scriptData.splitlines():
+                fsLogSpam("Instruction ->", line)
+                builder.addCommand(BuildCommand.fromString(line))
+            return builder.getData()
+        except UnicodeDecodeError:
+            fsLogSevere("Asset compilation failed!")
+            return b''
 
     def __resolvePath(self, filepath : str) -> Optional[str]:
         if self.__fsPatch.doesFileExist(filepath):
@@ -93,16 +107,23 @@ class FusedFilesystem(Filesystem):
     def getFile(self, filepath: str, forceRom : bool = False) -> Optional[bytes]:
         if forceRom:
             return self.__fsRom.getFile(filepath)
-        filepath = self.__resolvePath()
-        if splitext(filepath)[1] == EXTENSION_FILE_NEEDS_BUILDING:
-            return self.__compileAsset(filepath)
-        return self.__fsPatch.getFile(filepath)
+        filepath = self.__resolvePath(filepath)
+        if filepath != None:
+            if splitext(filepath)[1] == EXTENSION_FILE_NEEDS_BUILDING:
+                return self.__compileAsset(filepath)
+            return self.__fsPatch.getFile(filepath)
+        return None
     
-    def getFilepathsInFolder(self, folderPath: str, sorted=True, hideUncompiled:bool = True) -> List[str]:
+    def getFilepathsInFolder(self, folderPath: str, sorted=True, hideUncompiled:bool = False) -> List[str]:
+        output = self.__fsPatch.getFilepathsInFolder(folderPath, sorted)
         if hideUncompiled:
-            return self.__fsPatch.getFilepathsInFolder(folderPath, sorted)
+            safe = []
+            for indexPath, filepath in enumerate(output):
+                filepathNoExt, extension = splitext(filepath)
+                if extension != EXTENSION_FILE_NEEDS_BUILDING:
+                    safe.append(filepath)
+            return safe
         else:
-            output = self.__fsPatch.getFilepathsInFolder(folderPath, sorted)
             for indexPath, filepath in enumerate(output):
                 filepathNoExt, extension = splitext(filepath)
                 if extension == EXTENSION_FILE_NEEDS_BUILDING:
@@ -117,10 +138,12 @@ class FusedFilesystem(Filesystem):
             raise FusedPatchRenameOperationExtensionNotPreserved()
 
         filepathSource = self.__resolvePath(filepathSource)
-        extension = splitext(filepathSource)[1]
-        if extension == EXTENSION_FILE_NEEDS_BUILDING:
-            filepathDest += EXTENSION_FILE_NEEDS_BUILDING
-        return self.__fsPatch.moveFile(filepathSource, filepathDest, overwriteIfExists)
+        if filepathSource != None:
+            extension = splitext(filepathSource)[1]
+            if extension == EXTENSION_FILE_NEEDS_BUILDING:
+                filepathDest += EXTENSION_FILE_NEEDS_BUILDING
+            return self.__fsPatch.moveFile(filepathSource, filepathDest, overwriteIfExists)
+        return False
     
     def moveFolderContents(self, folderPathSource: str, folderPathDest: str, overwriteIfExists: bool = True) -> bool:
         return self.__fsPatch.moveFolderContents(folderPathSource, folderPathDest, overwriteIfExists)
@@ -139,10 +162,12 @@ class FusedFilesystem(Filesystem):
             raise FusedPatchRenameOperationExtensionNotPreserved()
 
         filepath = self.__resolvePath(filepath)
-        extension = splitext(filepath)[1]
-        if extension == EXTENSION_FILE_NEEDS_BUILDING:
-            filenameRename += EXTENSION_FILE_NEEDS_BUILDING
-        return self.__fsPatch(filepath, filenameRename, overwriteIfExists)
+        if filepath != None:
+            extension = splitext(filepath)[1]
+            if extension == EXTENSION_FILE_NEEDS_BUILDING:
+                filenameRename += EXTENSION_FILE_NEEDS_BUILDING
+            return self.__fsPatch.renameFile(filepath, filenameRename, overwriteIfExists)
+        return False
     
     def renameFolder(self, folderPath: str, folderName: str, mergeIfExists: bool = True) -> bool:
         return self.__fsPatch.renameFolder(folderPath, folderName, mergeIfExists)

@@ -70,7 +70,8 @@ class FilesystemNative(FilesystemBase):
                     relpath = "\\"
                 else:
                     relpath = "\\" + relpath
-                output.append(self._sensitiveFsJoin(relpath, file))
+                temp = self._sensitiveFsJoin(relpath, file)
+                output.append(temp.replace("\\", "/"))
         return output
     
     def _requiredRemoveExistentFile(self, filepath: str) -> bool:

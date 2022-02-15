@@ -64,10 +64,10 @@ class Filesystem(ABC):
         Args:
             filepathSource (str): Full source filepath with extension.
             filepathDest (str): Full source destination with extension.
-            overwriteIfExists (bool, optional): [description]. Defaults to True.
+            overwriteIfExists (bool, optional): True to overwrite the file if it already exists in the filesystem. Defaults to True.
 
         Returns:
-            bool: [description]
+            bool: True if the file was moved successfully. False may leave fragments of the operation.
         """
         return False
 
