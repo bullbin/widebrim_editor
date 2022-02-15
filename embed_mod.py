@@ -50,6 +50,7 @@ from widebrim.engine.state.state import Layton2GameState
 from widebrim.engine.file import FileInterface
 
 from e_puzzle import FramePuzzleEditor
+from e_script import FrameScriptEditor
 from widebrim.engine_ext.rom.banner import getBannerImageFromRom, getNameStringFromRom
 
 class EditorWindow(Editor):
@@ -90,6 +91,7 @@ class EditorWindow(Editor):
         size = self.GetSize()
         print(size)
         self.auiTabs.AddPage(initForPage(self.auiTabs, 24, self._widebrimState), caption, select = True)
+        self.auiTabs.AddPage(FrameScriptEditor(self.auiTabs, 10030, self._widebrimState), "EVENT", select=True)
         print(size)
         self.SetSize(size)
         #self.auiTabs.
