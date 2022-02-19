@@ -1,14 +1,16 @@
 from typing import List, Optional
-from widebrim.engine.anim.image_anim.image import AnimatedImageObject, AnimatedImageObjectWithSubAnimation
-from widebrim.engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C, PATH_PACK_EVENT_DAT
+from widebrim.engine.anim.image_anim.image import AnimatedImageObject
+from widebrim.engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C, PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR
 from widebrim.engine.file import FileInterface
 from widebrim.engine.state.state import Layton2GameState
-from widebrim.engine_ext.utils import getAnimFromPath, getBottomScreenAnimFromPath
+from widebrim.engine_ext.utils import getAnimFromPath
 from widebrim.gamemodes.dramaevent.const import PATH_BODY_ROOT, PATH_BODY_ROOT_LANG_DEP
 from widebrim.madhatter.hat_io.asset_dat.event import EventData
 
 from nopush_editor import editorScript
 from wx import ID_ANY, DefaultPosition, Size, TAB_TRAVERSAL, EmptyString, NOT_FOUND
+
+from widebrim.madhatter.hat_io.asset_script import GdScript, Operand
 
 MAP_POS_TO_INGAME = {0:0,
                      1:3,
@@ -30,19 +32,38 @@ MAP_CHAR_ID_TO_NAME = {1:"Layton",
                        2:"Luke",
                        3:"Dr. Schrader"}
 
+CONTEXT_BASE = -1
+CONTEXT_DRAMAEVENT = 0
+CONTEXT_PUZZLE = 1
+
+def getInstructionName(opcode : bytes):
+    return str(opcode)
+
+def getOperandName(opcode : bytes, operand : Operand):
+    return str(operand.value)
+
 class FrameScriptEditor(editorScript):
-    def __init__(self, parent, idEvent : int, state : Layton2GameState, id=ID_ANY, pos=DefaultPosition, size=Size(500, 550), style=TAB_TRAVERSAL, name=EmptyString):
+    def __init__(self, parent, idEvent : int, state : Layton2GameState, id=ID_ANY, pos=DefaultPosition, size=Size(640, 640), style=TAB_TRAVERSAL, name=EmptyString):
         super().__init__(parent, id, pos, size, style, name)
 
         self.__state = state
+        self.__context = None
         self.__eventData :  Optional[EventData] = None
+        self.__eventScript : Optional[GdScript] = None
+
+
         self.__eventCharacters : List[AnimatedImageObject] = []
         self.__idEvent = idEvent
         self.__idMain = self.__idEvent // 1000
         self.__idSub = self.__idEvent % 1000
         # self.__state.dbAutoEvent
         self.__mapActiveCharacterIndexToRealIndex = {}
+        self.__setContext(CONTEXT_DRAMAEVENT)
+
+
         self._refresh()
+        if self.__eventScript != None:
+            self.__generateScriptingTree(self.__eventScript)
     
     def _refresh(self):
 
@@ -71,24 +92,41 @@ class FrameScriptEditor(editorScript):
             return substituteEventPath(PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C)
 
         entry = self.__state.getEventInfoEntry(self.__idEvent)
+        self.__eventData = None
+        self.__eventScript = None
         if entry == None:
             return
         
-        eventData = EventData()
-        if (data := FileInterface.getPackedData(getEventScriptPath(), PATH_PACK_EVENT_DAT % (self.__idMain, self.__idSub))) != None:
-            eventData.load(data)
-            self.__eventData = eventData
-            newItems = []
-            for character in eventData.characters:
-                if character in MAP_CHAR_ID_TO_NAME:
-                    newItems.append(MAP_CHAR_ID_TO_NAME[character])
-                else:
-                    newItems.append(str(character))
-                self.__eventCharacters.append(self.__getCharacter(character))
-            self.listAllCharacters.AppendItems(newItems)
-            if len(eventData.characters) > 0:
-                self.listAllCharacters.SetSelection(0)
-                self.__updateCharacterSelection()
+        if self.__context == CONTEXT_DRAMAEVENT:
+            
+            if (data := FileInterface.getPackedData(getEventScriptPath(), PATH_PACK_EVENT_DAT % (self.__idMain, self.__idSub))) != None:
+                eventData = EventData()
+                eventData.load(data)
+                self.__eventData = eventData
+                newItems = []
+                for character in eventData.characters:
+                    if character in MAP_CHAR_ID_TO_NAME:
+                        newItems.append(MAP_CHAR_ID_TO_NAME[character])
+                    else:
+                        newItems.append(str(character))
+                    self.__eventCharacters.append(self.__getCharacter(character))
+                self.listAllCharacters.AppendItems(newItems)
+                if len(eventData.characters) > 0:
+                    self.listAllCharacters.SetSelection(0)
+                    self.__updateCharacterSelection()
+            
+            if (data := FileInterface.getPackedData(getEventScriptPath(), PATH_PACK_EVENT_SCR % (self.__idMain, self.__idSub))) != None:
+                eventScript = GdScript()
+                eventScript.load(data)
+                self.__eventScript = eventScript
+
+    def __setContext(self, context):
+        self.__context = context
+        if context != CONTEXT_DRAMAEVENT:
+            self.staticTextBranchingWarning.Destroy()
+            self.panelStateControls.Destroy()
+            self.paneCharacters.Destroy()
+            self.Layout()
 
     def __getCharacter(self, indexCharacter : int) -> Optional[AnimatedImageObject]:
         if indexCharacter == 86 or indexCharacter == 87:
@@ -98,9 +136,8 @@ class FrameScriptEditor(editorScript):
     def __generateAnimCheckboxes(self):
 
         def isNameGood(name) -> bool:
-            #if self.chec
             if len(name) > 0:
-                if name[0] != "*":
+                if name[0] != "*" and name != "Create an Animation":
                     return True
             return False
 
@@ -109,38 +146,46 @@ class FrameScriptEditor(editorScript):
         # TODO - access to animation details, dunno if this is accurate tbh
         # TODO - Awful, requires subanimation (not guarenteed!!!)
         selection = self.listAllCharacters.GetSelection()
-        character = self.__eventCharacters[selection]
-        if character != None:
-            newAnims = []
-            for indexAnim in range(256):
-                if character.setAnimationFromIndex(indexAnim):
-                    newAnims.append(character.getAnimationName())
-                else:
-                    break
+        if 0 <= selection < len(self.__eventCharacters) and self.__eventData != None:
+            self.checkDisableCharacterVisibility.SetValue(not(self.__eventData.charactersShown[selection]))
+            character = self.__eventCharacters[selection]
+            if character != None:
+                newAnims = []
+                for indexAnim in range(256):
+                    if character.setAnimationFromIndex(indexAnim):
+                        newAnims.append(character.getAnimationName())
+                    else:
+                        break
 
-            if self.__eventData.charactersInitialAnimationIndex[selection] >= len(newAnims):
-                # If initial animation index is bad, override it to zero (which is invalid, but invisible so who cares)
-                self.__eventData.charactersInitialAnimationIndex[selection] = 0
-            
-            # TODO - Not working lol
-            addToList = []
-            target : Optional[int] = None
-            for idxAnim, newAnim in enumerate(newAnims):
-                if idxAnim == 0 or not(isNameGood(newAnim)):
-                    if idxAnim == self.__eventData.charactersInitialAnimationIndex[selection]:
-                        target = len(self.__mapActiveCharacterIndexToRealIndex.keys())
+                if self.__eventData.charactersInitialAnimationIndex[selection] >= len(newAnims):
+                    print("Invalid animation index!!!")
+                    # If initial animation index is bad, override it to zero (which is invalid, but invisible so who cares)
+                    self.__eventData.charactersInitialAnimationIndex[selection] = 0
+                
+                addToList = []
+                target : Optional[int] = None
+                for idxAnim, newAnim in enumerate(newAnims):
+                    if (self.checkDisableBadAnims.IsChecked() and (idxAnim == self.__eventData.charactersInitialAnimationIndex[selection] or isNameGood(newAnim))) or not(self.checkDisableBadAnims.IsChecked()):
+                        if idxAnim == self.__eventData.charactersInitialAnimationIndex[selection]:
+                            target = len(addToList)
                         self.__mapActiveCharacterIndexToRealIndex[len(self.__mapActiveCharacterIndexToRealIndex.keys())] = idxAnim
-                        
                         addToList.append(newAnim)
-                else:
-                    if idxAnim == self.__eventData.charactersInitialAnimationIndex[selection]:
-                        target = len(self.__mapActiveCharacterIndexToRealIndex.keys())
-                    self.__mapActiveCharacterIndexToRealIndex[len(self.__mapActiveCharacterIndexToRealIndex.keys())] = idxAnim
-                    addToList.append(newAnim)
-                    
-            self.choiceCharacterAnimStart.AppendItems(addToList)
-            if target != None:
+                
+                self.choiceCharacterAnimStart.AppendItems(addToList)
                 self.choiceCharacterAnimStart.SetSelection(target)
+            else:
+                print("FAILED TO LOAD CHARACTER...")
+
+    def __generateScriptingTree(self, script : GdScript):
+        self.treeScript.DeleteAllItems()
+        rootId = self.treeScript.GetRootItem()
+        if not(rootId.IsOk()):
+            rootId = self.treeScript.AddRoot("Root")
+        for indexInstruction in range(script.getInstructionCount()):
+            instruction = script.getInstruction(indexInstruction)
+            commandRoot = self.treeScript.AppendItem(parent=rootId, text=getInstructionName(instruction.opcode), data=instruction.opcode)
+            for operand in instruction.operands:
+                self.treeScript.AppendItem(parent=commandRoot, text=getOperandName(instruction.opcode, operand), data=operand)
 
     def __updateCharacterSelection(self):
         selection = self.listAllCharacters.GetSelection()
@@ -155,16 +200,16 @@ class FrameScriptEditor(editorScript):
                 self.__eventData.charactersPosition[selection] = 7
             
             self.choiceCharacterSlot.SetSelection(MAP_INGAME_TO_POS[self.__eventData.charactersPosition[selection]])
-            
             self.__generateAnimCheckboxes()
-
-            if character.setAnimationFromIndex(self.__eventData.charactersInitialAnimationIndex[selection]):
-                # TODO - set bitmap
-                self.choiceCharacterAnimStart.SetSelection(self.__eventData.charactersInitialAnimationIndex[selection])
-                pass
-            else:
-                pass
             
     def listAllCharactersOnListBoxDClick(self, event):
         self.__updateCharacterSelection()
         return super().listAllCharactersOnListBoxDClick(event)
+    
+    def checkDisableBadAnimsOnCheckBox(self, event):
+        self.__generateAnimCheckboxes()
+        return super().checkDisableBadAnimsOnCheckBox(event)
+    
+    def paneCharactersOnCollapsiblePaneChanged(self, event):
+        self.paneCharacters.GetParent().Layout()
+        return super().paneCharactersOnCollapsiblePaneChanged(event)

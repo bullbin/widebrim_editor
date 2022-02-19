@@ -33,7 +33,7 @@ class FramePuzzleEditor(editorPuzzle):
 
     INVALID_FRAME_COLOR = (255,0,0)
 
-    def __init__(self, parent, internalId : int, state : Layton2GameState, id=wx.ID_ANY, pos=wx.DefaultPosition, size=wx.Size(500, 550), style=wx.TAB_TRAVERSAL, name=wx.EmptyString):
+    def __init__(self, parent, internalId : int, state : Layton2GameState, id=wx.ID_ANY, pos=wx.DefaultPosition, size=wx.Size(640, 640), style=wx.TAB_TRAVERSAL, name=wx.EmptyString):
         super().__init__(parent, id, pos, size, style, name)
         self.__state = state
         self.__idInternal = internalId

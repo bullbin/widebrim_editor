@@ -1,3 +1,9 @@
+try:
+    import ctypes
+    ctypes.windll.shcore.SetProcessDpiAwareness(0)
+except ImportError:
+    pass
+
 from widebrim.madhatter import common
 
 def noLog(*args, **kwargs):
