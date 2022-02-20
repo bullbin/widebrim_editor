@@ -155,16 +155,14 @@ class EditorWindow(Editor):
     
     def widebrimButtonRestartStateOnButtonClick(self, event):
         page = self.auiTabs.GetCurrentPage()
-        if type(page) == FramePuzzleEditor:
-            page.prepareWidebrimState()
-            self.spawnHandler(GAMEMODES.Puzzle)
+        if type(page) == FramePuzzleEditor or type(page) == FrameScriptEditor:
+            self.spawnHandler(page.prepareWidebrimState())
         return super().widebrimButtonRestartStateOnButtonClick(event)
 
     def auiTabsOnAuiNotebookPageChanged(self, event):
         page = self.auiTabs.GetCurrentPage()
-        if type(page) == FramePuzzleEditor:
-            page.prepareWidebrimState()
-            self.spawnHandler(GAMEMODES.Puzzle)
+        if type(page) == FramePuzzleEditor or type(page) == FrameScriptEditor:
+            self.spawnHandler(page.prepareWidebrimState())
         return super().auiTabsOnAuiNotebookPageChanged(event)
     
     def speedRealtimeOnMenuSelection(self, event):

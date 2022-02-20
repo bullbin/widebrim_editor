@@ -6,6 +6,7 @@ from nopush_editor import editorPuzzle
 from widebrim.engine.anim.font.scrolling import ScrollingFontHelper
 from widebrim.engine.const import PATH_NAZO_A, PATH_NAZO_B, PATH_NAZO_C, PATH_PACK_NAZO, PATH_PACK_PLACE_NAME, PATH_PUZZLE_BG, PATH_PUZZLE_BG_LANGUAGE, PATH_PUZZLE_BG_NAZO_TEXT, PATH_TEXT_PLACE_NAME, RESOLUTION_NINTENDO_DS
 from widebrim.engine.file import FileInterface
+from widebrim.engine.state.enum_mode import GAMEMODES
 from widebrim.engine.state.state import Layton2GameState
 from widebrim.engine_ext.utils import getImageFromPath, substituteLanguageString
 from widebrim.gamemodes.nazo_popup.mode.base.base import BaseQuestionObject
@@ -282,8 +283,9 @@ class FramePuzzleEditor(editorPuzzle):
             
         self.hintPreview.SetBitmap(wx.BitmapFromBuffer(RESOLUTION_NINTENDO_DS[0], RESOLUTION_NINTENDO_DS[1], tostring(self.__internalTextSurface, "RGB")))
 
-    def prepareWidebrimState(self):
+    def prepareWidebrimState(self) -> GAMEMODES:
         self.__state.setPuzzleId(self.__idInternal)
+        return GAMEMODES.Puzzle
 
     def puzzleNameOnText(self, event):
         if self.__nazoListEntry != None and self.__nazoData != None:

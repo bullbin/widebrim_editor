@@ -40,3 +40,4 @@ pygame.quit()
 # TODO - Slashes not recognised
 # TODO - Try/except to prevent loading bad data
 # TODO - New patch format that combines nazo data and nazo list entry
+# TODO - how are slots drawn? by character order or slot order?

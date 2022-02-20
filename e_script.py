@@ -1,7 +1,8 @@
 from typing import List, Optional
 from widebrim.engine.anim.image_anim.image import AnimatedImageObject
-from widebrim.engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C, PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR
+from widebrim.engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C, PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, RESOLUTION_NINTENDO_DS
 from widebrim.engine.file import FileInterface
+from widebrim.engine.state.enum_mode import GAMEMODES
 from widebrim.engine.state.state import Layton2GameState
 from widebrim.engine_ext.utils import getAnimFromPath
 from widebrim.gamemodes.dramaevent.const import PATH_BODY_ROOT, PATH_BODY_ROOT_LANG_DEP
@@ -11,6 +12,11 @@ from nopush_editor import editorScript
 from wx import ID_ANY, DefaultPosition, Size, TAB_TRAVERSAL, EmptyString, NOT_FOUND
 
 from widebrim.madhatter.hat_io.asset_script import GdScript, Operand
+from widebrim.gui.command_annotator import Context
+from pygame import Surface
+from pygame.transform import flip
+from pygame.image import tostring
+from wx import BitmapFromBufferRGBA, EmptyBitmapRGBA
 
 MAP_POS_TO_INGAME = {0:0,
                      1:3,
@@ -32,10 +38,6 @@ MAP_CHAR_ID_TO_NAME = {1:"Layton",
                        2:"Luke",
                        3:"Dr. Schrader"}
 
-CONTEXT_BASE = -1
-CONTEXT_DRAMAEVENT = 0
-CONTEXT_PUZZLE = 1
-
 def getInstructionName(opcode : bytes):
     return str(opcode)
 
@@ -43,6 +45,13 @@ def getOperandName(opcode : bytes, operand : Operand):
     return str(operand.value)
 
 class FrameScriptEditor(editorScript):
+
+    SLOT_OFFSET = {0:0x30,     1:0x80,
+                   2:0xd0,     3:0x20,
+                   4:0x58,     5:0xa7,
+                   6:0xe0}
+    SLOT_LEFT  = [0,3,4]    # Left side characters need flipping
+
     def __init__(self, parent, idEvent : int, state : Layton2GameState, id=ID_ANY, pos=DefaultPosition, size=Size(640, 640), style=TAB_TRAVERSAL, name=EmptyString):
         super().__init__(parent, id, pos, size, style, name)
 
@@ -51,6 +60,8 @@ class FrameScriptEditor(editorScript):
         self.__eventData :  Optional[EventData] = None
         self.__eventScript : Optional[GdScript] = None
 
+        self.__backgroundWidebrim = Surface(RESOLUTION_NINTENDO_DS).convert_alpha()
+        self.__backgroundWidebrim.fill((0,0,0,1))
 
         self.__eventCharacters : List[AnimatedImageObject] = []
         self.__idEvent = idEvent
@@ -58,8 +69,8 @@ class FrameScriptEditor(editorScript):
         self.__idSub = self.__idEvent % 1000
         # self.__state.dbAutoEvent
         self.__mapActiveCharacterIndexToRealIndex = {}
-        self.__setContext(CONTEXT_DRAMAEVENT)
-
+        self.__activeCharacterImage : Optional[AnimatedImageObject] = None
+        self.__setContext(Context.DramaEvent)
 
         self._refresh()
         if self.__eventScript != None:
@@ -97,7 +108,7 @@ class FrameScriptEditor(editorScript):
         if entry == None:
             return
         
-        if self.__context == CONTEXT_DRAMAEVENT:
+        if self.__context == Context.DramaEvent:
             
             if (data := FileInterface.getPackedData(getEventScriptPath(), PATH_PACK_EVENT_DAT % (self.__idMain, self.__idSub))) != None:
                 eventData = EventData()
@@ -120,9 +131,10 @@ class FrameScriptEditor(editorScript):
                 eventScript.load(data)
                 self.__eventScript = eventScript
 
-    def __setContext(self, context):
+    def __setContext(self, context : Context):
         self.__context = context
-        if context != CONTEXT_DRAMAEVENT:
+        self.textScriptingContext.SetLabel(str(context)[8:])
+        if context != Context.DramaEvent:
             self.staticTextBranchingWarning.Destroy()
             self.panelStateControls.Destroy()
             self.paneCharacters.Destroy()
@@ -164,6 +176,7 @@ class FrameScriptEditor(editorScript):
                 
                 addToList = []
                 target : Optional[int] = None
+                self.__mapActiveCharacterIndexToRealIndex = {}
                 for idxAnim, newAnim in enumerate(newAnims):
                     if (self.checkDisableBadAnims.IsChecked() and (idxAnim == self.__eventData.charactersInitialAnimationIndex[selection] or isNameGood(newAnim))) or not(self.checkDisableBadAnims.IsChecked()):
                         if idxAnim == self.__eventData.charactersInitialAnimationIndex[selection]:
@@ -175,6 +188,45 @@ class FrameScriptEditor(editorScript):
                 self.choiceCharacterAnimStart.SetSelection(target)
             else:
                 print("FAILED TO LOAD CHARACTER...")
+
+    def __generateCharacterPreview(self):
+        def getImageOffset(imageCharacter : AnimatedImageObject):
+            offset = imageCharacter.getVariable("drawoff")
+            if offset != None:
+                return (offset[0], abs(offset[1]))
+            else:
+                return (0,0)
+
+        self.__backgroundWidebrim.fill((0,0,0,1))
+        if self.__activeCharacterImage == None:
+            self.__backgroundWidebrim.fill((0,0,0,1))
+        if self.__eventData.charactersShown[self.listAllCharacters.GetSelection()]:
+            slot = self.__eventData.charactersPosition[self.listAllCharacters.GetSelection()]
+            if slot in FrameScriptEditor.SLOT_OFFSET:
+                offset = FrameScriptEditor.SLOT_OFFSET[slot]
+            else:
+                # TODO - Test invalid slot, iirc it's the middle
+                slot = 1
+                offset = FrameScriptEditor.SLOT_OFFSET[1]
+
+            variableOffset = getImageOffset(self.__activeCharacterImage)
+
+            if slot in FrameScriptEditor.SLOT_LEFT:
+                characterIsFlipped = True
+                drawLocation = (offset - (self.__activeCharacterImage.getDimensions()[0] // 2) - variableOffset[0], RESOLUTION_NINTENDO_DS[1] - variableOffset[1] - self.__activeCharacterImage.getDimensions()[1])
+            else:
+                characterIsFlipped = False
+                drawLocation = (offset - (self.__activeCharacterImage.getDimensions()[0] // 2) + variableOffset[0], RESOLUTION_NINTENDO_DS[1] - variableOffset[1] - self.__activeCharacterImage.getDimensions()[1])
+            
+            characterFlippedSurface = Surface(self.__activeCharacterImage.getDimensions()).convert_alpha()
+            characterFlippedSurface.fill((0,0,0,0))
+            self.__activeCharacterImage.draw(characterFlippedSurface)
+            if characterIsFlipped:
+                characterFlippedSurface = flip(characterFlippedSurface, True, False)
+            
+            self.__backgroundWidebrim.blit(characterFlippedSurface, drawLocation)
+        
+        self.bitmapRenderCharacterPreview.SetBitmap(BitmapFromBufferRGBA(RESOLUTION_NINTENDO_DS[0], RESOLUTION_NINTENDO_DS[1], tostring(self.__backgroundWidebrim, "RGBA")))
 
     def __generateScriptingTree(self, script : GdScript):
         self.treeScript.DeleteAllItems()
@@ -191,16 +243,52 @@ class FrameScriptEditor(editorScript):
         selection = self.listAllCharacters.GetSelection()
         if selection == NOT_FOUND:
             return
-        # TODO - Update bitmap
 
         character = self.__eventCharacters[selection]
+        
         if character != None:
+            if self.__activeCharacterImage != character:
+                self.__activeCharacterImage = character
+                self.__generateCharacterPreview()
+
             if self.__eventData.charactersPosition[selection] not in MAP_INGAME_TO_POS:
                 # Force invalidate it
                 self.__eventData.charactersPosition[selection] = 7
             
             self.choiceCharacterSlot.SetSelection(MAP_INGAME_TO_POS[self.__eventData.charactersPosition[selection]])
             self.__generateAnimCheckboxes()
+    
+    def choiceCharacterSlotOnChoice(self, event):
+        selection = self.listAllCharacters.GetSelection()
+        if 0 <= selection < len(self.__eventCharacters):
+            slot = MAP_POS_TO_INGAME[self.choiceCharacterSlot.GetSelection()]
+            self.__eventData.charactersPosition[selection] = slot
+            self.__generateCharacterPreview()
+
+        return super().choiceCharacterSlotOnChoice(event)
+
+    def choiceCharacterAnimStartOnChoice(self, event):
+        selection = self.choiceCharacterAnimStart.GetSelection()
+        indexAnim = self.__mapActiveCharacterIndexToRealIndex[selection]
+        selection = self.listAllCharacters.GetSelection()
+        self.__eventData.charactersInitialAnimationIndex[selection] = indexAnim
+        if self.__activeCharacterImage != None:
+            # TODO - Will probably fail with initial anim
+            self.__activeCharacterImage.setAnimationFromIndex(indexAnim)
+            self.__generateCharacterPreview()
+
+        return super().choiceCharacterAnimStartOnChoice(event)
+
+    def checkDisableCharacterVisibilityOnCheckBox(self, event):
+        selection = self.listAllCharacters.GetSelection()
+        self.__eventData.charactersShown[selection] = not(self.checkDisableCharacterVisibility.GetValue())
+        if self.__activeCharacterImage != None:
+            self.__generateCharacterPreview()
+        return super().checkDisableCharacterVisibilityOnCheckBox(event)
+
+    def prepareWidebrimState(self):
+        self.__state.setEventId(self.__idEvent)
+        return GAMEMODES.DramaEvent
             
     def listAllCharactersOnListBoxDClick(self, event):
         self.__updateCharacterSelection()
