@@ -2,7 +2,7 @@
 #        ordering for the embed to work without weird popup windows, etc.
 
 from typing import List, Optional
-from nopush_editor import editorPuzzle
+from .nopush_editor import editorPuzzle
 from widebrim.engine.anim.font.scrolling import ScrollingFontHelper
 from widebrim.engine.const import PATH_NAZO_A, PATH_NAZO_B, PATH_NAZO_C, PATH_PACK_NAZO, PATH_PACK_PLACE_NAME, PATH_PUZZLE_BG, PATH_PUZZLE_BG_LANGUAGE, PATH_PUZZLE_BG_NAZO_TEXT, PATH_TEXT_PLACE_NAME, RESOLUTION_NINTENDO_DS
 from widebrim.engine.file import FileInterface

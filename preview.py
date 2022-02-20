@@ -12,8 +12,8 @@ def noLog(*args, **kwargs):
 common.log = noLog
 
 from wx import App, CANCEL
-from embed_mod import EditorWindow
-from d_imp_back import DialogueImportBackground
+from editor.embed_mod import EditorWindow
+from editor.d_imp_back import DialogueImportBackground
 import pygame
 
 class App(App):

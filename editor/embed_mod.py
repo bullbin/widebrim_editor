@@ -40,7 +40,7 @@ convenience.initDisplay = initDisplayEmbed
 from typing import Optional
 from pygame import Surface
 import pygame
-from nopush_editor import Editor
+from editor.nopush_editor import Editor
 from widebrim.engine.state.enum_mode import GAMEMODES
 from widebrim.engine_ext.state_game import ScreenCollectionGameModeSpawner
 
@@ -49,8 +49,8 @@ from wx import Image as WxImageNonConflict
 from widebrim.engine.state.state import Layton2GameState
 from widebrim.engine.file import FileInterface
 
-from e_puzzle import FramePuzzleEditor
-from e_script import FrameScriptEditor
+from editor.e_puzzle import FramePuzzleEditor
+from editor.e_script import FrameScriptEditor
 from widebrim.engine_ext.rom.banner import getBannerImageFromRom, getNameStringFromRom
 
 class EditorWindow(Editor):

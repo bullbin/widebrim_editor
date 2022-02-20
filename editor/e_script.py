@@ -8,7 +8,7 @@ from widebrim.engine_ext.utils import getAnimFromPath
 from widebrim.gamemodes.dramaevent.const import PATH_BODY_ROOT, PATH_BODY_ROOT_LANG_DEP
 from widebrim.madhatter.hat_io.asset_dat.event import EventData
 
-from nopush_editor import editorScript
+from .nopush_editor import editorScript
 from wx import ID_ANY, DefaultPosition, Size, TAB_TRAVERSAL, EmptyString, NOT_FOUND
 
 from widebrim.madhatter.hat_io.asset_script import GdScript, Operand

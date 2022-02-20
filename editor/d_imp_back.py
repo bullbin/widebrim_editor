@@ -1,4 +1,4 @@
-from nopush_editor import ImportBackground
+from .nopush_editor import ImportBackground
 from wx import FileDialog, FD_OPEN, FD_FILE_MUST_EXIST, ID_CANCEL, BitmapFromBuffer
 from widebrim.madhatter.hat_io.asset_image import StaticImage
 from PIL import Image, UnidentifiedImageError
