@@ -32,6 +32,7 @@ debug.MainLoop()
 
 
 # TODO - Puzzle 24, wrong number of operations
+# TODO - widebrim cleanup
 
 pygame.quit()
 
@@ -41,3 +42,9 @@ pygame.quit()
 # TODO - Try/except to prevent loading bad data
 # TODO - New patch format that combines nazo data and nazo list entry
 # TODO - how are slots drawn? by character order or slot order?
+# TODO - event descriptions (unused db)
+
+
+# FS Plans
+# ani
+#     exclude system, tobj, sub, subgame, title, menu

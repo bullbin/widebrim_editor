@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from widebrim.engine.anim.image_anim.image import AnimatedImageObject
 from widebrim.engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C, PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, RESOLUTION_NINTENDO_DS
 from widebrim.engine.file import FileInterface
@@ -12,11 +12,12 @@ from .nopush_editor import editorScript
 from wx import ID_ANY, DefaultPosition, Size, TAB_TRAVERSAL, EmptyString, NOT_FOUND
 
 from widebrim.madhatter.hat_io.asset_script import GdScript, Operand
+from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
 from widebrim.gui.command_annotator import Context
 from pygame import Surface
 from pygame.transform import flip
 from pygame.image import tostring
-from wx import BitmapFromBufferRGBA, EmptyBitmapRGBA
+from wx import Bitmap, TreeEvent
 
 MAP_POS_TO_INGAME = {0:0,
                      1:3,
@@ -38,11 +39,29 @@ MAP_CHAR_ID_TO_NAME = {1:"Layton",
                        2:"Luke",
                        3:"Dr. Schrader"}
 
-def getInstructionName(opcode : bytes):
-    return str(opcode)
+MAP_OPCODE_TO_FRIENDLY = {OPCODES_LT2.TextWindow : "Dialogue",
+                          OPCODES_LT2.FadeOutOnlyMain : "Fade out (bottom screen)",
+                          OPCODES_LT2.SpriteOn : "Show character",
+                          OPCODES_LT2.SpriteOff : "Hide character",
+                          OPCODES_LT2.LoadBG : "Change background (bottom screen)",
+                          OPCODES_LT2.WaitFrame : "Pause for some frames",
+                          OPCODES_LT2.WaitInput : "Wait for input"}
 
-def getOperandName(opcode : bytes, operand : Operand):
+def getInstructionName(opcode : bytes) -> str:
+    try:
+        opcode = OPCODES_LT2(int.from_bytes(opcode, 'little'))
+        if opcode in MAP_OPCODE_TO_FRIENDLY:
+            return MAP_OPCODE_TO_FRIENDLY[opcode]
+        else:
+            return str(opcode.value)
+        # return OPCODES_LT2(int.from_bytes(opcode, 'little')).name
+    except:
+        return str(opcode)
+
+def getOperandName(opcode : bytes, operand : Operand) -> str:
     return str(operand.value)
+
+# TODO - Eventually build into vfs by modifying script editing to generate build commands instead of modifying file
 
 class FrameScriptEditor(editorScript):
 
@@ -54,7 +73,6 @@ class FrameScriptEditor(editorScript):
 
     def __init__(self, parent, idEvent : int, state : Layton2GameState, id=ID_ANY, pos=DefaultPosition, size=Size(640, 640), style=TAB_TRAVERSAL, name=EmptyString):
         super().__init__(parent, id, pos, size, style, name)
-
         self.__state = state
         self.__context = None
         self.__eventData :  Optional[EventData] = None
@@ -71,11 +89,58 @@ class FrameScriptEditor(editorScript):
         self.__mapActiveCharacterIndexToRealIndex = {}
         self.__activeCharacterImage : Optional[AnimatedImageObject] = None
         self.__setContext(Context.DramaEvent)
+        self.__selectedCharacterIndex : Optional[int] = None
 
         self._refresh()
         if self.__eventScript != None:
             self.__generateScriptingTree(self.__eventScript)
     
+    def __getItemIndex(self, itemId):
+        indexItem = 0
+        while True:
+            itemId = self.treeScript.GetPrevSibling(itemId)
+            if itemId.IsOk():
+                indexItem += 1
+            else:
+                break
+        return indexItem
+    
+    def __decodeTreeItem(self, itemId) -> Tuple[bool, Optional[Tuple[int, int]]]:
+        if not(itemId.IsOk()):
+            return (False, None)
+
+        isInstruction = False
+        indexInstruction = 0
+        indexOperand = 0
+        if self.treeScript.GetItemParent(itemId) == self.treeScript.GetRootItem():
+            isInstruction = True
+            indexInstruction = self.__getItemIndex(itemId)
+            #print("Instruction", indexInstruction)
+        else:
+            indexInstruction = self.__getItemIndex(self.treeScript.GetItemParent(itemId))
+            indexOperand = self.__getItemIndex(itemId)
+            #print("Instruction", indexInstruction, "Operand", indexOperand)
+        return (isInstruction, (indexInstruction, indexOperand))
+
+    def buttonDeleteInstructionOnButtonClick(self, event):
+        itemId = self.treeScript.GetSelection()
+        isInstruction, instructionDetails = self.__decodeTreeItem(itemId)
+        if instructionDetails != None:
+            self.__eventScript.removeInstruction(instructionDetails[0])
+            if isInstruction:
+                self.treeScript.Delete(itemId)
+            else:
+                self.treeScript.Delete(self.treeScript.GetItemParent(itemId))
+        return super().buttonDeleteInstructionOnButtonClick(event)
+
+    def treeScriptOnTreeItemActivated(self, event : TreeEvent):
+        isInstruction, instructionDetails = self.__decodeTreeItem(event.GetItem())
+        if isInstruction:
+            print("Instruction", instructionDetails[0])
+        else:
+            print("Instruction", instructionDetails[0], "Operand", instructionDetails[1])
+        # return super().treeScriptOnTreeItemActivated(event)
+
     def _refresh(self):
 
         def substituteEventPath(inPath, inPathA, inPathB, inPathC):
@@ -157,8 +222,8 @@ class FrameScriptEditor(editorScript):
             
         # TODO - access to animation details, dunno if this is accurate tbh
         # TODO - Awful, requires subanimation (not guarenteed!!!)
-        selection = self.listAllCharacters.GetSelection()
-        if 0 <= selection < len(self.__eventCharacters) and self.__eventData != None:
+        selection = self.__selectedCharacterIndex
+        if selection != None and self.__eventData != None:
             self.checkDisableCharacterVisibility.SetValue(not(self.__eventData.charactersShown[selection]))
             character = self.__eventCharacters[selection]
             if character != None:
@@ -200,8 +265,10 @@ class FrameScriptEditor(editorScript):
         self.__backgroundWidebrim.fill((0,0,0,1))
         if self.__activeCharacterImage == None:
             self.__backgroundWidebrim.fill((0,0,0,1))
-        if self.__eventData.charactersShown[self.listAllCharacters.GetSelection()]:
-            slot = self.__eventData.charactersPosition[self.listAllCharacters.GetSelection()]
+        if self.__eventData.charactersShown[self.__selectedCharacterIndex]:
+
+            self.__activeCharacterImage.setAnimationFromIndex(self.__eventData.charactersInitialAnimationIndex[self.__selectedCharacterIndex])
+            slot = self.__eventData.charactersPosition[self.__selectedCharacterIndex]
             if slot in FrameScriptEditor.SLOT_OFFSET:
                 offset = FrameScriptEditor.SLOT_OFFSET[slot]
             else:
@@ -226,7 +293,7 @@ class FrameScriptEditor(editorScript):
             
             self.__backgroundWidebrim.blit(characterFlippedSurface, drawLocation)
         
-        self.bitmapRenderCharacterPreview.SetBitmap(BitmapFromBufferRGBA(RESOLUTION_NINTENDO_DS[0], RESOLUTION_NINTENDO_DS[1], tostring(self.__backgroundWidebrim, "RGBA")))
+        self.bitmapRenderCharacterPreview.SetBitmap(Bitmap.FromBufferRGBA(RESOLUTION_NINTENDO_DS[0], RESOLUTION_NINTENDO_DS[1], tostring(self.__backgroundWidebrim, "RGBA")))
 
     def __generateScriptingTree(self, script : GdScript):
         self.treeScript.DeleteAllItems()
@@ -243,6 +310,8 @@ class FrameScriptEditor(editorScript):
         selection = self.listAllCharacters.GetSelection()
         if selection == NOT_FOUND:
             return
+        else:
+            self.__selectedCharacterIndex = selection
 
         character = self.__eventCharacters[selection]
         
@@ -258,35 +327,44 @@ class FrameScriptEditor(editorScript):
             self.choiceCharacterSlot.SetSelection(MAP_INGAME_TO_POS[self.__eventData.charactersPosition[selection]])
             self.__generateAnimCheckboxes()
     
-    def choiceCharacterSlotOnChoice(self, event):
-        selection = self.listAllCharacters.GetSelection()
-        if 0 <= selection < len(self.__eventCharacters):
-            slot = MAP_POS_TO_INGAME[self.choiceCharacterSlot.GetSelection()]
-            self.__eventData.charactersPosition[selection] = slot
-            self.__generateCharacterPreview()
+    def btnCharMoveUpOnButtonClick(self, event):
+        if self.__selectedCharacterIndex != None and self.__selectedCharacterIndex > 0:
+            pass
+        return super().btnCharMoveUpOnButtonClick(event)
+    
+    def btnCharMoveDownOnButtonClick(self, event):
+        if self.__selectedCharacterIndex != None and self.__selectedCharacterIndex < len(self.__eventCharacters) - 1:
+            pass
+        return super().btnCharMoveDownOnButtonClick(event)
 
+    def choiceCharacterSlotOnChoice(self, event):
+        if self.__selectedCharacterIndex != None:
+            slot = MAP_POS_TO_INGAME[self.choiceCharacterSlot.GetSelection()]
+            self.__eventData.charactersPosition[self.__selectedCharacterIndex] = slot
+            self.__generateCharacterPreview()
         return super().choiceCharacterSlotOnChoice(event)
 
     def choiceCharacterAnimStartOnChoice(self, event):
-        selection = self.choiceCharacterAnimStart.GetSelection()
-        indexAnim = self.__mapActiveCharacterIndexToRealIndex[selection]
-        selection = self.listAllCharacters.GetSelection()
-        self.__eventData.charactersInitialAnimationIndex[selection] = indexAnim
-        if self.__activeCharacterImage != None:
-            # TODO - Will probably fail with initial anim
-            self.__activeCharacterImage.setAnimationFromIndex(indexAnim)
-            self.__generateCharacterPreview()
+        if self.__selectedCharacterIndex != None:
+            selection = self.choiceCharacterAnimStart.GetSelection()
+            indexAnim = self.__mapActiveCharacterIndexToRealIndex[selection]
+            self.__eventData.charactersInitialAnimationIndex[self.__selectedCharacterIndex] = indexAnim
+            if self.__activeCharacterImage != None:
+                # TODO - Will probably fail with initial anim
+                # self.__activeCharacterImage.setAnimationFromIndex(indexAnim)
+                self.__generateCharacterPreview()
 
         return super().choiceCharacterAnimStartOnChoice(event)
 
     def checkDisableCharacterVisibilityOnCheckBox(self, event):
-        selection = self.listAllCharacters.GetSelection()
-        self.__eventData.charactersShown[selection] = not(self.checkDisableCharacterVisibility.GetValue())
-        if self.__activeCharacterImage != None:
-            self.__generateCharacterPreview()
+        if self.__selectedCharacterIndex != None:
+            self.__eventData.charactersShown[self.__selectedCharacterIndex] = not(self.checkDisableCharacterVisibility.GetValue())
+            if self.__activeCharacterImage != None:
+                self.__generateCharacterPreview()
         return super().checkDisableCharacterVisibilityOnCheckBox(event)
 
     def prepareWidebrimState(self):
+        # return GAMEMODES.INVALID
         self.__state.setEventId(self.__idEvent)
         return GAMEMODES.DramaEvent
             

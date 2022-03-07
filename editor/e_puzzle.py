@@ -20,9 +20,10 @@ from widebrim.engine.string import getSubstitutedString
 
 from pygame import Surface
 from pygame.image import tostring
-from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
 
+# TODO - Remove wx dependency
 import wx
+from wx import Bitmap
 
 # TODO - Pass arguments properly :(
 # TODO - Permanence in state will make life a lot easier, means we never need to reload the state and can just "destroy" it instead
@@ -230,7 +231,7 @@ class FramePuzzleEditor(editorPuzzle):
             background = getImageFromPath(self.__state, pathBg)
             if background == None:
                 background = self.__invalidSurface
-            self.previewBackgroundMain.SetBitmap(wx.BitmapFromBuffer(background.get_width(), background.get_height(), tostring(background, "RGB")))
+            self.previewBackgroundMain.SetBitmap(Bitmap.FromBuffer(background.get_width(), background.get_height(), tostring(background, "RGB")))
 
     def _reloadBackgroundMain(self):
         if self.__nazoData != None:
@@ -238,7 +239,7 @@ class FramePuzzleEditor(editorPuzzle):
             background = getImageFromPath(self.__state, pathBg)
             if background == None:
                 background = self.__invalidSurface
-            self.previewBackgroundSub.SetBitmap(wx.BitmapFromBuffer(background.get_width(), background.get_height(), tostring(background, "RGB")))
+            self.previewBackgroundSub.SetBitmap(Bitmap.FromBuffer(background.get_width(), background.get_height(), tostring(background, "RGB")))
 
     def _reloadBackgroundAnswer(self):
         if self.__nazoData != None:
@@ -253,7 +254,7 @@ class FramePuzzleEditor(editorPuzzle):
             background = getImageFromPath(self.__state, pathBg)
             if background == None:
                 background = self.__invalidSurface
-            self.previewBackgroundAnswer.SetBitmap(wx.BitmapFromBuffer(background.get_width(), background.get_height(), tostring(background, "RGB")))
+            self.previewBackgroundAnswer.SetBitmap(Bitmap.FromBuffer(background.get_width(), background.get_height(), tostring(background, "RGB")))
 
     def _updateTextDisplay(self):
         if self.__backgroundText != None:
@@ -281,7 +282,7 @@ class FramePuzzleEditor(editorPuzzle):
                 print(select)
                 print("CANNOT COMMIT UNKNOWN TO NAZO DATA!!!")
             
-        self.hintPreview.SetBitmap(wx.BitmapFromBuffer(RESOLUTION_NINTENDO_DS[0], RESOLUTION_NINTENDO_DS[1], tostring(self.__internalTextSurface, "RGB")))
+        self.hintPreview.SetBitmap(Bitmap.FromBuffer(RESOLUTION_NINTENDO_DS[0], RESOLUTION_NINTENDO_DS[1], tostring(self.__internalTextSurface, "RGB")))
 
     def prepareWidebrimState(self) -> GAMEMODES:
         self.__state.setPuzzleId(self.__idInternal)

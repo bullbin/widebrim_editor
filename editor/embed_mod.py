@@ -9,6 +9,7 @@
 
 # Force SDL to disable video output
 from os import environ
+
 environ["SDL_VIDEODRIVER"] = "dummy"
 
 # Disable high DPI behaviour on Windows, which causes blurriness
@@ -44,13 +45,14 @@ from editor.nopush_editor import Editor
 from widebrim.engine.state.enum_mode import GAMEMODES
 from widebrim.engine_ext.state_game import ScreenCollectionGameModeSpawner
 
-from wx import Timer, EVT_TIMER, EVT_PAINT, Bitmap, ClientDC, PaintDC, BitmapFromBuffer, Icon
+from wx import Timer, EVT_TIMER, EVT_PAINT, Bitmap, ClientDC, PaintDC, Icon
 from wx import Image as WxImageNonConflict
 from widebrim.engine.state.state import Layton2GameState
 from widebrim.engine.file import FileInterface
 
 from editor.e_puzzle import FramePuzzleEditor
 from editor.e_script import FrameScriptEditor
+from editor.e_overview import FrameOverview
 from widebrim.engine_ext.rom.banner import getBannerImageFromRom, getNameStringFromRom
 
 class EditorWindow(Editor):
@@ -69,15 +71,16 @@ class EditorWindow(Editor):
         self.Bind(EVT_TIMER, self.__updateWidebrim, self.__widebrimTimer)
         self.spawnHandler(GAMEMODES.Reset)
 
+        self.auiTabs.AddPage(FrameOverview(self.auiTabs, self._widebrimState), "Overview", select=False)
+
         self._setWidebrimFramerate(30)
-        self._addPage(FramePuzzleEditor, "TEST")
         self.__refreshRomProperties()
 
     def __refreshRomProperties(self):
         self.romTextCode.SetValue(FileInterface.getRom().idCode.decode('ascii'))
         self.romTextName.SetValue(getNameStringFromRom(FileInterface.getRom(), FileInterface.getLanguage()))
         bannerImage = getBannerImageFromRom(FileInterface.getRom())
-        bitmapBanner = BitmapFromBuffer(bannerImage.size[0], bannerImage.size[1], bannerImage.convert("RGB").tobytes("raw", "RGB"))
+        bitmapBanner = Bitmap.FromBuffer(bannerImage.size[0], bannerImage.size[1], bannerImage.convert("RGB").tobytes("raw", "RGB"))
         self.previewIcon.SetBitmap(bitmapBanner)
         self.SetIcon(Icon(bitmapBanner))
 
@@ -87,34 +90,12 @@ class EditorWindow(Editor):
         self.__widebrimRenderLayers.update(0)
         self.__widebrimRenderLayers.update(0)
     
-    def _addPage(self, initForPage, caption):
-        size = self.GetSize()
-        print(size)
-        self.auiTabs.AddPage(initForPage(self.auiTabs, 24, self._widebrimState), caption, select = True)
-        self.auiTabs.AddPage(FrameScriptEditor(self.auiTabs, 10030, self._widebrimState), "EVENT", select=True)
-        print(size)
-        self.SetSize(size)
-        #self.auiTabs.
-    
     def forceSyncOnButtonClick(self, event):
         page = self.auiTabs.GetCurrentPage()
         if type(page) == FramePuzzleEditor:
             page.syncChanges()
             print("CALLED SYNC")
         return super().forceSyncOnButtonClick(event)
-
-
-    #def _restartWidebrimPreview(self):
-    #    """Restart the widebrim preview engine.
-    #    Required in certain cases where hotpatching fails - for example,
-    #    databases loaded in the global game state are never reloaded.
-    #    """
-
-    #    # TODO - Remove all class instances, will lead to strange bugs in future!
-    #    # TODO - Remove all caching of instances. Will break something in future!
-    #    self._widebrimState = Layton2GameState()
-    #    self.__widebrimRenderLayers = None
-    #    self.__widebrimRenderSurface = Surface((RESOLUTION_NINTENDO_DS[0], RESOLUTION_NINTENDO_DS[1] * 2), 0 , 32)
     
     def _setWidebrimFramerate(self, fps):
         if 0 < fps <= 1000:
@@ -160,10 +141,13 @@ class EditorWindow(Editor):
         return super().widebrimButtonRestartStateOnButtonClick(event)
 
     def auiTabsOnAuiNotebookPageChanged(self, event):
+        # TODO - don't know what wx is doing but its causing state to be refreshed multiple times which slows everything down
         page = self.auiTabs.GetCurrentPage()
+        print("Page changed!", self.auiTabs.GetPageIndex(page))
         if type(page) == FramePuzzleEditor or type(page) == FrameScriptEditor:
             self.spawnHandler(page.prepareWidebrimState())
-        return super().auiTabsOnAuiNotebookPageChanged(event)
+        event.Skip()
+        #return super().auiTabsOnAuiNotebookPageChanged(event)
     
     def speedRealtimeOnMenuSelection(self, event):
         self._setWidebrimSpeedMultipler(1)
