@@ -29,7 +29,7 @@ debug.MainLoop()
 #testDialog = DialogueImportBackground(None)
 #testDialog.ShowModal()
 #testDialog.Destroy()
-
+# TODO - Doctor's home chain?
 
 # TODO - Puzzle 24, wrong number of operations
 # TODO - widebrim cleanup
@@ -43,6 +43,8 @@ pygame.quit()
 # TODO - New patch format that combines nazo data and nazo list entry
 # TODO - how are slots drawn? by character order or slot order?
 # TODO - event descriptions (unused db)
+# TODO - cut puzzles are bad lol
+# TODO - State not being cleared between puzzles (58, 59)
 
 
 # FS Plans

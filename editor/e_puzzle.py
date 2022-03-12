@@ -369,13 +369,26 @@ class FramePuzzleEditor(editorPuzzle):
         return super().textEditOnText(event)
 
     def paneEditParamOnCollapsiblePaneChanged(self, event):
-        self.editorScroll.Layout()
+        self.__onScrollSizeChange()
         return super().paneEditParamOnCollapsiblePaneChanged(event)
     
     def paneEditBackgroundsOnCollapsiblePaneChanged(self, event):
-        self.editorScroll.Layout()
+        self.__onScrollSizeChange()
         return super().paneEditBackgroundsOnCollapsiblePaneChanged(event)
     
     def paneEditTextOnCollapsiblePaneChanged(self, event):
-        self.editorScroll.Layout()
+        self.__onScrollSizeChange()
         return super().paneEditTextOnCollapsiblePaneChanged(event)
+    
+    def __onScrollSizeChange(self):
+        minSize = self.editorScroll.GetSizer().GetMinSize()
+        self.editorScroll.SetVirtualSize(minSize)
+        self.editorScroll.Layout()
+    
+    def editorScrollOnSize(self, event):
+        # idk why this works but it does. any call to setvirtualsize with anything remotely client-shaped works
+        # you can do -1,-1 as the size and it layouts properly. i don't understand but i don't need to understand :')
+        self.__onScrollSizeChange()
+        return super().editorScrollOnSize(event)
+    
+    # TODO - wrap works for params? why is that?
