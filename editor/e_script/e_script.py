@@ -8,11 +8,11 @@ from widebrim.engine_ext.utils import getAnimFromPath
 from widebrim.gamemodes.dramaevent.const import PATH_BODY_ROOT, PATH_BODY_ROOT_LANG_DEP
 from widebrim.madhatter.hat_io.asset_dat.event import EventData
 
-from .nopush_editor import editorScript
+from ..nopush_editor import editorScript
+from .opcode_translation import getInstructionName
 from wx import ID_ANY, DefaultPosition, Size, TAB_TRAVERSAL, EmptyString, NOT_FOUND
 
 from widebrim.madhatter.hat_io.asset_script import GdScript, Operand
-from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
 from widebrim.gui.command_annotator import Context
 from pygame import Surface
 from pygame.transform import flip
@@ -39,24 +39,7 @@ MAP_CHAR_ID_TO_NAME = {1:"Layton",
                        2:"Luke",
                        3:"Dr. Schrader"}
 
-MAP_OPCODE_TO_FRIENDLY = {OPCODES_LT2.TextWindow : "Dialogue",
-                          OPCODES_LT2.FadeOutOnlyMain : "Fade out (bottom screen)",
-                          OPCODES_LT2.SpriteOn : "Show character",
-                          OPCODES_LT2.SpriteOff : "Hide character",
-                          OPCODES_LT2.LoadBG : "Change background (bottom screen)",
-                          OPCODES_LT2.WaitFrame : "Pause for some frames",
-                          OPCODES_LT2.WaitInput : "Wait for input"}
-
-def getInstructionName(opcode : bytes) -> str:
-    try:
-        opcode = OPCODES_LT2(int.from_bytes(opcode, 'little'))
-        if opcode in MAP_OPCODE_TO_FRIENDLY:
-            return MAP_OPCODE_TO_FRIENDLY[opcode]
-        else:
-            return str(opcode.value)
-        # return OPCODES_LT2(int.from_bytes(opcode, 'little')).name
-    except:
-        return str(opcode)
+# TODO - Bugfix, scrollbar not resizing on minimize
 
 def getOperandName(opcode : bytes, operand : Operand) -> str:
     return str(operand.value)
