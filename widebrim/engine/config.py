@@ -13,6 +13,7 @@ FILE_USE_PATCH          = True                  # For patching - allows filesyst
 
 WINDOW_DEFAULT_NAME     = "widebrim"
 WINDOW_SCALE_TO_VIEW    = True                  # For high DPI devices, widebrim will be small at default resolution. Enable this to integer scale where possible
+WINDOW_USE_VSYNC        = True                  # Eliminates screen tearing. pygame has some issues with this flag, however, so disable this if you get a black screen
 
 PATH_ROM        = getcwd() + "\\rom2.nds"
 PATH_SAVE       = getcwd() + "\\rom2.sav"
