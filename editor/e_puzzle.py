@@ -2,9 +2,12 @@
 #        ordering for the embed to work without weird popup windows, etc.
 
 from typing import List, Optional
-from .nopush_editor import editorPuzzle
+
+from editor.puzzle.drawInput import DrawInputEditor
+from widebrim.madhatter.hat_io.asset_script import GdScript
+from .nopush_editor import editorDrawInput, editorPuzzle
 from widebrim.engine.anim.font.scrolling import ScrollingFontHelper
-from widebrim.engine.const import PATH_NAZO_A, PATH_NAZO_B, PATH_NAZO_C, PATH_PACK_NAZO, PATH_PACK_PLACE_NAME, PATH_PUZZLE_BG, PATH_PUZZLE_BG_LANGUAGE, PATH_PUZZLE_BG_NAZO_TEXT, PATH_TEXT_PLACE_NAME, RESOLUTION_NINTENDO_DS
+from widebrim.engine.const import PATH_NAZO_A, PATH_NAZO_B, PATH_NAZO_C, PATH_PACK_NAZO, PATH_PACK_PLACE_NAME, PATH_PACK_PUZZLE, PATH_PUZZLE_BG, PATH_PUZZLE_BG_LANGUAGE, PATH_PUZZLE_BG_NAZO_TEXT, PATH_PUZZLE_SCRIPT, PATH_TEXT_PLACE_NAME, RESOLUTION_NINTENDO_DS
 from widebrim.engine.file import FileInterface
 from widebrim.engine.state.enum_mode import GAMEMODES
 from widebrim.engine.state.state import Layton2GameState
@@ -41,6 +44,7 @@ class FramePuzzleEditor(editorPuzzle):
         self.__idInternal = internalId
         self.__nazoData : Optional[NazoDataNds] = None
         self.__nazoListEntry : Optional[NazoListNds] = None
+        self.__nazoScript = GdScript()
 
         self.__internalTextSurface  = Surface(RESOLUTION_NINTENDO_DS)
         self.__internalTextSurface.fill(FramePuzzleEditor.INVALID_FRAME_COLOR)
@@ -106,6 +110,10 @@ class FramePuzzleEditor(editorPuzzle):
         if self.__nazoData == None or self.__nazoListEntry == None:
             logSevere("ERROR LOADING DATA FOR PUZZLE", self.__idInternal)
             return
+
+        if (data := FileInterface.getPackedData(PATH_PUZZLE_SCRIPT, PATH_PACK_PUZZLE % self.__idInternal)) != None:
+            self.__nazoScript = GdScript()
+            self.__nazoScript.load(data)
         
         self.puzzleName.SetValue(self.__nazoData.getTextName())
         self.puzzlePicaratMax.ChangeValue(str(self.__nazoData.getPicaratStage(0)))
@@ -133,7 +141,12 @@ class FramePuzzleEditor(editorPuzzle):
                 if choice == val:
                     self.choicePlace.SetSelection(indexChoice)
                     break
-            
+        
+        if self.__nazoData.idHandler in [16, 20, 21, 22, 28, 32, 35]:
+            editor = DrawInputEditor(self.paneGameplayEditor.GetPane(), self.__nazoData, self.__nazoScript)
+            sizer = self.paneGameplayEditor.GetPane().GetSizer()
+            sizer.Add(editor, 0, wx.EXPAND)
+
         self._reloadActiveText()
         self._reloadBackgroundAnswer()
         self._reloadBackgroundMain()
@@ -380,10 +393,15 @@ class FramePuzzleEditor(editorPuzzle):
         self.__onScrollSizeChange()
         return super().paneEditTextOnCollapsiblePaneChanged(event)
     
+    def paneGameplayEditorOnCollapsiblePaneChanged(self, event):
+        self.__onScrollSizeChange()
+        return super().paneGameplayEditorOnCollapsiblePaneChanged(event)
+
     def __onScrollSizeChange(self):
         minSize = self.editorScroll.GetSizer().GetMinSize()
         self.editorScroll.SetVirtualSize(minSize)
         self.editorScroll.Layout()
+        self.Refresh()
     
     def editorScrollOnSize(self, event):
         # idk why this works but it does. any call to setvirtualsize with anything remotely client-shaped works

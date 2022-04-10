@@ -69,9 +69,9 @@ class OperandType(int, Enum):
 
     ModeBackground      = 40
 
-    IndexCharacter      = 50
-    IndexChapter        = 51
-    IndexEventCounter   = 52
+    IndexEventDataCharacter = 50
+    IndexChapter            = 51
+    IndexEventCounter       = 52
 
 class OperandCompatibility(int, Enum):
     """Enum storing compatible base case for all overriden operands. Required for validating allowed context replacement.
@@ -100,9 +100,9 @@ class OperandCompatibility(int, Enum):
 
     ModeBackground      = OperandType.StandardS32.value
 
-    IndexCharacter      = OperandType.StandardS32.value
-    IndexChapter        = OperandType.StandardS32.value
-    IndexEventCounter   = OperandType.StandardS32.value
+    IndexEventDataCharacter = OperandType.StandardS32.value
+    IndexChapter            = OperandType.StandardS32.value
+    IndexEventCounter       = OperandType.StandardS32.value
 
 class InstructionDescription():
     # TODO - Scoping, but tbh this won't be used anywhere sensitive
