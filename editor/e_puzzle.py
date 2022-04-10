@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from editor.puzzle.drawInput import DrawInputEditor
 from widebrim.madhatter.hat_io.asset_script import GdScript
-from .nopush_editor import editorDrawInput, editorPuzzle
+from .nopush_editor import editorPuzzle
 from widebrim.engine.anim.font.scrolling import ScrollingFontHelper
 from widebrim.engine.const import PATH_NAZO_A, PATH_NAZO_B, PATH_NAZO_C, PATH_PACK_NAZO, PATH_PACK_PLACE_NAME, PATH_PACK_PUZZLE, PATH_PUZZLE_BG, PATH_PUZZLE_BG_LANGUAGE, PATH_PUZZLE_BG_NAZO_TEXT, PATH_PUZZLE_SCRIPT, PATH_TEXT_PLACE_NAME, RESOLUTION_NINTENDO_DS
 from widebrim.engine.file import FileInterface
@@ -59,9 +59,15 @@ class FramePuzzleEditor(editorPuzzle):
 
         self.__rewardChoices = []
         self.__choiceToIdMap = []
-        self.__generateRewardChoices()
-        self.__generatePlaceStrings()
-        self._reload()
+
+        self._loaded = False
+
+    def ensureLoaded(self):
+        if not(self._loaded):
+            self.__generateRewardChoices()
+            self.__generatePlaceStrings()
+            self._reload()
+            self._loaded = True
 
     def __changeExternalIdSelection(self):
         if self.__nazoData != None:
@@ -143,7 +149,7 @@ class FramePuzzleEditor(editorPuzzle):
                     break
         
         if self.__nazoData.idHandler in [16, 20, 21, 22, 28, 32, 35]:
-            editor = DrawInputEditor(self.paneGameplayEditor.GetPane(), self.__nazoData, self.__nazoScript)
+            editor = DrawInputEditor(self.paneGameplayEditor.GetPane(), self.__state, self.__nazoData, self.__nazoScript)
             sizer = self.paneGameplayEditor.GetPane().GetSizer()
             sizer.Add(editor, 0, wx.EXPAND)
 
@@ -276,6 +282,7 @@ class FramePuzzleEditor(editorPuzzle):
         else:
             self.__internalTextSurface.fill(FramePuzzleEditor.INVALID_FRAME_COLOR)
 
+        self.__textRenderer.setColor((0,0,0))
         self.__textRenderer.setText(self.textEdit.GetValue(), substitute=False)
         # TODO - Reuse different renders (static for hint)
         self.__textRenderer.skip()
@@ -398,10 +405,12 @@ class FramePuzzleEditor(editorPuzzle):
         return super().paneGameplayEditorOnCollapsiblePaneChanged(event)
 
     def __onScrollSizeChange(self):
+        self.Freeze()
         minSize = self.editorScroll.GetSizer().GetMinSize()
         self.editorScroll.SetVirtualSize(minSize)
         self.editorScroll.Layout()
         self.Refresh()
+        self.Thaw()
     
     def editorScrollOnSize(self, event):
         # idk why this works but it does. any call to setvirtualsize with anything remotely client-shaped works

@@ -23,7 +23,12 @@ class FrameOverview(pageOverview):
         self._state = state
         self._treeItemEvent = None
         self._treeItemPuzzle = None
-        self._refresh()
+        self._loaded = False
+    
+    def ensureLoaded(self):
+        if not(self._loaded):
+            self._refresh()
+            self._loaded = True
     
     def __loadPuzzleCache(self):
         self._puzzles = getPuzzles(self._state)
@@ -74,7 +79,9 @@ class FrameOverview(pageOverview):
 
             # TODO - Want to click here, but wx seems to have a problem with strange page change events
             #        (this is immediately overridden, plus multiple page changes are being registered...)
+            self.GetParent().Freeze()
             self.GetParent().AddPage(FrameScriptEditor(self.GetParent(), eventId, self._state), name)
+            self.GetParent().Thaw()
 
         def handlePuzzleItem(item):
             idInternal = self.treeOverview.GetItemData(item)
@@ -82,7 +89,10 @@ class FrameOverview(pageOverview):
                 print("Cannot launch puzzle", idInternal)
                 return
             # TODO - See above
+            # TODO - Add page method this is stupid
+            self.GetParent().Freeze()
             self.GetParent().AddPage(FramePuzzleEditor(self.GetParent(), idInternal, self._state), self.treeOverview.GetItemText(item))
+            self.GetParent().Thaw()
 
         item = event.GetItem()
 

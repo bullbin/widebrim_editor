@@ -56,6 +56,7 @@ class FrameScriptEditor(editorScript):
 
     def __init__(self, parent, idEvent : int, state : Layton2GameState, id=ID_ANY, pos=DefaultPosition, size=Size(640, 640), style=TAB_TRAVERSAL, name=EmptyString):
         super().__init__(parent, id, pos, size, style, name)
+
         self.__state = state
         self.__context = None
         self.__eventData :  Optional[EventData] = None
@@ -74,10 +75,17 @@ class FrameScriptEditor(editorScript):
         self.__setContext(Context.DramaEvent)
         self.__selectedCharacterIndex : Optional[int] = None
 
-        self._refresh()
-        if self.__eventScript != None:
-            self.__generateScriptingTree(self.__eventScript)
+        self._loaded = False
     
+    def ensureLoaded(self):
+        if not(self._loaded):
+            self.Freeze()
+            self._refresh()
+            if self.__eventScript != None:
+                self.__generateScriptingTree(self.__eventScript)
+            self._loaded = True
+            self.Thaw()
+
     def __getItemIndex(self, itemId):
         indexItem = 0
         while True:
@@ -106,6 +114,7 @@ class FrameScriptEditor(editorScript):
         return (isInstruction, (indexInstruction, indexOperand))
 
     def buttonDeleteInstructionOnButtonClick(self, event):
+        # TODO - VFS insert and delete for less dangerous effects on sync.
         itemId = self.treeScript.GetSelection()
         isInstruction, instructionDetails = self.__decodeTreeItem(itemId)
         if instructionDetails != None:
@@ -123,6 +132,11 @@ class FrameScriptEditor(editorScript):
         else:
             print("Instruction", instructionDetails[0], "Operand", instructionDetails[1])
         # return super().treeScriptOnTreeItemActivated(event)
+
+    def syncChanges(self):
+        # TODO - Compile here
+        # FileInterface.getPack()
+        pass
 
     def _refresh(self):
 

@@ -45,7 +45,7 @@ from editor.nopush_editor import Editor
 from widebrim.engine.state.enum_mode import GAMEMODES
 from widebrim.engine_ext.state_game import ScreenCollectionGameModeSpawner
 
-from wx import Timer, EVT_TIMER, EVT_PAINT, Bitmap, ClientDC, PaintDC, Icon
+from wx import Timer, EVT_TIMER, EVT_PAINT, EVT_CLOSE, Bitmap, ClientDC, PaintDC, Icon, CallAfter, aui
 from wx import Image as WxImageNonConflict
 from widebrim.engine.state.state import Layton2GameState
 from widebrim.engine.file import FileInterface
@@ -54,6 +54,9 @@ from editor.e_puzzle import FramePuzzleEditor
 from editor.e_script import FrameScriptEditor
 from editor.e_overview import FrameOverview
 from widebrim.engine_ext.rom.banner import getBannerImageFromRom, getNameStringFromRom
+from threading import Thread, Lock
+from time import sleep, perf_counter
+from traceback import print_exc
 
 class EditorWindow(Editor):
     def __init__(self, parent):
@@ -66,14 +69,21 @@ class EditorWindow(Editor):
         self.__widebrimRenderLayers : Optional[ScreenCollectionGameModeSpawner] = None
         self.__widebrimSpeedMultipler = 1
 
+        # TODO - Handle termination better, do not access state outside of here (thread safety...)
+        self.__widebrimIsBusy = False
+        self.__widebrimLastUpdateTime = 0
+        self.__widebrimDrawLock = Lock()            # Lock to prevent widebrim screen being modified while update is running
+        self.__widebrimStateLock = Lock()           # Lock to prevent widebrim state being modified while update is running
+
         # Bind drawing and timing events to pygame routines
         self.Bind(EVT_PAINT, self.__repaintWidebrim)
         self.Bind(EVT_TIMER, self.__updateWidebrim, self.__widebrimTimer)
+        self.Bind(EVT_CLOSE, self.__doOnClose)
         self.spawnHandler(GAMEMODES.Reset)
 
         self.auiTabs.AddPage(FrameOverview(self.auiTabs, self._widebrimState), "Overview", select=False)
-
-        self._setWidebrimFramerate(30)
+        self.framesExtended.Check()
+        self._setWidebrimFramerate(1000)
         self.__refreshRomProperties()
 
     def __refreshRomProperties(self):
@@ -85,21 +95,38 @@ class EditorWindow(Editor):
         self.SetIcon(Icon(bitmapBanner))
 
     def spawnHandler(self, gamemode):
+        # Acquire all resources to make sure that widebrim is not operating at all on anything when we tell it to change states
+        # Prevents breaking everything
+        self.__widebrimStateLock.acquire()
+        self.__widebrimDrawLock.acquire()
         self._widebrimState.setGameMode(gamemode)
         self.__widebrimRenderLayers = ScreenCollectionGameModeSpawner(self._widebrimState)
-        self.__widebrimRenderLayers.update(0)
-        self.__widebrimRenderLayers.update(0)
+        self.__widebrimDrawLock.release()
+        self.__widebrimStateLock.release()
     
     def forceSyncOnButtonClick(self, event):
         page = self.auiTabs.GetCurrentPage()
-        if type(page) == FramePuzzleEditor:
+        print("CALLED SYNC")
+        try:
             page.syncChanges()
-            print("CALLED SYNC")
+        except AttributeError as e:
+            print("WARNING: Page probably doesn't have syncChange method...")
+            print_exc()
+        
         return super().forceSyncOnButtonClick(event)
-    
+
+    def __doOnClose(self, event):
+        # Stop the timer to prevent widebrim being updated
+        self.__widebrimTimer.Stop()
+        # Allow thread to terminate on its own
+        while self.__widebrimIsBusy:
+            sleep(0.5)
+        event.Skip()
+
     def _setWidebrimFramerate(self, fps):
         if 0 < fps <= 1000:
             self.__widebrimTimer.Stop()
+            self.__widebrimLastUpdateTime = perf_counter()
             self.__widebrimTimer.Start(1000//fps, False)
             return True
         return False
@@ -111,11 +138,10 @@ class EditorWindow(Editor):
         return False
 
     def __drawWidebrim(self, dc):
-        if self.__widebrimRenderLayers != None:
-            self.__widebrimRenderLayers.draw(self.__widebrimRenderSurface)
-        
         pos = self.__widebrimAnchor.GetPosition()
+        self.__widebrimDrawLock.acquire()
         s = pygame.image.tostring(self.__widebrimRenderSurface, 'RGB')                             # Convert surface to raw image
+        self.__widebrimDrawLock.release()
         img = WxImageNonConflict(self.__widebrimRenderSurface.get_width(), self.__widebrimRenderSurface.get_height(), s)  # Load image into wx
         bmp = Bitmap(img)                                                           # Convert image to bitmap
         dc.DrawBitmap(bmp, pos.x, pos.y, False)                                                # Draw bitmap over embedded zone
@@ -126,13 +152,42 @@ class EditorWindow(Editor):
         event.Skip()
 
     def __updateWidebrim(self, event):
-        if self.__widebrimRenderLayers != None:
-            self.__widebrimRenderLayers.update(self.__widebrimTimer.GetInterval() * self.__widebrimSpeedMultipler)
-            for event in pygame.event.get():
-                if event.type == pygame.MOUSEBUTTONUP or event.type == pygame.MOUSEBUTTONDOWN:
-                    self.__widebrimRenderLayers.handleTouchEvent(event)
 
-        self.__drawWidebrim(ClientDC(self))
+        def redraw():
+            self.__drawWidebrim(ClientDC(self))
+
+        def updateWidebrimState():
+            if self.__widebrimRenderLayers != None:
+                self.__widebrimStateLock.acquire()
+                elapsed = perf_counter() - self.__widebrimLastUpdateTime
+                try:
+                    self.__widebrimRenderLayers.update(elapsed * 1000 * self.__widebrimSpeedMultipler)
+                except Exception as e:
+                    print("Error occured during widebrim update!")
+                    print("\tThis is usually recoverable; to prevent the GUI from crashing, we will continue.")
+                    print_exc()
+                for event in pygame.event.get():
+                    if event.type == pygame.MOUSEBUTTONUP or event.type == pygame.MOUSEBUTTONDOWN:
+                        self.__widebrimRenderLayers.handleTouchEvent(event)
+
+                self.__widebrimLastUpdateTime = perf_counter()
+                self.__widebrimStateLock.release()
+            
+            if self.__widebrimRenderLayers != None:
+                self.__widebrimDrawLock.acquire()
+                self.__widebrimRenderLayers.draw(self.__widebrimRenderSurface)
+                self.__widebrimDrawLock.release()
+            
+            CallAfter(redraw)
+            self.__widebrimIsBusy = False
+        
+        # Don't spawn multiple update threads
+        if self.__widebrimIsBusy == False:
+            self.__widebrimIsBusy = True
+            widebrimUpdateThread = Thread(target=updateWidebrimState)
+            widebrimUpdateThread.start()
+
+        event.Skip()
     
     def widebrimButtonRestartStateOnButtonClick(self, event):
         page = self.auiTabs.GetCurrentPage()
@@ -140,14 +195,31 @@ class EditorWindow(Editor):
             self.spawnHandler(page.prepareWidebrimState())
         return super().widebrimButtonRestartStateOnButtonClick(event)
 
+    def auiTabsOnAuiNotebookPageClose(self, event):
+        indexPage = event.GetSelection()
+        page = self.auiTabs.GetPage(indexPage)
+        if type(page) == FrameOverview:
+            event.Veto()
+        else:
+            event.Skip()
+        return super().auiTabsOnAuiNotebookPageClose(event)
+
     def auiTabsOnAuiNotebookPageChanged(self, event):
         # TODO - don't know what wx is doing but its causing state to be refreshed multiple times which slows everything down
+        # TODO - Change this, multiple pages can cause bugs (close one, previous may not update)
         page = self.auiTabs.GetCurrentPage()
-        print("Page changed!", self.auiTabs.GetPageIndex(page))
+        page.ensureLoaded()
+
+        # Disable close on overview
+        if type(page) == FrameOverview:
+            self.auiTabs.SetWindowStyle(self.auiTabs.GetWindowStyle() & ~aui.AUI_NB_CLOSE_ON_ACTIVE_TAB)
+        else:
+            self.auiTabs.SetWindowStyle(self.auiTabs.GetWindowStyle() | aui.AUI_NB_CLOSE_ON_ACTIVE_TAB)
+
         if type(page) == FramePuzzleEditor or type(page) == FrameScriptEditor:
+            # TODO - Not thread safe
             self.spawnHandler(page.prepareWidebrimState())
         event.Skip()
-        #return super().auiTabsOnAuiNotebookPageChanged(event)
     
     def speedRealtimeOnMenuSelection(self, event):
         self._setWidebrimSpeedMultipler(1)
@@ -168,6 +240,11 @@ class EditorWindow(Editor):
     def framesHalfOnMenuSelection(self, event):
         self._setWidebrimFramerate(30)
         return super().framesHalfOnMenuSelection(event)
+    
+    def framesExtendedOnMenuSelection(self, event):
+        # This seems crazy but the timer seems to be VSync restricted anyway
+        self._setWidebrimFramerate(1000)
+        return super().framesExtendedOnMenuSelection(event)
     
     # TODO - Pause, play
     def submenuEnginePauseOnMenuSelection(self, event):
