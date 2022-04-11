@@ -219,7 +219,7 @@ def getBottomScreenAnimFromPath(laytonState : Layton2GameState, inPath : str, sp
         else:
             tempImage = AnimatedImageObject.fromMadhatter(tempImage)
         
-        if pos == (0,0):
+        if pos == (0,0) and namePosVar != None:
             if (posData := tempImage.getVariable(namePosVar)) != None:
                 tempImage.setPos(offsetVectorToSecondScreen((posData[0], posData[1])))
         else:

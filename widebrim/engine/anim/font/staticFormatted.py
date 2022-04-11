@@ -31,14 +31,19 @@ class StaticTextHelper():
         self._color = triplet
         self._tintSurface.fill(triplet)
 
-    def setText(self, text):
+    def setText(self, text, substitute=True):
         # Clear current stored text
         self._outputLineSurfaces = []
         self._outputLineSurfaceTrueWidths = []
         self._workingLineSurfaceIndex = 0
         self._workingLineXOffset = 0
         self._offsetText = 0
-        self._text = getSubstitutedString(text)
+
+        # TODO - Should unify this
+        if substitute:
+            self._text = getSubstitutedString(text)
+        else:
+            self._text = text
 
         lineWidths = []
         # Only account for line breaks

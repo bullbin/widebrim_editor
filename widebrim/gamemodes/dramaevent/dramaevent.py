@@ -1,10 +1,11 @@
 from __future__ import annotations
-from typing import Callable, Dict, List, Optional, TYPE_CHECKING
+from typing import Callable, Dict, List, Optional, TYPE_CHECKING, Union
 from widebrim.engine.string.cmp import strCmp
 from widebrim.engine_ext.const import SHAKE_PIX
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
 from widebrim.gamemodes.dramaevent.popup.utils import FadingPopupAnimBackground, FadingPopupMultipleAnimBackground
 from widebrim.engine_ext.utils import getAnimFromPath, getBottomScreenAnimFromPath, getTxt2String
+from widebrim.madhatter.hat_io.asset_dat.event import EventData
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
@@ -32,9 +33,6 @@ from .popup import *
 from ..core_popup.save import SaveLoadScreenPopup
 
 from .const import *
-
-# TODO - Remove workaround by properly creating library
-from ...madhatter.hat_io.binary import BinaryReader
 
 from pygame import Surface, MOUSEBUTTONUP, event
 from pygame.transform import flip
@@ -281,8 +279,6 @@ class EventPlayer(ScriptPlayer):
         ScriptPlayer.__init__(self, laytonState, screenController, GdScript())
 
         # TODO - Type checking
-        self.laytonState : Layton2GameState
-
         self.laytonState.setGameMode(GAMEMODES.Room)
         self._packEventTalk : Optional[VirtualArchive] = None
 
@@ -318,15 +314,12 @@ class EventPlayer(ScriptPlayer):
                 packEventScript = FileInterface.getPack(getEventScriptPath())
                 self._packEventTalk = FileInterface.getPack(getEventTalkPath())
 
-                self._script.load(packEventScript.getData(PATH_PACK_EVENT_SCR % (self._idMain, self._idSub)))
-                eventData = packEventScript.getData(PATH_PACK_EVENT_DAT % (self._idMain, self._idSub))
+                eventData = EventData()
 
-                # TODO - Rewrite event info module
-
-                if eventData == None:
+                if (data := packEventScript.getData(PATH_PACK_EVENT_DAT % (self._idMain, self._idSub))) != None:
+                    eventData.load(data)
+                else:
                     raise FileInvalidCritical()
-            
-                eventData = BinaryReader(data=eventData)
 
                 # Event_MaybeLoadEvent
                 # Wants to set gamemode to puzzle, but this is overriden by setting to room. Done in different functions in game but both run during event
@@ -337,50 +330,7 @@ class EventPlayer(ScriptPlayer):
                 if spawnEventData != None and spawnEventData.indexEventViewedFlag != None:
                     self.laytonState.saveSlot.eventViewed.setSlot(True, spawnEventData.indexEventViewedFlag)
 
-                self.screenController.setBgMain(PATH_PLACE_BG % eventData.readU16())
-                indexSubBg = eventData.readU16()
-                if 0x32 <= indexSubBg <= 0x36:
-                    self.screenController.setBgSub(PATH_EVENT_BG_LANG_DEP % indexSubBg)
-                else:
-                    self.screenController.setBgSub(PATH_EVENT_BG % indexSubBg)
-
-                # TODO - Remove this to populate event data structure
-                # 1 - Nothing
-                # 2 - Fade in main screen
-                # 3, 0 - Fade in both screens and modify main palette
-                # else - Fade in both screens
-                # There is another check for customSoundSet != 2 and behaviour != 3 but this is sound-related
-                # customSoundSet != 1 means fade out on exit...
-
-                introBehaviour = eventData.readUInt(1)
-                if introBehaviour == 0 or introBehaviour == 3:
-                    self.screenController.modifyPaletteMain(120)
-                
-                if introBehaviour != 1:
-                    self.screenController.fadeIn()
-
-                # TODO - MaybeLoadCharactersFromData - language specific and boundary checks
-                eventData.seek(6)
-                for charIndex in range(8):
-                    character = eventData.readUInt(1)
-                    if character != 0:
-                        self.characters.append(CharacterController(self.laytonState, character))
-                        self.characterSpawnIdToCharacterMap[character] = self.characters[-1]
-
-                for charIndex in range(8):
-                    slot = eventData.readUInt(1)
-                    if charIndex < len(self.characters):
-                        self.characters[charIndex].setCharacterSlot(slot)
-
-                for charIndex in range(8):
-                    visibility = eventData.readUInt(1) == 1
-                    if charIndex < len(self.characters):
-                        self.characters[charIndex].setVisibility(visibility)
-                
-                for charIndex in range(8):
-                    animIndex = eventData.readUInt(1)
-                    if charIndex < len(self.characters):
-                        self.characters[charIndex].setCharacterAnimationFromIndex(animIndex)
+                self._loadEventAndScriptData(packEventScript.getData(PATH_PACK_EVENT_SCR % (self._idMain, self._idSub)), eventData)
 
             except TypeError:
                 print("Failed to catch script data for event!")
@@ -388,7 +338,52 @@ class EventPlayer(ScriptPlayer):
             except FileInvalidCritical:
                 print("Failed to fetch required data for event!")
                 self.doOnKill()
+    
+    def _loadEventAndScriptData(self, script : Union[GdScript, bytes], data : EventData):
+        if type(script) == GdScript:
+            self._script = script
+        else:
+            self._script.load(script)
+
+        self.screenController.setBgMain(PATH_PLACE_BG % data.mapBsId)
+        if 0x32 <= data.mapTsId <= 0x36:
+            self.screenController.setBgSub(PATH_EVENT_BG_LANG_DEP % data.mapTsId)
+        else:
+            self.screenController.setBgSub(PATH_EVENT_BG % data.mapTsId)
+
+        # TODO - Remove this to populate event data structure
+        # 1 - Nothing
+        # 2 - Fade in main screen
+        # 3, 0 - Fade in both screens and modify main palette
+        # else - Fade in both screens
+        # There is another check for customSoundSet != 2 and behaviour != 3 but this is sound-related
+        # customSoundSet != 1 means fade out on exit...
+
+        introBehaviour = data.behaviour
+        if introBehaviour == 0 or introBehaviour == 3:
+            self.screenController.modifyPaletteMain(120)
         
+        if introBehaviour != 1:
+            self.screenController.fadeIn()
+
+        # TODO - MaybeLoadCharactersFromData - language specific and boundary checks
+        for charIndex, character in enumerate(data.characters):
+            if character != 0:
+                self.characters.append(CharacterController(self.laytonState, character))
+                self.characterSpawnIdToCharacterMap[character] = self.characters[-1]
+
+        for charIndex, slot in enumerate(data.charactersPosition):
+            if charIndex < len(self.characters):
+                self.characters[charIndex].setCharacterSlot(slot)
+
+        for charIndex, visibility in enumerate(data.charactersShown):
+            if charIndex < len(self.characters):
+                self.characters[charIndex].setVisibility(visibility)
+        
+        for charIndex, animIndex in enumerate(data.charactersInitialAnimationIndex):
+            if charIndex < len(self.characters):
+                self.characters[charIndex].setCharacterAnimationFromIndex(animIndex)
+
     def doOnComplete(self):
         if self._doGoalSet:
             goalInfoEntry = self.laytonState.getGoalInfEntry(self._id)

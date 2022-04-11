@@ -5,8 +5,9 @@ import ndspy.rom
 from widebrim.madhatter.hat_io import asset
 from widebrim.madhatter.common import log, logSevere
 from widebrim.engine.config import DEBUG_ALLOW_WIDEBRIM_NO_ROM, FILE_USE_PATCH, PATH_PATCH, PATH_ROM
-from os import path
+from os import makedirs, path
 
+from widebrim.madhatter.hat_io.asset import File
 from widebrim.madhatter.hat_io.const import ENCODING_DEFAULT_STRING
 from .exceptions import PathInvalidRom, RomInvalid
 from widebrim.engine.const import ADDRESS_ARM9_POINTER_FUNC_LANGUAGE, DICT_ID_TO_LANGUAGE, LANGUAGES
@@ -44,6 +45,26 @@ class VirtualArchive():
                 except OSError:
                     pass
         return self.__romArchive.getFile(nameFile)
+
+    # TODO - File objects not really used
+    def writeData(self, nameFile : str, data : bytes) -> bool:
+        # TODO - No way of knowing references, constant repacking is slow for ROM accessing
+        if self.__allowPatch:
+            namePath = path.join(PATH_PATCH, _getResolvedPatchPath(self.__pathPatchArchive))
+            makedirs(namePath, exist_ok=True)
+            try:
+                with open(path.join(namePath, nameFile), 'wb') as outputFile:
+                    outputFile.write(data)
+                return True
+            except OSError:
+                return False
+        else:
+            # TODO - Extension?
+            self.__romArchive.files.append(File(name=nameFile, data=data))
+            self.__romArchive.save()
+            self.__romArchive.compress(addHeader=True)
+            # TODO - Will fail with new directories
+            FileInterface.getRom().setFileByName(self.__pathPatchArchive, self.__romArchive.data)
 
     def getString(self, nameFile : str) -> Optional[str]:
         data = self.getData(nameFile)
@@ -164,6 +185,19 @@ class FileInterface():
             return data
         return FileInterface._dataFromRom(filepath)
     
+    @staticmethod
+    def writeData(filepath : str, data : bytes, usePatch=True) -> bool:
+        if FILE_USE_PATCH and usePatch:
+            namePath = path.join(PATH_PATCH, _getResolvedPatchPath(filepath))
+            dirPath = path.dirname(namePath)
+            makedirs(dirPath, exist_ok=True)
+            with open(namePath, 'wb') as outputFile:
+                outputFile.write(data)
+            return True
+        else:
+            logSevere("Unimplemented: Writes to ROM instead of patch!")
+            return False
+
     @staticmethod
     def getPack(filepath : str, usePatch=True) -> VirtualArchive:
         """Get an archive object representing files stored in the pack at the given filepath.

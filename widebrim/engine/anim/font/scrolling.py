@@ -64,10 +64,13 @@ class ScrollingFontHelper():
         self._durationWaiting = 0
         self._isWaitingForTap = False
 
-    def setText(self, text):
+    def setText(self, text, substitute=True):
         # Clear current stored text
         self._reset()
-        self._text = getSubstitutedString(text)
+        if substitute:
+            self._text = getSubstitutedString(text)
+        else:
+            self._text = text
         self._hasCharsRemaining = True
 
         lineWidths = []

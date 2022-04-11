@@ -640,6 +640,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
                             if LIMIT_ID_PUZZLE_START <= idEvent < LIMIT_ID_TEA_START:
                                 # Event depends on puzzle, so check if puzzle was solved
                                 if (nazoListEntry := self.laytonState.getNazoListEntry(eventInfo.dataPuzzle)) != None:
+                                    # TODO - Isn't this wrong?
                                     if (puzzleData := self.laytonState.saveSlot.puzzleData.getPuzzleData(nazoListEntry.idExternal)) != None:
                                         if puzzleData.wasSolved:
                                             idEvent += 2

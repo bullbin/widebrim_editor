@@ -37,6 +37,7 @@ class QuestionEndPopup(FullScreenPopup):
             if laytonState.wasPuzzleSolved:
                 # TODO - When is encountered flag set?
                 # TODO - Set reward flag
+                # TODO - Why are we loading two backgrounds??
                 entryPuzzle.wasSolved = True
                 screenController.setBgMain(PATH_BG_PASS % laytonState.getNazoData().getBgSubIndex())
                 self._textScroller.setText(laytonState.getNazoData().getTextCorrect())
