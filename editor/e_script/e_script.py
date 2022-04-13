@@ -4,7 +4,7 @@ from widebrim.engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_E
 from widebrim.engine.file import FileInterface
 from widebrim.engine.state.enum_mode import GAMEMODES
 from widebrim.engine.state.state import Layton2GameState
-from widebrim.engine_ext.utils import getAnimFromPath
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
 from widebrim.gamemodes.dramaevent.const import PATH_BODY_ROOT, PATH_BODY_ROOT_LANG_DEP
 from widebrim.madhatter.hat_io.asset_dat.event import EventData
 
@@ -183,6 +183,7 @@ class FrameScriptEditor(editorScript):
                     else:
                         newItems.append(str(character))
                     self.__eventCharacters.append(self.__getCharacter(character))
+                    self.__eventCharacters[-1].setPos((0,0))
                 self.listAllCharacters.AppendItems(newItems)
                 if len(eventData.characters) > 0:
                     self.listAllCharacters.SetSelection(0)
@@ -204,8 +205,8 @@ class FrameScriptEditor(editorScript):
 
     def __getCharacter(self, indexCharacter : int) -> Optional[AnimatedImageObject]:
         if indexCharacter == 86 or indexCharacter == 87:
-            return getAnimFromPath((PATH_BODY_ROOT_LANG_DEP % indexCharacter).replace("?", self.__state.language.value), enableSubAnimation=True)
-        return getAnimFromPath(PATH_BODY_ROOT % indexCharacter, enableSubAnimation=True)
+            return getBottomScreenAnimFromPath(self.__state, (PATH_BODY_ROOT_LANG_DEP % indexCharacter), enableSubAnimation=True)
+        return getBottomScreenAnimFromPath(self.__state, PATH_BODY_ROOT % indexCharacter, enableSubAnimation=True)
 
     def __generateAnimCheckboxes(self):
 

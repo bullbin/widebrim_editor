@@ -9,7 +9,7 @@ from widebrim.madhatter import common
 def noLog(*args, **kwargs):
     pass
 
-common.log = noLog
+common.logVerbose = noLog
 
 from wx import App
 from editor.embed_mod import EditorWindow
