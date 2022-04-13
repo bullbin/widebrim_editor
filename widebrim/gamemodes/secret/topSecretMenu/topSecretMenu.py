@@ -2,9 +2,8 @@ from __future__ import annotations
 from typing import List, Optional, TYPE_CHECKING
 
 from widebrim.engine.state.layer import ScreenLayerNonBlocking
-from widebrim.engine.const import RESOLUTION_NINTENDO_DS
 from widebrim.engine.state.enum_mode import GAMEMODES
-from widebrim.engine_ext.utils import getAnimFromPath, getButtonFromPath, getStaticButtonFromAnim, offsetVectorToSecondScreen
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getButtonFromPath, getStaticButtonFromAnim, offsetVectorToSecondScreen
 from widebrim.engine.anim.image_anim.imageAsNumber import StaticImageAsNumericalFont
 
 from .const import *
@@ -27,7 +26,7 @@ class TopSecretMenuPlayer(ScreenLayerNonBlocking):
             if button != None:
                 self.__buttons.append(button)
 
-        self.__animBtn = getAnimFromPath(PATH_ANIM_SECRET_BUTTON % laytonState.language.value)
+        self.__animBtn = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_SECRET_BUTTON)
 
         positions = [POS_BTN_0, POS_BTN_1, POS_BTN_2, POS_BTN_3, POS_BTN_4]
         names = [NAME_ANIM_BTN_0, NAME_ANIM_BTN_1, NAME_ANIM_BTN_2, NAME_ANIM_BTN_3, NAME_ANIM_BTN_4]
@@ -39,7 +38,7 @@ class TopSecretMenuPlayer(ScreenLayerNonBlocking):
                     addButtonIfNotNone(getStaticButtonFromAnim(self.__animBtn, name, pos=pos, callback=callback, clickOffset=BTN_CLICK_OFFSET))
         addButtonIfNotNone(getStaticButtonFromAnim(self.__animBtn, NAME_ANIM_BTN_5, pos=POS_BTN_5, callback=self.__callbackOnBtnPasscode ,clickOffset=BTN_CLICK_OFFSET))
 
-        if (animFont := getAnimFromPath(PATH_ANIM_PICARAT_NUM)) != None:
+        if (animFont := getBottomScreenAnimFromPath(laytonState, PATH_ANIM_PICARAT_NUM)) != None:
             self.__numRenderer = StaticImageAsNumericalFont(animFont, stride=STRIDE_PICARAT, text=self.__laytonState.saveSlot.picarats, maxNum=9999, usePadding=True)
             self.__numRenderer.setPos(offsetVectorToSecondScreen(POS_PICARAT_DISPLAY))
 

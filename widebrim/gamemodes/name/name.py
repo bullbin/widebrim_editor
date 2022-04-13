@@ -1,19 +1,19 @@
 from widebrim.engine.string.cmp import strCmp
-from ...engine.state.layer import ScreenLayerNonBlocking
-from ...engine.state.enum_mode import GAMEMODES
-from ...engine.const import RESOLUTION_NINTENDO_DS
-from ...engine.exceptions import FileInvalidCritical
-from ...engine.anim.button import StaticButton, NullButton
-from ...engine.string import getSubstitutedString
-from ...engine.anim.font.static import generateImageFromStringStrided
-from ...engine_ext.utils import getAnimFromPath
+from widebrim.engine.state.layer import ScreenLayerNonBlocking
+from widebrim.engine.state.enum_mode import GAMEMODES
+from widebrim.engine.const import RESOLUTION_NINTENDO_DS
+from widebrim.engine.exceptions import FileInvalidCritical
+from widebrim.engine.anim.button import StaticButton, NullButton
+from widebrim.engine.string import getSubstitutedString
+from widebrim.engine.anim.font.static import generateImageFromStringStrided
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
 from .const import PATH_BG_NAME_1, PATH_BG_NAME_2, PATH_BG_NAME_3, PATH_BG_NAME_4, PATH_BG_SUB_HAM, PATH_BG_SUB_NAME, PATH_ANI_BUTTON, PATH_ANI_CURSOR, PATH_ANI_OK, POS_BUTTON_OK
 from .const import POS_BUTTON_DOWN, SIZE_BUTTON_DOWN, POS_BUTTON_SHIFT, SIZE_BUTTON_SHIFT, COUNT_KEY, COUNT_KEY_SPECIAL, SIZE_KEY
 from .const import PATH_PACK_TEXT, PATH_KIGOU, PATH_KOMOJI, PATH_OOMOJI, PATH_TOKUSHU
 from .const import BTN_NORMAL_NAME, BTN_NORMAL_POS, BTN_ACCENT_NAME, BTN_ACCENT_POS, BTN_SPACE_NAME, BTN_SPACE_POS, BTN_BACK_NAME, BTN_BACK_POS, POS_ANI_CURSOR, STRIDE_CHARACTER, POS_ENTRY_TEXT
 from .const import NAMES_BLOCKED, PATH_BAD_NAME, POS_BAD_NAME
 
-from ...engine.file import FileInterface
+from widebrim.engine.file import FileInterface
 from pygame import MOUSEBUTTONUP, BLEND_RGB_SUB, BLEND_RGB_MULT, Surface
 
 # TODO - This needs rewrite. Especially after doing CodeInput some of this is stupid
@@ -132,7 +132,7 @@ class NamePlayer(ScreenLayerNonBlocking):
                                     POS_BUTTON_SHIFT[1] + RESOLUTION_NINTENDO_DS[1] + SIZE_BUTTON_SHIFT[1]),
                                    callback = callbackOnShift)
 
-        tempBankButtons = getAnimFromPath(PATH_ANI_BUTTON)
+        tempBankButtons = getBottomScreenAnimFromPath(laytonState, PATH_ANI_BUTTON)
 
         def getButtonFromBank(bank, name, pos, callback):
             bank.setAnimationFromName(name)
@@ -143,17 +143,13 @@ class NamePlayer(ScreenLayerNonBlocking):
         self.buttonSpace = getButtonFromBank(tempBankButtons, BTN_SPACE_NAME, BTN_SPACE_POS, callbackOnSpace)
         self.buttonErase = getButtonFromBank(tempBankButtons, BTN_BACK_NAME, BTN_BACK_POS, callbackOnErase)
 
-        self.buttonOk = getAnimFromPath(PATH_ANI_OK.replace("?", self.laytonState.language.value))
-        self.buttonOk.setAnimationFromName("gfx")
+        self.buttonOk = getBottomScreenAnimFromPath(laytonState, PATH_ANI_OK)
         self.buttonOk = StaticButton((POS_BUTTON_OK[0], POS_BUTTON_OK[1] + RESOLUTION_NINTENDO_DS[1]), self.buttonOk.getActiveFrame(), callback=callbackOnOk, targettedOffset=(1,1))
 
-        self.surfaceBadName = getAnimFromPath(PATH_BAD_NAME.replace("?", self.laytonState.language.value))
-        self.surfaceBadName.setAnimationFromName("gfx")
+        self.surfaceBadName = getBottomScreenAnimFromPath(laytonState, PATH_BAD_NAME)
         self.surfaceBadName.setPos(((RESOLUTION_NINTENDO_DS[0] - self.surfaceBadName.getDimensions()[0]) // 2, POS_BAD_NAME[1] + RESOLUTION_NINTENDO_DS[1]))
 
-        self.animCursor = getAnimFromPath(PATH_ANI_CURSOR)
-        self.animCursor.setAnimationFromIndex(1)
-        self.animCursor.setPos((POS_ANI_CURSOR[0], POS_ANI_CURSOR[1] + RESOLUTION_NINTENDO_DS[1]))
+        self.animCursor = getBottomScreenAnimFromPath(laytonState, PATH_ANI_CURSOR, pos=POS_ANI_CURSOR)
 
         self.surfaceEntry = None
         self.surfaceHighlight = Surface(SIZE_KEY)

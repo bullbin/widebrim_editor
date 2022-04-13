@@ -1,6 +1,6 @@
-from ....engine.const import RESOLUTION_NINTENDO_DS
-from ....engine_ext.utils import getAnimFromPath
-from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from widebrim.engine.const import RESOLUTION_NINTENDO_DS
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
+from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
 from .base import BaseQuestionObject
 from .const import PATH_ANI_SLIDE2_NUMBERS, PATH_ANI_SLIDE2
 from pygame import MOUSEBUTTONUP, MOUSEBUTTONDOWN, MOUSEMOTION, Rect
@@ -68,7 +68,7 @@ class HandlerShortbrimSlide2(BaseQuestionObject):
         self.tileSize = (0,0)
         self.tileMap = None
 
-        self.countMoveFont = getAnimFromPath(PATH_ANI_SLIDE2_NUMBERS)
+        self.countMoveFont = getBottomScreenAnimFromPath(laytonState, PATH_ANI_SLIDE2_NUMBERS)
         self.countMoves = 0
 
         self.shapes = []
@@ -213,7 +213,7 @@ class HandlerShortbrimSlide2(BaseQuestionObject):
             self.tileSolution[operands[0].value] = (operands[1].value, operands[2].value)
         elif opcode == OPCODES_LT2.AddSlide2Sprite.value: # Add tilemap
             # TODO - doOnComplete to ensure tile map being a late command doesn't impact future commands
-            self.tileMap = getAnimFromPath(PATH_ANI_SLIDE2 % operands[0].value)
+            self.tileMap = getBottomScreenAnimFromPath(self.laytonState, PATH_ANI_SLIDE2 % operands[0].value)
         elif opcode == OPCODES_LT2.AddSlide2Object.value: # Add tile
             # Unk, (animName, animName), (tileX, tileY)
             # TODO - What does operand 0 do?

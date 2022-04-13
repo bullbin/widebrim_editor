@@ -1,6 +1,6 @@
-from ....engine_ext.utils import getAnimFromPath
-from ....engine.const import RESOLUTION_NINTENDO_DS
-from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
+from widebrim.engine.const import RESOLUTION_NINTENDO_DS
+from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
 
 from .base import BaseQuestionObject
 from .const import PATH_ANI_ROSE
@@ -59,7 +59,7 @@ class HandlerShortbrimRose(BaseQuestionObject):
         self.wallsVertical = []
         self.wallsHorizontal = []
 
-        resource = getAnimFromPath(PATH_ANI_ROSE)
+        resource = getBottomScreenAnimFromPath(laytonState, PATH_ANI_ROSE)
 
         def setAnimationFromNameAndReturnInitialFrame(name):
             if resource != None and resource.setAnimationFromName(name):

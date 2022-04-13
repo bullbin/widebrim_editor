@@ -10,7 +10,7 @@ from ...engine.const import CIPHER_IV, RESOLUTION_NINTENDO_DS
 from ...engine.exceptions import FileInvalidCritical
 from ...engine.anim.button import NullButton
 from ...engine.anim.font.static import generateImageFromStringStrided
-from ...engine_ext.utils import getAnimFromPath, getButtonFromPath
+from ...engine_ext.utils import getBottomScreenAnimFromPath, getButtonFromPath
 
 from pygame import MOUSEBUTTONUP, BLEND_RGB_SUB, BLEND_RGB_MULT, Surface
 if TYPE_CHECKING:
@@ -98,12 +98,10 @@ class CodeInputPlayer(ScreenLayerNonBlocking):
         for _indexKey in range(COUNT_KEYS):
             self.__keys.append(KeyboardButton((0,0), SIZE_KEY, callback=callbackOnKeyPress))
 
-        self.__surfaceBadCode = getAnimFromPath(PATH_ANIM_BAD_CODE.replace("?", self.laytonState.language.value))
-        self.__surfaceBadCode.setAnimationFromIndex(1)
+        self.__surfaceBadCode = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_BAD_CODE)
         self.__surfaceBadCode.setPos(((RESOLUTION_NINTENDO_DS[0] - self.__surfaceBadCode.getDimensions()[0]) // 2, POS_BAD_CODE[1] + RESOLUTION_NINTENDO_DS[1]))
 
-        self.__animCursor = getAnimFromPath(PATH_ANIM_CURSOR)
-        self.__animCursor.setAnimationFromIndex(1)
+        self.__animCursor = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_CURSOR)
 
         addButtonIfNotNone(getButtonFromPath(laytonState, PATH_ANIM_BTN_KETTEI, callback=callbackOnOk))
         addButtonIfNotNone(getButtonFromPath(laytonState, PATH_ANIM_BTN_KESU, callback=callbackOnErase))

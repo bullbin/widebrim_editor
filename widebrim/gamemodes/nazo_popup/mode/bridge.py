@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from widebrim.engine_ext.state_game import ScreenController
 
 from widebrim.engine.anim.image_anim.image import AnimatedImageObject
-from widebrim.engine_ext.utils import getAnimFromPath
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
 from .onOff import HandlerOnOff
 from ....engine.const import RESOLUTION_NINTENDO_DS
 from .const import PATH_ANI_BRIDGE
@@ -19,7 +19,7 @@ class HandlerBridge(HandlerOnOff):
         super().__init__(laytonState, screenController, callbackOnTerminate)
         self._setPuzzleTouchBounds(RESOLUTION_NINTENDO_DS[0])
 
-        self.__animFoot : Optional[AnimatedImageObject] = getAnimFromPath(PATH_ANI_BRIDGE)
+        self.__animFoot : Optional[AnimatedImageObject] = getBottomScreenAnimFromPath(laytonState, PATH_ANI_BRIDGE)
 
         # 0 - last placed
         # 1 - can place

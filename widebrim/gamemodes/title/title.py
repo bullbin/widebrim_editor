@@ -1,5 +1,5 @@
-from widebrim.engine.const import RESOLUTION_NINTENDO_DS
-from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
+from widebrim.engine.const import TIME_FRAMECOUNT_TO_MILLISECONDS
+from widebrim.engine_ext.utils import getTopScreenAnimFromPath
 from ...engine.state.layer import ScreenLayerNonBlocking
 from ...madhatter.hat_io.asset_sav import Layton2SaveFile
 from ...engine.anim.fader import Fader
@@ -39,9 +39,7 @@ class TitlePlayer(ScreenLayerNonBlocking):
         except FileNotFoundError:
             pass
 
-        self.__animTitleScreen = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_TITLE)
-        if self.__animTitleScreen != None:
-            self.__animTitleScreen.setPos((self.__animTitleScreen.getPos()[0], self.__animTitleScreen.getPos()[1] - RESOLUTION_NINTENDO_DS[1]))
+        self.__animTitleScreen = getTopScreenAnimFromPath(laytonState, PATH_ANIM_TITLE)
         self.popup = None
 
         # Callbacks for exiting title screen
@@ -86,14 +84,14 @@ class TitlePlayer(ScreenLayerNonBlocking):
 
         self.screenController = screenController
         self.laytonState = laytonState
-        self.logoAlphaFader = Fader(1000, initialActiveState=False, callbackOnDone=callbackStartMainScreenAnim)
+        self.logoAlphaFader = Fader(TIME_FRAMECOUNT_TO_MILLISECONDS * 45, initialActiveState=False, callbackOnDone=callbackStartMainScreenAnim)
 
         def callbackStartLogoAnim():
             self.logoAlphaFader.setActiveState(True)
         
         def callbackStartTitleScreen():
             self.screenController.setBgSub(PATH_BG_TITLE_SUB)
-            self.screenController.fadeInSub(duration=3600, callback=callbackStartLogoAnim)
+            self.screenController.fadeInSub(duration=TIME_FRAMECOUNT_TO_MILLISECONDS * 30, callback=callbackStartLogoAnim)
         
         # TODO - Save corrupt screen
         callbackStartTitleScreen()
@@ -101,8 +99,7 @@ class TitlePlayer(ScreenLayerNonBlocking):
     def update(self, gameClockDelta):
         self.logoAlphaFader.update(gameClockDelta)
         if self.__animTitleScreen != None and self.__animTitleScreen.getActiveFrame() != None:
-            self.__animTitleScreen.getActiveFrame().set_alpha(round(255 * self.logoAlphaFader.getStrength()))
-
+            self.__animTitleScreen.setAlpha(round(255 * self.logoAlphaFader.getStrength()))
         if self.popup != None:
             self.popup.update(gameClockDelta)
     

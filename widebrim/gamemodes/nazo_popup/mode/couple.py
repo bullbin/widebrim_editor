@@ -1,5 +1,5 @@
 from widebrim.gamemodes.nazo_popup.mode.const import PATH_ANI_COUPLE
-from widebrim.engine_ext.utils import getAnimFromPath
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
 from pygame import Rect
 from pygame.draw import rect
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
@@ -14,7 +14,7 @@ class HandlerCouple(BaseQuestionObject):
     def __init__(self, laytonState, screenController, callbackOnTerminate):
         super().__init__(laytonState, screenController, callbackOnTerminate)
 
-        self._assets = getAnimFromPath(PATH_ANI_COUPLE)
+        self._assets = getBottomScreenAnimFromPath(laytonState, PATH_ANI_COUPLE)
 
         self.jars = []
         self._collisionRects = []

@@ -5,7 +5,7 @@ from widebrim.gamemodes.core_popup.save import SaveLoadScreenPopup
 from widebrim.gamemodes.core_popup.utils import FullScreenPopup
 from widebrim.gamemodes.dramaevent.const import PATH_ITEM_ICON
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
-from widebrim.engine_ext.utils import getAnimFromPath, getBottomScreenAnimFromPath, getButtonFromPath, getClickableButtonFromPath
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getButtonFromPath, getClickableButtonFromPath, getTopScreenAnimFromPath
 from widebrim.engine.anim.image_anim.imageAsNumber import StaticImageAsNumericalFont
 from widebrim.engine.anim.button import AnimatedButton
 from widebrim.gamemodes.mystery import MysteryPlayer
@@ -41,7 +41,7 @@ class BagPlayer(ScreenLayerNonBlocking):
         self.__addButton(getButtonFromPath(laytonState, PATH_BTN_PUZZLE, namePosVariable=VARIABLE_DEFAULT_POS, callback=self.__callbackOnStartJiten))
         self.__addButton(getButtonFromPath(laytonState, PATH_BTN_SAVE, namePosVariable=VARIABLE_DEFAULT_POS, callback=self.__callbackOnStartSave))
         
-        if (hintCoinAnim := getAnimFromPath(PATH_ANI_MEDAL_ICON, pos=POS_ANI_MEDAL_ICON)) != None:
+        if (hintCoinAnim := getTopScreenAnimFromPath(self.laytonState, PATH_ANI_MEDAL_ICON, pos=POS_ANI_MEDAL_ICON)) != None:
             indexAnimation = 1
             for indexLimit, limit in enumerate([0] + MEDAL_ICON_LIMITS):
                 if self.laytonState.saveSlot.hintCoinAvailable < limit:
@@ -50,17 +50,15 @@ class BagPlayer(ScreenLayerNonBlocking):
                     indexAnimation = indexLimit + 1
             hintCoinAnim.setAnimationFromIndex(indexAnimation)
             self.__addAnim(hintCoinAnim)
-        if (laytonWalkAnim := getAnimFromPath(PATH_ANI_DOT_LAYTON_WALK, pos=POS_ANI_DOT_LAYTON_WALK)) != None:
-            if self.laytonState.timeGetRunningTime() < (DOT_LAYTON_WALK_OLD_ANIM_HOURS * 60 * 60) - 1:
-                laytonWalkAnim.setAnimationFromIndex(1)
-            else:
+
+        if (laytonWalkAnim := getTopScreenAnimFromPath(laytonState, PATH_ANI_DOT_LAYTON_WALK, pos=POS_ANI_DOT_LAYTON_WALK)) != None:
+            if not(self.laytonState.timeGetRunningTime() < (DOT_LAYTON_WALK_OLD_ANIM_HOURS * 60 * 60) - 1):
                 laytonWalkAnim.setAnimationFromIndex(2)
             self.__addAnim(laytonWalkAnim)
 
         self.__loadAdditionalButtons()
-        # TODO - Support getAnimFromPath with spawn animation index, unify language substitution
-        self.__animNewButton : Optional[AnimatedImageObject] = getAnimFromPath(PATH_ANI_NEW.replace("?", self.laytonState.language.value))
-        self.__animItemIcons : Optional[AnimatedImageObject] = getAnimFromPath(PATH_ITEM_ICON)
+        self.__animNewButton : Optional[AnimatedImageObject] = getBottomScreenAnimFromPath(self.laytonState, PATH_ANI_NEW)
+        self.__animItemIcons : Optional[AnimatedImageObject] = getBottomScreenAnimFromPath(self.laytonState, PATH_ITEM_ICON)
         self.__rendererStaticNumber     : Optional[StaticImageAsNumericalFont] = None
         self.__rendererStaticNumber2    : Optional[StaticImageAsNumericalFont] = None
         self.__rendererPlaceName = StaticTextHelper(laytonState.fontEvent)
@@ -71,9 +69,9 @@ class BagPlayer(ScreenLayerNonBlocking):
         self.__rendererPlaceName.setText(laytonState.namePlace[0:min(len(laytonState.namePlace),64)])
 
         # TODO - What's with the stride here?
-        if (staticNumber := getAnimFromPath(PATH_ANI_STATUS_NUMBER)) != None:
+        if (staticNumber := getTopScreenAnimFromPath(laytonState, PATH_ANI_STATUS_NUMBER)) != None:
             self.__rendererStaticNumber = StaticImageAsNumericalFont(staticNumber, stride=staticNumber.getDimensions()[0] - 2)
-        if (staticNumber := getAnimFromPath(PATH_ANI_STATUS_NUMBER2)) != None:
+        if (staticNumber := getTopScreenAnimFromPath(laytonState, PATH_ANI_STATUS_NUMBER2)) != None:
             self.__rendererStaticNumber2 = StaticImageAsNumericalFont(staticNumber, stride=staticNumber.getDimensions()[0] + 1)
 
         if self.__animNewButton != None:

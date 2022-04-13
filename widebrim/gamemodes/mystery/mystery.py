@@ -5,7 +5,7 @@ from widebrim.engine.anim.fader import Fader
 
 from widebrim.engine.state.layer import ScreenLayerNonBlocking
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
-from widebrim.engine_ext.utils import getAnimFromPath, getButtonFromPath, getStaticButtonFromAnim, getStaticButtonFromPath, getTxtString
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getButtonFromPath, getStaticButtonFromAnim, getStaticButtonFromPath, getTxtString
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
 from .const import *
 
@@ -29,7 +29,7 @@ class MysteryPlayer(ScreenLayerNonBlocking):
         #        Eg called to unlock something already unlocked. Same for solved.
         self.__btnCharacters        : List[Optional[StaticButton]]  = []
         self.__btnCancel            : Optional[AnimatedButton]      = None
-        self.__animNew              : Optional[AnimatedImageObject] = getAnimFromPath(PATH_ANIM_NEW.replace("?", laytonState.language.value))
+        self.__animNew              : Optional[AnimatedImageObject] = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_NEW)
         self.__indexMysteryPressed  : int                           = -1
         self.__laytonState          : Layton2GameState              = laytonState
         self.__screenController     : ScreenController              = screenController
@@ -40,7 +40,7 @@ class MysteryPlayer(ScreenLayerNonBlocking):
         if self.__animNew != None:
             self.__animNew.setAnimationFromIndex(1)
 
-        animBank = getAnimFromPath(PATH_ANIM_MYSTERY_BUTTONS % laytonState.language.value)
+        animBank = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_MYSTERY_BUTTONS)
         pos = (POS_BTN_ROW_0[0], POS_BTN_ROW_0[1])
         for indexChar in range(10):
             if animBank != None:
@@ -231,7 +231,8 @@ class MysteryPlayer(ScreenLayerNonBlocking):
             faderTiming.setCallback(doFlash)
         
         faderTiming = Fader(0, initialActiveState=False)
-        animButton = getAnimFromPath(PATH_ANIM_MYSTERY_BUTTONS % self.__laytonState.language.value, spawnAnimName=str(indexMystery + 1))
+        # TODO - What was this??
+        animButton = getBottomScreenAnimFromPath(self.__laytonState, PATH_ANIM_MYSTERY_BUTTONS, spawnAnimName=str(indexMystery + 1))
         self.__screenController.fadeInMain(callback=startPause)
         
         MysteryPlayer.update = update
@@ -240,7 +241,7 @@ class MysteryPlayer(ScreenLayerNonBlocking):
     def __doSolvedAnim(self):
         # TODO - Stamp anim is a little odd in real game, code indicates some sprite indexing. Do a better job implementing it :)
         indexMystery = self.__storedMysteryIndex - 10
-        animSolved = getAnimFromPath(PATH_ANIM_STAMP)
+        animSolved = getBottomScreenAnimFromPath(self.__laytonStatelaytonState, PATH_ANIM_STAMP)
 
         def update(self : MysteryPlayer, gameClockDelta):
             faderTiming.update(gameClockDelta)
@@ -309,9 +310,7 @@ class MysteryPlayer(ScreenLayerNonBlocking):
         surfHighlight = Surface(DIMENSIONS_HIGHLIGHT_BOX)
         surfHighlight.fill((255,255,255))
 
-        animButton = getAnimFromPath("event/hukmaru_hanko.spr")
-        if animButton != None:
-            animButton.setAnimationFromIndex(1)
+        animButton = getBottomScreenAnimFromPath(self.__laytonState, "event/hukmaru_hanko.spr")
         self.__screenController.fadeInMain(callback=startFlashAnim)
 
         MysteryPlayer.draw = draw

@@ -3,7 +3,7 @@ from typing import Optional, TYPE_CHECKING
 
 from widebrim.engine.state.layer import ScreenLayerNonBlocking
 from widebrim.engine.state.enum_mode import GAMEMODES
-from widebrim.engine_ext.utils import getAnimFromPath, getButtonFromPath, getStaticButtonFromAnim
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getButtonFromPath, getStaticButtonFromAnim
 
 from .const import *
 
@@ -24,7 +24,7 @@ class MovieViewModePlayer(ScreenLayerNonBlocking):
             if button != None:
                 self.__buttons.append(button)
 
-        self.__animBtn = getAnimFromPath(PATH_ANIM_BTN_MOVIE)
+        self.__animBtn = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_BTN_MOVIE)
         self.__indexBtnActive : int = 0
 
         x,y = POS_BTN_CORNER

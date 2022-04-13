@@ -3,7 +3,7 @@ from typing import List, Optional, TYPE_CHECKING
 
 from widebrim.engine.state.layer import ScreenLayerNonBlocking
 from widebrim.engine.state.enum_mode import GAMEMODES
-from widebrim.engine_ext.utils import getAnimFromPath, getButtonFromPath, getImageFromPath, getStaticButtonFromAnim, getTxtString
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getButtonFromPath, getImageFromPath, getStaticButtonFromAnim, getTxtString
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
 
 from pygame import Surface
@@ -46,7 +46,7 @@ class ChrViewModePlayer(ScreenLayerNonBlocking):
         for indexPage in range(self.__countPages):
             self.__btnCharacters.append([])
             countBtnPerPageRemaining = min(countBtnRemaining, COUNT_CHAR_PER_PAGE)
-            animBtn = getAnimFromPath(PATH_ANIM_CHAR_BTN_PAGE % (indexPage + 1))
+            animBtn = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_CHAR_BTN_PAGE % (indexPage + 1))
 
             x,y = POS_CHAR_CORNER
             for indexBtn in range(max(0, countBtnPerPageRemaining)):

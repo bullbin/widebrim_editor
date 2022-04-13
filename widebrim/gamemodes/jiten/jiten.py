@@ -12,7 +12,7 @@ from widebrim.engine.anim.fader import Fader
 from widebrim.engine.state.enum_mode import GAMEMODES
 
 from widebrim.engine.state.layer import ScreenLayerNonBlocking
-from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getButtonFromPath, getClickableButtonFromPath, getAnimFromPath
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getButtonFromPath, getClickableButtonFromPath, getTopScreenAnimFromPath
 from .const import *
 
 from pygame import Surface
@@ -65,7 +65,7 @@ class JitenPlayer(ScreenLayerNonBlocking):
         self.__animModeSelect : Optional[AnimatedImageObject]   = None
         self.__animPrize : Optional[AnimatedImageObject]        = None
         self.__animHintbox : Optional[AnimatedImageObject]      = None
-        self.__animShared : Optional[AnimatedImageObject]       = getAnimFromPath(PATH_ANIM_BTN_ALL % laytonState.language.value)
+        self.__animShared : Optional[AnimatedImageObject]       = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_BTN_ALL)
 
         self.__btnUpSlow    : Optional[AnimatedButton] = getButtonFromPath(laytonState, PATH_ANIM_BTN_ALL, self.__callbackOnScrollButtonFinish, NAME_ANIM_JITEN_BTN_UP_OFF, NAME_ANIM_JITEN_BTN_UP_ON, pos=POS_BTN_UP, customDimensions=DIM_BTN_MOVE)
         self.__btnUpFast    : Optional[AnimatedButton] = getButtonFromPath(laytonState, PATH_ANIM_BTN_ALL, self.__callbackOnScrollButtonFinish, NAME_ANIM_JITEN_BTN_UP_MANY_OFF, NAME_ANIM_JITEN_BTN_UP_MANY_ON, pos=POS_BTN_UP_MANY, customDimensions=DIM_BTN_MOVE)
@@ -73,14 +73,14 @@ class JitenPlayer(ScreenLayerNonBlocking):
         self.__btnDownFast  : Optional[AnimatedButton] = getButtonFromPath(laytonState, PATH_ANIM_BTN_ALL, self.__callbackOnScrollButtonFinish, NAME_ANIM_JITEN_BTN_DOWN_MANY_OFF, NAME_ANIM_JITEN_BTN_DOWN_MANY_ON, pos=POS_BTN_DOWN_MANY, customDimensions=DIM_BTN_MOVE)
         self.__btnSolve     : Optional[AnimatedButton] = None
 
-        self.__animUpperNum : Optional[AnimatedImageObject]         = getAnimFromPath(PATH_ANIM_NUM % laytonState.language.value)
-        self.__animJitenNum : Optional[AnimatedImageObject]         = getAnimFromPath(PATH_ANIM_NUM_ARC.replace("?", laytonState.language.value))
         self.__textJitenNum : Optional[StaticImageAsNumericalFont]  = None
         self.__textUpperNum : Optional[StaticImageAsNumericalFont]  = None
+
+        self.__animJitenNum : Optional[AnimatedImageObject]         = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_NUM_ARC)
         if self.__animJitenNum != None:
             self.__textJitenNum = StaticImageAsNumericalFont(self.__animJitenNum)
-        if self.__animUpperNum != None:
-            self.__textUpperNum = StaticImageAsNumericalFont(self.__animUpperNum, stride=6, usePadding=True)
+        if (anim := getTopScreenAnimFromPath(laytonState, PATH_ANIM_NUM)) != None:
+            self.__textUpperNum = StaticImageAsNumericalFont(anim, stride=6, usePadding=True)
 
         if laytonState.getGameModeNext() == GAMEMODES.JitenWiFi:
             # TODO - Save game to source slot, display message if save failed
@@ -125,14 +125,14 @@ class JitenPlayer(ScreenLayerNonBlocking):
             self.__buttonsTab.append(getHitbox(POS_BTN_TO_FAV, DIM_BTN_TO_FAVOURITES, callback=self.__switchToFavourites))
             self.__buttonsTab.append(getHitbox(POS_BTN_FROM_FAV, DIM_BTN_FROM_FAVOURITES, callback=self.__switchToAll))
             self.__animModeSelect = getBottomScreenAnimFromPath(self.__laytonState, PATH_ANIM_TABS, namePosVar=ANIM_VAR_POS_TAG_JITEN_GUARD)
-            self.__animPrize = getAnimFromPath(PATH_ANIM_PRIZE, pos=POS_ANIM_PRIZE)    # TODO - Spawn anim index
+            self.__animPrize = getTopScreenAnimFromPath(self.__laytonState, PATH_ANIM_PRIZE, pos=POS_ANIM_PRIZE)    # TODO - Spawn anim index
             
             addIfNotNone(self.__drawables, getBottomScreenAnimFromPath(self.__laytonState, PATH_ANIM_COVER, namePosVar=ANIM_VAR_POS_TAG_JITEN_GUARD))
             addIfNotNone(self.__drawables, self.__animModeSelect)
-            addIfNotNone(self.__drawables, getAnimFromPath(PATH_ANIM_INTRO_TEXT, pos=(POS_ANIM_TITLE[0], POS_ANIM_TITLE[1] + RESOLUTION_NINTENDO_DS[1])))
+            addIfNotNone(self.__drawables, getBottomScreenAnimFromPath(self.__laytonState, PATH_ANIM_INTRO_TEXT, pos=POS_ANIM_TITLE))
 
             # TODO - Unk button 5
-            self.__animHintbox = getAnimFromPath(PATH_ANIM_HINT)
+            self.__animHintbox = getTopScreenAnimFromPath(self.__laytonState, PATH_ANIM_HINT)
 
             x = POS_CORNER_FAVOURITE[0]
             y = POS_CORNER_FAVOURITE[1]
@@ -316,10 +316,7 @@ class JitenPlayer(ScreenLayerNonBlocking):
                     self.__textRendererLocation.setText(textLocation[0:min(len(textLocation), 64)])
                     self.__textRendererName.setText(nazoData.getTextName()[0:min(len(nazoData.getTextName()), 64)])
         
-                # TODO - pretty sure gfx is automatic
-                self.__animPreview = getAnimFromPath(PATH_ANIM_PREVIEW % nzLstEntry.idInternal, pos=POS_ANIM_PREVIEW)
-                if self.__animPreview != None:
-                    self.__animPreview.setAnimationFromIndex(1)
+                self.__animPreview = getTopScreenAnimFromPath(self.__laytonState, PATH_ANIM_PREVIEW % nzLstEntry.idInternal, pos=POS_ANIM_PREVIEW)
 
             if self.__animPrize != None:
                 if not(puzzleData.wasSolved):

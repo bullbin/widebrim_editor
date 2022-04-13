@@ -78,6 +78,7 @@ class VirtualArchive():
 class FileInterface():
 
     _rom = None
+    _romLanguage : Optional[Union[Literal[LANGUAGES.Chinese], Literal[LANGUAGES.Dutch], Literal[LANGUAGES.English], Literal[LANGUAGES.French], Literal[LANGUAGES.German], Literal[LANGUAGES.Italian], Literal[LANGUAGES.Japanese], Literal[LANGUAGES.Korean]]] = None
 
     if path.isfile(PATH_ROM):
         try:
@@ -151,7 +152,8 @@ class FileInterface():
                             languageInstruction = languageInstruction & 0x000000ff
                             if languageInstruction in DICT_ID_TO_LANGUAGE:
                                 log("Detected language", DICT_ID_TO_LANGUAGE[languageInstruction].value)
-                                return DICT_ID_TO_LANGUAGE[languageInstruction]
+                                FileInterface._romLanguage = DICT_ID_TO_LANGUAGE[languageInstruction]
+                                return FileInterface._romLanguage
         logSevere("Failed to detect language!")
         return None
 
@@ -267,5 +269,7 @@ class FileInterface():
             Optional[Union[Literal[LANGUAGES.Chinese], Literal[LANGUAGES.Dutch], Literal[LANGUAGES.English], Literal[LANGUAGES.French], Literal[LANGUAGES.German], Literal[LANGUAGES.Italian], Literal[LANGUAGES.Japanese], Literal[LANGUAGES.Korean]]]: Returns LANGUAGES Enum member if language could be found, else None
         """
         if FileInterface.isRunningFromRom():
+            if FileInterface._romLanguage != None:
+                return FileInterface._romLanguage
             return FileInterface._langFromRom()
         return None

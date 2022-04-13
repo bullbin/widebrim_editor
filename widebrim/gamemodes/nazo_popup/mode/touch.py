@@ -1,6 +1,6 @@
 from .base import BaseQuestionObject
 from .const import PATH_ANI_TOUCH
-from ....engine_ext.utils import getAnimFromPath
+from ....engine_ext.utils import getBottomScreenAnimFromPath
 from ....engine.const import RESOLUTION_NINTENDO_DS
 from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
 from pygame import MOUSEBUTTONDOWN
@@ -22,9 +22,9 @@ class HandlerTouch(BaseQuestionObject):
 
     def _doUnpackedCommand(self, opcode, operands):
         if opcode == OPCODES_LT2.AddTouchSprite.value and len(operands) == 5:
-            touchSprite = getAnimFromPath(PATH_ANI_TOUCH % operands[2].value)
+            touchSprite = getBottomScreenAnimFromPath(self.laytonState, PATH_ANI_TOUCH % operands[2].value)
             if touchSprite != None:
-                if touchSprite.setAnimationFromIndex(1) and touchSprite.setAnimationFromIndex(operands[3].value) and touchSprite.setAnimationFromIndex(operands[4].value):
+                if touchSprite.setAnimationFromIndex(operands[3].value) and touchSprite.setAnimationFromIndex(operands[4].value):
                     touchSprite.setAnimationFromIndex(operands[3].value)
                     self.spritesTargetAnimIndex.append(operands[4].value)
                     self.spritesCurrentAnimIndex.append(operands[3].value)

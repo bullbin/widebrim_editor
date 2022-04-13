@@ -1,7 +1,7 @@
-from ....engine_ext.utils import getAnimFromPath
-from ....engine.anim.fader import Fader
-from ....engine.const import RESOLUTION_NINTENDO_DS
-from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
+from widebrim.engine.anim.fader import Fader
+from widebrim.engine.const import RESOLUTION_NINTENDO_DS
+from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
 
 from .base import BaseQuestionObject
 from .const import PATH_ANI_LAMP
@@ -23,7 +23,7 @@ class HandlerShortbrimLamp(BaseQuestionObject):
     def __init__(self, laytonState, screenController, callbackOnTerminate):
         super().__init__(laytonState, screenController, callbackOnTerminate)
 
-        self.bankImages = getAnimFromPath(PATH_ANI_LAMP)
+        self.bankImages = getBottomScreenAnimFromPath(laytonState, PATH_ANI_LAMP)
 
         def setAnimationFromNameAndReturnInitialFrame(name):
             if self.bankImages.setAnimationFromName(name):

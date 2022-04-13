@@ -1,10 +1,10 @@
 from typing import List
 from .base import BaseQuestionObject
 from .const import PATH_ANI_ONOFF
-from ....engine.const import RESOLUTION_NINTENDO_DS
-from ....engine.anim.button import StaticButton
-from ....engine_ext.utils import getAnimFromPath
-from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from widebrim.engine.const import RESOLUTION_NINTENDO_DS
+from widebrim.engine.anim.button import StaticButton
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
+from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
 
 class OnOffButton(StaticButton):
     def __init__(self, pos, surfaceButton, callback):
@@ -57,7 +57,7 @@ class HandlerOnOff(BaseQuestionObject):
     
     def _doUnpackedCommand(self, opcode, operands):
         if opcode == OPCODES_LT2.AddOnOffButton.value and len(operands) == 5:
-            buttonAnim = getAnimFromPath(PATH_ANI_ONOFF % operands[2].value)
+            buttonAnim = getBottomScreenAnimFromPath(self.laytonState, PATH_ANI_ONOFF % operands[2].value)
             if len(self._buttons) < 24 and buttonAnim != None and buttonAnim.setAnimationFromIndex(1) and buttonAnim.getActiveFrame() != None:
                 pos = (operands[0].value, operands[1].value + RESOLUTION_NINTENDO_DS[1])
                 self._buttons.append(OnOffButton(pos, buttonAnim.getActiveFrame(), None))

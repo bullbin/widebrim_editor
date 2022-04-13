@@ -22,7 +22,7 @@ from widebrim.engine.anim.fader import Fader
 from widebrim.engine.state.layer import ScreenLayerNonBlocking
 from widebrim.engine.exceptions import FileInvalidCritical
 from widebrim.engine.anim.font.static import generateImageFromString
-from widebrim.engine_ext.utils import getAnimFromPath, getBottomScreenAnimFromPath, getClickableButtonFromPath, getTxt2String
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getClickableButtonFromPath, getTopScreenAnimFromPath, getTxt2String
 from .const import *
 from .animJump import AnimJumpHelper
 from .tobjPopup import TObjPopup
@@ -48,7 +48,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
         for indexParty in range(4):
             if len(NAME_ANIM_PARTY) > indexParty and len(POS_X_ANIM_PARTY) > indexParty:
                 if indexParty < 2 or self.laytonState.saveSlot.partyFlag.getSlot(indexParty - 2):
-                    self.__animMemberParty.append(getAnimFromPath(PATH_ANIM_PARTY, spawnAnimName=NAME_ANIM_PARTY[indexParty], pos=(POS_X_ANIM_PARTY[indexParty], POS_Y_ANIM_PARTY)))
+                    self.__animMemberParty.append(getTopScreenAnimFromPath(laytonState, PATH_ANIM_PARTY, spawnAnimName=NAME_ANIM_PARTY[indexParty], pos=(POS_X_ANIM_PARTY[indexParty], POS_Y_ANIM_PARTY)))
 
         self.__animFirstTouch : Optional[AnimatedImageObject] = None
         if self.laytonState.isFirstTouchEnabled:
@@ -68,23 +68,19 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
         self.__animMapArrow     : Optional[AnimatedImageObject]         = None
         self.__enableMapArrow   : bool                                  = False
-        self.__animMapIcon      : Optional[AnimatedImageObject]         = getAnimFromPath(PATH_ANIM_MAPICON)
-        if self.__animMapIcon != None:
-            self.__animMapIcon.setAnimationFromIndex(1)
-
-        self.__animNumberIcon : Optional[AnimatedImageObject]       = getAnimFromPath(PATH_ANIM_SOLVED_TEXT % self.laytonState.language.value)
-        if self.__animNumberIcon != None and self.__animNumberIcon.setAnimationFromIndex(1):
-            self.__animNumberIcon.setPos(POS_SOLVED_TEXT)
+        self.__animMapIcon      : Optional[AnimatedImageObject]         = getTopScreenAnimFromPath(laytonState, PATH_ANIM_MAPICON)
+        self.__animNumberIcon : Optional[AnimatedImageObject]           = getTopScreenAnimFromPath(laytonState, PATH_ANIM_SOLVED_TEXT, pos=POS_SOLVED_TEXT)
         self.__animNumberFont : Optional[StaticImageAsNumericalFont]    = None
-        if (animNumberFont := getAnimFromPath(PATH_ANIM_NUM_MAP_NUMBER)) != None:
+
+        if (animNumberFont := getTopScreenAnimFromPath(laytonState, PATH_ANIM_NUM_MAP_NUMBER)) != None:
             solved, _encountered = self.laytonState.saveSlot.getSolvedAndEncounteredPuzzleCount()
             self.__animNumberFont = StaticImageAsNumericalFont(animNumberFont, text=solved)
             self.__animNumberFont.setStride(animNumberFont.getDimensions()[0])
             self.__animNumberFont.setPos((72,11))
 
-        self.__animTeaEventIcon : Optional[AnimatedImageObject] = getAnimFromPath(PATH_ANIM_TEAEVENT_ICON, spawnAnimName="gfx")
-        self.__animEventStart : Optional[AnimatedImageObject] = getAnimFromPath(PATH_ANIM_ICON_BUTTONS)
-        self.__animTouchIcon : Optional[AnimatedImageObject] = getAnimFromPath(PATH_ANIM_TOUCH_ICON, pos=POS_TOUCH_ICON)
+        self.__animTeaEventIcon : Optional[AnimatedImageObject] = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_TEAEVENT_ICON)
+        self.__animEventStart : Optional[AnimatedImageObject] = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_ICON_BUTTONS)
+        self.__animTouchIcon : Optional[AnimatedImageObject] = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_TOUCH_ICON, pos=POS_TOUCH_ICON)
         if self.__animTouchIcon != None and self.__animTouchIcon.setAnimationFromIndex(1):
             self.__animTouchIcon.setCurrentAnimationLoopStatus(False)
 
@@ -119,7 +115,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
         self.__imageExitOff : List[Optional[Surface]] = []
         self.__imageExitOn  : List[Optional[Surface]] = []
         for indexExitImage in range(8):
-            if (exitImage := getAnimFromPath(PATH_EXT_EXIT % indexExitImage)) != None:
+            if (exitImage := getBottomScreenAnimFromPath(laytonState, PATH_EXT_EXIT % indexExitImage)) != None:
                 exitImage.setAnimationFromName("gfx")
                 self.__imageExitOff.append(exitImage.getActiveFrame())
                 exitImage.setAnimationFromName("gfx2")
@@ -542,8 +538,8 @@ class RoomPlayer(ScreenLayerNonBlocking):
         photoPieceByte = self.laytonState.saveSlot.eventCounter.toBytes(outLength=128)[24]
         if 0 < photoPieceByte < 16:
             self.__enablePhotoPieceOverlay = True
-            self.__photoPieceMessage = getAnimFromPath(PATH_ANIM_PIECE_MESSAGE % self.laytonState.language, spawnAnimName="gfx", pos=POS_PIECE_MESSAGE)
-            self.__photoPieceNumbers = getAnimFromPath(PATH_ANIM_NUM_PIECE_NUM)
+            self.__photoPieceMessage = getTopScreenAnimFromPath(self.laytonState, PATH_ANIM_PIECE_MESSAGE, pos=POS_PIECE_MESSAGE)
+            self.__photoPieceNumbers = getTopScreenAnimFromPath(self.laytonState, PATH_ANIM_NUM_PIECE_NUM)
 
     def __killActiveRoomPlayerEvent(self):
         self.screenController.fadeOut(duration=250, callback=self.doOnKill)
@@ -607,9 +603,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
             for indexBackgroundAnim in range(self.__placeData.getCountObjBgEvent()):
                 if (bgAni := self.__placeData.getObjBgEvent(indexBackgroundAnim)) != None:
                     bgAni : BgAni
-                    # TODO - Everything just spawns with anim index 1 where "gfx" is
-                    if (anim := getAnimFromPath(PATH_ANIM_BGANI % bgAni.name, spawnAnimName="gfx", pos=bgAni.pos)) != None:
-                        anim.setPos((anim.getPos()[0], anim.getPos()[1] + RESOLUTION_NINTENDO_DS[1]))
+                    if (anim := getBottomScreenAnimFromPath(self.laytonState, PATH_ANIM_BGANI % bgAni.name, pos=bgAni.pos)) != None:
                         self.__animBackground.append(anim)
                         
             for indexObjEvent in range(self.__placeData.getCountObjEvents()):
@@ -619,7 +613,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
                 # TODO - What is the second byte of spawnData used for?
                 if objEvent.idImage != 0:
-                    if (eventAsset := getAnimFromPath(PATH_EXT_EVENT % (objEvent.idImage & 0xff), spawnAnimName="gfx")) != None:
+                    if (eventAsset := getBottomScreenAnimFromPath(self.laytonState, PATH_EXT_EVENT % (objEvent.idImage & 0xff))) != None:
                         eventAsset.setPos((objEvent.bounding.x, objEvent.bounding.y + RESOLUTION_NINTENDO_DS[1]))
                     self.__animEvent.append(eventAsset)
 
@@ -694,7 +688,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
     def __setupGuideArrows(self):
         if self.__animMapArrow == None:
-            self.__animMapArrow = getAnimFromPath(PATH_ANIM_MAP_ARROW.replace("?", self.laytonState.language.value))
+            self.__animMapArrow = getTopScreenAnimFromPath(self.laytonState, PATH_ANIM_MAP_ARROW)
         
         x = 0
         y = 0

@@ -1,8 +1,8 @@
-from ....engine_ext.utils import getAnimFromPath
-from ....engine.anim.fader import Fader
-from ....engine.anim.button import StaticButton
-from ....engine.const import RESOLUTION_NINTENDO_DS
-from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
+from widebrim.engine.anim.fader import Fader
+from widebrim.engine.anim.button import StaticButton
+from widebrim.engine.const import RESOLUTION_NINTENDO_DS
+from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
 
 from .rose_short import RoseWall
 
@@ -16,15 +16,16 @@ from .const import PATH_ANI_ICESKATE
 
 class HandlerShortbrimSkate(BaseQuestionObject):
 
-    BANK_IMAGES = getAnimFromPath(PATH_ANI_ICESKATE)
     TIME_PER_TILE = 400
 
     def __init__(self, laytonState, screenController, callbackOnTerminate):
         super().__init__(laytonState, screenController, callbackOnTerminate)
 
+        self.__bankImages = getBottomScreenAnimFromPath(laytonState, PATH_ANI_ICESKATE)
+
         def setAnimationFromNameAndReturnInitialFrame(name):
-            if HandlerShortbrimSkate.BANK_IMAGES.setAnimationFromName(name):
-                return HandlerShortbrimSkate.BANK_IMAGES.getActiveFrame()
+            if self.__bankImages.setAnimationFromName(name):
+                return self.__bankImages.getActiveFrame()
             return None
 
         self.posCorner = (0,0)
@@ -44,7 +45,7 @@ class HandlerShortbrimSkate(BaseQuestionObject):
         self.arrowRight = StaticButton((0,0), setAnimationFromNameAndReturnInitialFrame("right"), callback=self.startMovementRight)
         self.arrowUp = StaticButton((0,0), setAnimationFromNameAndReturnInitialFrame("up"), callback=self.startMovementUp)
         self.arrowDown = StaticButton((0,0), setAnimationFromNameAndReturnInitialFrame("down"), callback=self.startMovementDown)
-        HandlerShortbrimSkate.BANK_IMAGES.setAnimationFromName("layton")
+        self.__bankImages.setAnimationFromName("layton")
 
         self.movementFader = None
         self.movementPossibilities = [0,0,0,0]
@@ -146,7 +147,7 @@ class HandlerShortbrimSkate(BaseQuestionObject):
             if self.movementPossibilities[3] > 0:
                 self.arrowDown.draw(gameDisplay)
 
-        HandlerShortbrimSkate.BANK_IMAGES.draw(gameDisplay)
+        self.__bankImages.draw(gameDisplay)
 
     def _wasAnswerSolution(self):
         return True
@@ -172,7 +173,7 @@ class HandlerShortbrimSkate(BaseQuestionObject):
             
             self.generateGraphicsPositions()
 
-        HandlerShortbrimSkate.BANK_IMAGES.update(gameClockDelta)
+        self.__bankImages.update(gameClockDelta)
 
     def _doUnpackedCommand(self, opcode, operands):
         if opcode == OPCODES_LT2.Skate_SetInfo.value:
@@ -210,17 +211,17 @@ class HandlerShortbrimSkate(BaseQuestionObject):
             tempScreenPos = (round(initTempScreenPos[0] + deltaPos[0] * self.movementFader.getStrength()),
                             round(initTempScreenPos[1] + deltaPos[1] * self.movementFader.getStrength()))
         else:
-            HandlerShortbrimSkate.BANK_IMAGES.setAnimationFromName("layton")
+            self.__bankImages.setAnimationFromName("layton")
             self.arrowLeft.setPos((tempScreenPos[0] - self.tileDimensions[0], tempScreenPos[1]))
             self.arrowRight.setPos((tempScreenPos[0] + self.tileDimensions[0], tempScreenPos[1]))
             self.arrowUp.setPos((tempScreenPos[0], tempScreenPos[1] - self.tileDimensions[1]))
             self.arrowDown.setPos((tempScreenPos[0], tempScreenPos[1] + self.tileDimensions[1]))
         
-        HandlerShortbrimSkate.BANK_IMAGES.setPos(tempScreenPos)
+        self.__bankImages.setPos(tempScreenPos)
 
     def startMovement(self, animName, newPos, distance):
         self.sourceAnimPosCharacter = self.posCharacter
-        HandlerShortbrimSkate.BANK_IMAGES.setAnimationFromName(animName)
+        self.__bankImages.setAnimationFromName(animName)
         self.isCharacterAnimating = True
         self.posCharacter = newPos
         self.movementFader = Fader(HandlerShortbrimSkate.TIME_PER_TILE * distance)

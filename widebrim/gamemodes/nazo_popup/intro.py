@@ -1,9 +1,9 @@
 from ..core_popup.utils import FullScreenPopup
-from ...engine_ext.utils import getImageFromPath, getAnimFromPath
-from ...engine.const import RESOLUTION_NINTENDO_DS
-from ...engine.anim.fader import Fader
-from ...engine.anim.font.staticFormatted import StaticTextHelper
-from ...engine.anim.image_anim import ImageFontRenderer
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getImageFromPath, offsetVectorToSecondScreen
+from widebrim.engine.const import RESOLUTION_NINTENDO_DS
+from widebrim.engine.anim.fader import Fader
+from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
+from widebrim.engine.anim.image_anim import ImageFontRenderer
 from .const import PATH_BG_TITLE, PATH_BG_PICARAT, PATH_ANI_TITLE, PATH_ANI_PICARAT_BIG, PATH_ANI_PICARAT_SMALL, PATH_ANI_PICARAT_TOTAL
 from pygame import Surface
 
@@ -28,13 +28,10 @@ def getNumberFontRendererFromImage(anim):
         return output
     return None
 
-def getNumberFontRendererIfValid(pathAnim, posToBottomScreen=False):
-    image = getAnimFromPath(pathAnim)
+def getNumberFontRendererIfValid(laytonState, pathAnim):
+    image = getBottomScreenAnimFromPath(laytonState, pathAnim)
     output = getNumberFontRendererFromImage(image)
-    if posToBottomScreen:
-        x,y = output.getPos()
-        y += RESOLUTION_NINTENDO_DS[1]
-        output.setPos((x,y))
+    output.setPos(offsetVectorToSecondScreen(output.getPos()))
     return output
 
 # TODO - Fix the fader judder when loading new data (async? add a frame to faders?)
@@ -45,9 +42,9 @@ class IntroLayer(FullScreenPopup):
         self.laytonState = laytonState
         self.callbackOnTerminate = callbackOnTerminate
 
-        self.rendererPicaratBig     = getNumberFontRendererIfValid(PATH_ANI_PICARAT_BIG, posToBottomScreen=True)
-        self.rendererPicaratSmall   = getNumberFontRendererIfValid(PATH_ANI_PICARAT_SMALL, posToBottomScreen=True)
-        self.rendererPicaratTotal   = getNumberFontRendererIfValid(PATH_ANI_PICARAT_TOTAL, posToBottomScreen=True)
+        self.rendererPicaratBig     = getNumberFontRendererIfValid(laytonState, PATH_ANI_PICARAT_BIG)
+        self.rendererPicaratSmall   = getNumberFontRendererIfValid(laytonState, PATH_ANI_PICARAT_SMALL)
+        self.rendererPicaratTotal   = getNumberFontRendererIfValid(laytonState, PATH_ANI_PICARAT_TOTAL)
 
         self.rendererPicaratBig.setText(self.laytonState.getNazoData().getPicaratStage(0))
         self.rendererPicaratTotal.setText(self.laytonState.getNazoData().getPicaratStage(0))
@@ -73,7 +70,7 @@ class IntroLayer(FullScreenPopup):
         if self.bgTitleScreen == None:
             self.bgTitleScreen = Surface(RESOLUTION_NINTENDO_DS)
 
-        self.aniTitle = getAnimFromPath(PATH_ANI_TITLE % self.laytonState.language.value)
+        self.aniTitle = getBottomScreenAnimFromPath(self.laytonState, PATH_ANI_TITLE)
         self.__setupScrollingScreen()
 
         self._fader = Fader(200, initialActiveState=False, invertOutput=True, callbackOnDone=self._doOnTopScreenFinishMove)

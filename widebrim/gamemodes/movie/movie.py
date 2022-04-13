@@ -3,6 +3,7 @@ from typing import List, Optional, TYPE_CHECKING
 
 from pygame.constants import KEYUP
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
+from widebrim.madhatter.common import logSevere
 from widebrim.madhatter.hat_io.asset_script import GdScript
 from widebrim.engine.keybinds import KEY_START
 
@@ -85,7 +86,11 @@ class MovieSurface():
             else:
                 bufferFrameCount = COUNT_BUFFER_FRAMES
 
-            self.__procConv = Popen(command, stdout=PIPE, bufsize=self.__bufferSize * bufferFrameCount)
+            try:
+                self.__procConv = Popen(command, stdout=PIPE, bufsize=self.__bufferSize * bufferFrameCount)
+            except:
+                logSevere("Error starting FFMPEG decoder!")
+                self.cleanup()
         else:
             self.cleanup()
 

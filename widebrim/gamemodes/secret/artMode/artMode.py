@@ -2,9 +2,8 @@ from __future__ import annotations
 from typing import Optional, TYPE_CHECKING
 
 from widebrim.engine.state.layer import ScreenLayerNonBlocking
-from widebrim.engine.const import RESOLUTION_NINTENDO_DS
 from widebrim.engine.state.enum_mode import GAMEMODES
-from widebrim.engine_ext.utils import getAnimFromPath, getButtonFromPath, getStaticButtonFromAnim, getTxtString, offsetVectorToSecondScreen
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getButtonFromPath, getStaticButtonFromAnim, getTxtString, offsetVectorToSecondScreen
 from widebrim.engine.anim.image_anim.imageAsNumber import StaticImageAsNumericalFont
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
 
@@ -36,11 +35,11 @@ class ArtModePlayer(ScreenLayerNonBlocking):
             if button != None:
                 self.__buttons.append(button)
 
-        self.__animBtn = getAnimFromPath(PATH_ANIM_SECRET_BUTTON % laytonState.language.value)
+        self.__animBtn = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_SECRET_BUTTON)
         addButtonIfNotNone(getStaticButtonFromAnim(self.__animBtn, NAME_ANIM_BTN_BACK, pos=POS_BTN_BACK, callback=self.__callbackOnBack, clickOffset=BTN_CLICK_OFFSET))
         addButtonIfNotNone(getStaticButtonFromAnim(self.__animBtn, NAME_ANIM_BTN_NEXT, pos=POS_BTN_NEXT, callback=self.__callbackOnNext, clickOffset=BTN_CLICK_OFFSET))
 
-        if (animFont := getAnimFromPath(PATH_ANIM_PICARAT_NUM)) != None:
+        if (animFont := getBottomScreenAnimFromPath(laytonState, PATH_ANIM_PICARAT_NUM)) != None:
             self.__numRenderer = StaticImageAsNumericalFont(animFont, stride=STRIDE_PAGE, maxNum=99, usePadding=True)
             self.__numRenderer.setPos(offsetVectorToSecondScreen(POS_PAGE_DISPLAY))
 

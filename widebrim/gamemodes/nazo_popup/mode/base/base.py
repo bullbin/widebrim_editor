@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 from widebrim.engine.state.enum_mode import GAMEMODES
 from widebrim.engine.const import PATH_PUZZLE_SCRIPT, PATH_PACK_PUZZLE, PATH_PUZZLE_BG, PATH_PUZZLE_BG_LANGUAGE, PATH_PUZZLE_BG_NAZO_TEXT, RESOLUTION_NINTENDO_DS
-from widebrim.engine_ext.utils import getButtonFromPath, getAnimFromPath, getClickableButtonFromPath, offsetVectorToSecondScreen
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getButtonFromPath, getClickableButtonFromPath, offsetVectorToSecondScreen
 from widebrim.engine.anim.font.scrolling import ScrollingFontHelper
 from widebrim.engine.anim.image_anim import ImageFontRenderer
 from widebrim.engine.anim.fader import Fader
@@ -64,11 +64,8 @@ class BaseQuestionObject(ScriptPlayer):
         self.__scrollerPrompt = ScrollingFontHelper(self.laytonState.fontQ, yBias=2)
         self.__scrollerPrompt.setPos(BaseQuestionObject.POS_QUESTION_TEXT) # Verified, 27_Question_MaybeDrawTopText
 
-        # TODO - Unify language replacement, like bg
-        self.__animSubText = getAnimFromPath(PATH_ANI_SUB_TEXT.replace("?", laytonState.language.value))
-        self.__animHintGlow = getAnimFromPath(PATH_ANIM_HINT_GLOW.replace("?", laytonState.language.value), pos=offsetVectorToSecondScreen(POS_ANIM_HINT_GLOW))
-        if self.__animHintGlow != None:
-            self.__animHintGlow.setAnimationFromIndex(1)
+        self.__animSubText = getBottomScreenAnimFromPath(laytonState, PATH_ANI_SUB_TEXT)
+        self.__animHintGlow = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_HINT_GLOW, pos=POS_ANIM_HINT_GLOW)
 
         self._loadPuzzleBg()
         if nazoData != None:
@@ -114,9 +111,8 @@ class BaseQuestionObject(ScriptPlayer):
         self.__faderTouchAlpha = Fader(0, callbackOnDone=resetFader, callbackClearOnDone=False)
         self.__faderTouchAlpha.setDurationInFrames(60)
 
-        self.__animWaitForTouch = getAnimFromPath(PATH_ANI_WAIT_FOR_TOUCH % laytonState.language.value)
+        self.__animWaitForTouch = getBottomScreenAnimFromPath(laytonState, PATH_ANI_WAIT_FOR_TOUCH)
         if self.__animWaitForTouch != None:
-            self.__animWaitForTouch.setAnimationFromIndex(1)
             # TODO - Replicate the anim width and height getters. Uses current frame to get values, solving some button issues elsewhere
             self.__animWaitForTouch.setPos((0, RESOLUTION_NINTENDO_DS[1]))
             if (surface := self.__animWaitForTouch.getActiveFrame()) != None:
@@ -189,11 +185,6 @@ class BaseQuestionObject(ScriptPlayer):
                     elif self.__popup != None:
                         self.__popup.update(gameClockDelta)
                     else:
-                        if self.__useButtons:
-                            for button in self.__buttons:
-                                button.update(gameClockDelta)
-                        if self.__animHintGlow != None and not(self.__btnHintWiFiPathway):
-                            self.__animHintGlow.update(gameClockDelta)
                         self.updatePuzzleElements(gameClockDelta)
                 else:
                     if self.__animWaitForTouch != None:
@@ -201,6 +192,13 @@ class BaseQuestionObject(ScriptPlayer):
                         self.__animWaitForTouch.update(gameClockDelta)
                         self.__faderTouchAlpha.update(gameClockDelta)
                     self.__scrollerPrompt.update(gameClockDelta)
+                
+                # TODO - when to flash hint button?
+                if self.__useButtons:
+                    for button in self.__buttons:
+                        button.update(gameClockDelta)
+                if self.__animHintGlow != None and not(self.__btnHintWiFiPathway):
+                    self.__animHintGlow.update(gameClockDelta)
         
         self.__screenHint.update(gameClockDelta)
     

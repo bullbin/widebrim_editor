@@ -2,9 +2,8 @@ from __future__ import annotations
 from typing import List, Optional, TYPE_CHECKING
 
 from widebrim.engine.state.layer import ScreenLayerNonBlocking
-from widebrim.engine.const import RESOLUTION_NINTENDO_DS
 from widebrim.engine.state.enum_mode import GAMEMODES
-from widebrim.engine_ext.utils import getAnimFromPath, getButtonFromPath, getStaticButtonFromAnim
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getButtonFromPath, getStaticButtonFromAnim
 
 from .const import *
 
@@ -26,7 +25,7 @@ class SecretMenuPlayer(ScreenLayerNonBlocking):
             if button != None:
                 self.__buttons.append(button)
 
-        self.__animBtn = getAnimFromPath(PATH_ANIM_SECRET_BUTTON % laytonState.language.value)
+        self.__animBtn = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_SECRET_BUTTON)
         addButtonIfNotNone(getStaticButtonFromAnim(self.__animBtn, NAME_ANIM_BTN_0, pos=POS_BTN_0, callback=self.__callbackOnWiFiSecretMenu, clickOffset=BTN_CLICK_OFFSET))
 
         if self.__laytonState.getCountEncounteredStoryPuzzle() > 0:

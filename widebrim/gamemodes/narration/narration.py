@@ -1,7 +1,6 @@
-from ...engine.state.layer import ScreenLayerNonBlocking
-from ...engine.const import RESOLUTION_NINTENDO_DS
-from ...engine_ext.utils import getAnimFromPath
-from ...engine.anim.fader import Fader
+from widebrim.engine.state.layer import ScreenLayerNonBlocking
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, offsetVectorToSecondScreen
+from widebrim.engine.anim.fader import Fader
 from .const import *
 
 # TODO - Abstract further for support of initial text popup
@@ -40,7 +39,7 @@ class NarrationPopup():
                 pos = animation.getVariable(ANI_POS_VAR % (indexImage + 1))
                 if pos == None:
                     pos = (0,0)
-                pos = (pos[0], pos[1] + RESOLUTION_NINTENDO_DS[1])
+                pos = offsetVectorToSecondScreen(pos)
                 self._slidePos.append(pos)
 
                 hasSlides = True
@@ -100,23 +99,23 @@ class NarrationPlayer(ScreenLayerNonBlocking):
 
         if idEvent == ID_EVENT_NARRATION_0:
             screenController.setBgMain(PATH_BG_NARRATION_0)
-            self._animNarration = getAnimFromPath(PATH_ANI_NARRATION_0.replace("?", self.laytonState.language.value))
+            self._animNarration = getBottomScreenAnimFromPath(self.laytonState, PATH_ANI_NARRATION_0)
             self._countNarrationSlides = COUNT_ANI_NARRATION_0
             self._arrangementSlides = SLIDES_ANI_NARRATION_0
         elif idEvent == ID_EVENT_NARRATION_1:
             screenController.setBgMain(PATH_BG_NARRATION_1)
-            self._animNarration = getAnimFromPath(PATH_ANI_NARRATION_1.replace("?", self.laytonState.language.value))
+            self._animNarration = getBottomScreenAnimFromPath(self.laytonState, PATH_ANI_NARRATION_1)
             self._countNarrationSlides = COUNT_ANI_NARRATION_1
             self._arrangementSlides = SLIDES_ANI_NARRATION_1
             self.screenController.modifyPaletteMain(120)
         elif idEvent == ID_EVENT_NARRATION_2:
             screenController.setBgMain(PATH_BG_NARRATION_2)
-            self._animNarration = getAnimFromPath(PATH_ANI_NARRATION_2.replace("?", self.laytonState.language.value))
+            self._animNarration = getBottomScreenAnimFromPath(self.laytonState, PATH_ANI_NARRATION_2)
             self._countNarrationSlides = COUNT_ANI_NARRATION_2
             self._arrangementSlides = SLIDES_ANI_NARRATION_2
         elif idEvent == ID_EVENT_NARRATION_3:
             screenController.setBgMain(PATH_BG_NARRATION_3)
-            self._animNarration = getAnimFromPath(PATH_ANI_NARRATION_3.replace("?", self.laytonState.language.value))
+            self._animNarration = getBottomScreenAnimFromPath(self.laytonState, PATH_ANI_NARRATION_3)
             self._countNarrationSlides = COUNT_ANI_NARRATION_3
             self._arrangementSlides = SLIDES_ANI_NARRATION_3
         else:

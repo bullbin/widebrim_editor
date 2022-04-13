@@ -1,7 +1,7 @@
-from ....engine_ext.utils import getAnimFromPath
-from ....engine.anim.fader import Fader
-from ....engine.const import RESOLUTION_NINTENDO_DS
-from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
+from widebrim.engine.anim.fader import Fader
+from widebrim.engine.const import RESOLUTION_NINTENDO_DS
+from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
 
 from .base import BaseQuestionObject
 from .const import PATH_ANI_KNIGHT
@@ -14,16 +14,17 @@ from math import sqrt
 
 class HandlerShortbrimKnight(BaseQuestionObject):
 
-    BANK_IMAGES = getAnimFromPath(PATH_ANI_KNIGHT)
     TIME_PER_SQUARE = 100
     COLOR_ALPHA = (240,0,0)
 
     def __init__(self, laytonState, screenController, callbackOnTerminate):
         super().__init__(laytonState, screenController, callbackOnTerminate)
 
+        self.__bankImages = getBottomScreenAnimFromPath(laytonState, PATH_ANI_KNIGHT)
+
         def setAnimationFromNameAndReturnInitialFrame(name):
-            if HandlerShortbrimKnight.BANK_IMAGES.setAnimationFromName(name):
-                return HandlerShortbrimKnight.BANK_IMAGES.getActiveFrame()
+            if self.__bankImages.setAnimationFromName(name):
+                return self.__bankImages.getActiveFrame()
             return None
 
         self.tileBoardDimensions = (0,0)

@@ -4,7 +4,7 @@ from widebrim.engine.string.cmp import strCmp
 from widebrim.engine_ext.const import SHAKE_PIX
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
 from widebrim.gamemodes.dramaevent.popup.utils import FadingPopupAnimBackground, FadingPopupMultipleAnimBackground
-from widebrim.engine_ext.utils import getAnimFromPath, getBottomScreenAnimFromPath, getTxt2String
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getTxt2String
 from widebrim.madhatter.hat_io.asset_dat.event import EventData
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
@@ -33,6 +33,8 @@ from .popup import *
 from ..core_popup.save import SaveLoadScreenPopup
 
 from .const import *
+
+from widebrim.madhatter.common import logSevere, logVerbose
 
 from pygame import Surface, MOUSEBUTTONUP, event
 from pygame.transform import flip
@@ -138,12 +140,14 @@ class CharacterController():
         self._isCharacterTalking = False
 
         if characterIndex == 86 or characterIndex == 87:
-            self.imageCharacter = getAnimFromPath((PATH_BODY_ROOT_LANG_DEP % characterIndex).replace("?", laytonState.language.value), enableSubAnimation=True)
+            self.imageCharacter = getBottomScreenAnimFromPath(laytonState, (PATH_BODY_ROOT_LANG_DEP % characterIndex), enableSubAnimation=True)
         else:
-            self.imageCharacter = getAnimFromPath(PATH_BODY_ROOT % characterIndex, enableSubAnimation=True)
+            self.imageCharacter = getBottomScreenAnimFromPath(laytonState, PATH_BODY_ROOT % characterIndex, enableSubAnimation=True)
 
         if self.imageCharacter != None:
             self.setCharacterAnimationFromIndex(characterInitialAnimIndex)
+            self.imageCharacter.setPos((0,0))
+
         self.imageName = getBottomScreenAnimFromPath(laytonState, PATH_NAME_ROOT % (laytonState.language.value, characterIndex))
 
         self._visibilityFader = Fader(0, initialActiveState=True)
@@ -163,7 +167,6 @@ class CharacterController():
 
     def update(self, gameClockDelta):
         if self.imageCharacter != None:
-            
             if self.imageCharacter.update(gameClockDelta) or self._characterFlippedSurfaceNeedsUpdate:
                 self._characterFlippedSurface.fill((0,0,0,0))
                 self.imageCharacter.setAlpha(round(255 * self._visibilityFader.getStrength()))
@@ -301,14 +304,14 @@ class EventPlayer(ScriptPlayer):
         self.nameCharacters = []
         self.characterSpawnIdToCharacterMap : Dict[int, CharacterController] = {}
 
-        self._sharedImageHandler = EventStorage()
+        self._sharedImageHandler = EventStorage(laytonState)
 
         self._doGoalSet = True
 
         if spawnId == -1:
             self.doOnKill()
         else:
-            print("Loaded event", spawnId)
+            logVerbose("Loaded event", spawnId)
             # Centralise this so it can be deleted when finished
             try:
                 packEventScript = FileInterface.getPack(getEventScriptPath())
@@ -333,10 +336,10 @@ class EventPlayer(ScriptPlayer):
                 self._loadEventAndScriptData(packEventScript.getData(PATH_PACK_EVENT_SCR % (self._idMain, self._idSub)), eventData)
 
             except TypeError:
-                print("Failed to catch script data for event!")
+                logSevere("Failed to catch script data for event!")
                 self.doOnKill()
             except FileInvalidCritical:
-                print("Failed to fetch required data for event!")
+                logSevere("Failed to fetch required data for event!")
                 self.doOnKill()
     
     def _loadEventAndScriptData(self, script : Union[GdScript, bytes], data : EventData):
@@ -478,7 +481,7 @@ class EventPlayer(ScriptPlayer):
             else:
                 # Game will execute command regardless, but window will inherit bad string data from central buffer. Not feasible but can mostly replicate.
 
-                print("\tTalk script missing!", PATH_PACK_TALK % (self._idMain, self._idSub, operands[0].value))
+                logSevere("\tTalk script missing!", PATH_PACK_TALK % (self._idMain, self._idSub, operands[0].value))
             
             self._popup = TextWindow(self.laytonState, self.screenController, text, targetController, animNameOnSpawn=animNameOn, animNameOnExit=animNameOff, funcSetAni=self.__setAniCallback, callbackOnTerminate=self._makeActive)
             self._makeInactive()

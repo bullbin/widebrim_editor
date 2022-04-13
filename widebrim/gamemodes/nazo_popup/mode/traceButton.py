@@ -1,7 +1,7 @@
 from widebrim.engine.string.cmp import strCmp
 from .base import BaseQuestionObject
 from ....engine.const import RESOLUTION_NINTENDO_DS
-from ....engine_ext.utils import getAnimFromPath, getBottomScreenAnimFromPath, getButtonFromPath
+from ....engine_ext.utils import getBottomScreenAnimFromPath, getButtonFromPath
 from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
 from pygame import MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION, draw, Surface
 from random import randint
@@ -61,10 +61,7 @@ class HandlerTraceButton(BaseQuestionObject):
         self._colourKey = (0,0,0)
 
         self._animNoTargetFound = getBottomScreenAnimFromPath(laytonState, PATH_ANI_RETRY)
-        self._animPoint         = getAnimFromPath(PATH_ANI_POINT)
-
-        if self._animPoint != None:
-            self._animPoint.setAnimationFromName("gfx")
+        self._animPoint         = getBottomScreenAnimFromPath(laytonState, PATH_ANI_POINT)
 
         self._penLastPoint = None
         self._penSurface = None

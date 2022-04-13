@@ -1,6 +1,6 @@
-from ....engine.const import RESOLUTION_NINTENDO_DS
-from ....engine_ext.utils import getAnimFromPath
-from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from widebrim.engine.const import RESOLUTION_NINTENDO_DS
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
+from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
 from .base import BaseQuestionObject
 from .const import PATH_ANI_PEGSOLITAIRE
 from pygame import MOUSEBUTTONUP, MOUSEBUTTONDOWN, MOUSEMOTION, Surface
@@ -11,12 +11,13 @@ from pygame import MOUSEBUTTONUP, MOUSEBUTTONDOWN, MOUSEMOTION, Surface
 class HandlerShortbrimPegSolitaire(BaseQuestionObject):
 
     # TODO - (old) Pull out class to support these types of puzzles which are like TapToAnswer but fixed on grid
-
-    BANK_IMAGES = getAnimFromPath(PATH_ANI_PEGSOLITAIRE)
     BALL_X_LIMIT = 187
 
     def __init__(self, laytonState, screenController, callbackOnTerminate):
         super().__init__(laytonState, screenController, callbackOnTerminate)
+
+        self.__bankImages = getBottomScreenAnimFromPath(laytonState, PATH_ANI_PEGSOLITAIRE)
+
         self.tileBoardDimensions = (7, 7)
         self.posCorner = (12, 12)
         self.tileDimensions = (24,24)
@@ -24,8 +25,8 @@ class HandlerShortbrimPegSolitaire(BaseQuestionObject):
         self.tilesInitial = []
 
         def setAnimationFromNameAndReturnInitialFrame(name):
-            if HandlerShortbrimPegSolitaire.BANK_IMAGES.setAnimationFromName(name):
-                return HandlerShortbrimPegSolitaire.BANK_IMAGES.getActiveFrame()
+            if self.__bankImages.setAnimationFromName(name):
+                return self.__bankImages.getActiveFrame()
             return None
 
         self.imageBall = setAnimationFromNameAndReturnInitialFrame("ball")

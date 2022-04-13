@@ -177,11 +177,59 @@ def getStaticButtonFromPath(laytonState : Layton2GameState, inPath : str, spawnA
             return StaticButton(button.image.getPos(), button.image.getActiveFrame(), callback=callback, targettedOffset=clickOffset)
     return None
 
-def getClickableButtonFromPath(laytonState : Layton2GameState, inPath : str, callback : Optional[Callable], animOff : str = "off", animOn : str = "on", animClick : str = "click", pos=(0,0), customDimensions=None, namePosVariable=None, unclickOnCallback=True) -> Optional[AnimatedClickableButton]:
+def getClickableButtonFromPath(laytonState : Layton2GameState, inPath : str, callback : Optional[Callable], animOff : str = "off", animOn : str = "on", animClick : str = "click", pos=(0,0), customDimensions=None, namePosVariable="pos", unclickOnCallback=True) -> Optional[AnimatedClickableButton]:
     button = getButtonFromPath(laytonState, inPath, callback, animOff, animOn, pos, customDimensions, namePosVariable)
     if button != None:
         button = button.asClickable(animClick, unclickOnCallback)
     return button
+
+def _getAnimFromPath(laytonState : Layton2GameState, inPath : str, spawnAnimIndex : Optional[int] = 1, spawnAnimName : Optional[str] = None, pos : Tuple[int,int] = (0,0), namePosVar : str = "pos", enableSubAnimation : bool = False, doOffset : bool = False):
+
+    if doOffset:
+        extension = "arc"
+    else:
+        extension = "arj"
+
+    def functionGetAnimationFromName(name):
+        name = name.split(".")[0] + "." + extension
+        resolvedPath = PATH_FACE_ROOT % name
+        return FileInterface.getData(resolvedPath)
+
+    inPath = substituteLanguageString(laytonState, getFormatString(inPath, extension))
+
+    if (tempAsset := FileInterface.getData(PATH_ANI % inPath)) != None:
+        try:
+            if doOffset:
+                tempImage = AnimatedImage.fromBytesArc(tempAsset, functionGetFileByName=functionGetAnimationFromName)
+            else:
+                tempImage = AnimatedImage.fromBytesArj(tempAsset, functionGetFileByName=functionGetAnimationFromName)
+        except:
+            logSevere("Failed to parse image at", inPath)
+            return AnimatedImageObject()
+
+        if enableSubAnimation:
+            tempImage = AnimatedImageObjectWithSubAnimation.fromMadhatter(tempImage)
+        else:
+            tempImage = AnimatedImageObject.fromMadhatter(tempImage)
+        
+        if pos == (0,0) and namePosVar != None:
+            if (posData := tempImage.getVariable(namePosVar)) != None:
+                tempImage.setPos((posData[0], posData[1]))
+        else:
+            tempImage.setPos(pos)
+        
+        if doOffset:
+            tempImage.setPos(offsetVectorToSecondScreen(tempImage.getPos()))
+
+        if spawnAnimName != None:
+            tempImage.setAnimationFromName(spawnAnimName)
+        elif spawnAnimIndex != None:
+            tempImage.setAnimationFromIndex(spawnAnimIndex)
+        
+        return tempImage
+    
+    logSevere("Could not fetch image for", inPath)
+    return AnimatedImageObject()
 
 # Accurate behaviour for game assets - divided into bottom and top screen (ARC and ARJ) and follow the given rules. If an animation is not found a void one is returned instead
 def getBottomScreenAnimFromPath(laytonState : Layton2GameState, inPath : str, spawnAnimIndex : Optional[int] = 1, spawnAnimName : Optional[str] = None, pos : Tuple[int,int] = (0,0), namePosVar : str = "pos", enableSubAnimation : bool = False) -> Optional[Union[AnimatedImageObject, AnimatedImageObjectWithSubAnimation]]:
@@ -199,70 +247,27 @@ def getBottomScreenAnimFromPath(laytonState : Layton2GameState, inPath : str, sp
     Returns:
         Union[AnimatedImageObject, AnimatedImageObjectWithSubAnimation]: Animation object. Empty animation if no animation could be loaded at the given path.
     """
-    
-    def functionGetAnimationFromName(name):
-        name = name.split(".")[0] + ".arc"
-        resolvedPath = PATH_FACE_ROOT % name
-        return FileInterface.getData(resolvedPath)
 
-    inPath = substituteLanguageString(laytonState, getFormatString(inPath, "arc"))
+    return _getAnimFromPath(laytonState, inPath, spawnAnimIndex, spawnAnimName, pos, namePosVar, enableSubAnimation, doOffset = True)
 
-    if (tempAsset := FileInterface.getData(PATH_ANI % inPath)) != None:
-        try:
-            tempImage = AnimatedImage.fromBytesArc(tempAsset, functionGetFileByName=functionGetAnimationFromName)
-        except:
-            logSevere("Failed to parse image at", inPath)
-            return AnimatedImageObject()
+# Accurate behaviour for game assets - divided into bottom and top screen (ARC and ARJ) and follow the given rules. If an animation is not found a void one is returned instead
+def getTopScreenAnimFromPath(laytonState : Layton2GameState, inPath : str, spawnAnimIndex : Optional[int] = 1, spawnAnimName : Optional[str] = None, pos : Tuple[int,int] = (0,0), namePosVar : str = "pos", enableSubAnimation : bool = False) -> Optional[Union[AnimatedImageObject, AnimatedImageObjectWithSubAnimation]]:
+    """Gets animation located in the given path. Where possible, language substitution and format correction will be applied to the string. Animations returned are aligned to the bottom screen.
 
-        if enableSubAnimation:
-            tempImage = AnimatedImageObjectWithSubAnimation.fromMadhatter(tempImage)
-        else:
-            tempImage = AnimatedImageObject.fromMadhatter(tempImage)
-        
-        if pos == (0,0) and namePosVar != None:
-            if (posData := tempImage.getVariable(namePosVar)) != None:
-                tempImage.setPos(offsetVectorToSecondScreen((posData[0], posData[1])))
-        else:
-            tempImage.setPos(offsetVectorToSecondScreen(pos))
-        
-        if spawnAnimIndex != None:
-            tempImage.setAnimationFromIndex(spawnAnimIndex)
-        elif spawnAnimName != None:
-            tempImage.setAnimationFromName(spawnAnimName)
-        
-        return tempImage
-    
-    logSevere("Could not fetch image for", inPath)
-    return AnimatedImageObject()
+    Args:
+        laytonState (Layton2GameState): Game state used for language substitution.
+        inPath (str): Path relative to animation root leading to animation. Should include 3-digit some extension, by default arc or spr.
+        spawnAnimIndex (Optional[int], optional): Index to set animation on spawn. Set to None to ignore this feature. Defaults to 1.
+        spawnAnimName (Optional[str], optional): Name to set animation on spawn. Set to None to ignore this feature. Defaults to None.
+        pos (Tuple[int,int], optional): Initial position for drawing. Offset onto bottom screen by default. Set to (0,0) to fallback to stored variable position. Defaults to (0,0).
+        namePosVar (str, optional): Variable name used for automatic positioning. Ignored if position is specified. Defaults to "pos".
+        enableSubAnimation (bool, optional): Allows the animation to load an additional animation. Rarely used. Defaults to False.
 
-# TODO - Swith anim name to anim index, more accurate and faster (index 1 will be target in 99% of cases)
-def getAnimFromPath(inPath, spawnAnimName=None, pos=(0,0), enableSubAnimation=False) -> Optional[Union[AnimatedImageObject, AnimatedImageObjectWithSubAnimation]]:
-
-    def functionGetAnimationFromName(name):
-        name = name.split(".")[0] + ".arc"
-        resolvedPath = PATH_FACE_ROOT % name
-        return FileInterface.getData(resolvedPath)
-
-    if ".spr" in inPath:
-        inPath = inPath.split(".spr")[0] + ".arc"
-    elif ".sbj" in inPath:
-        inPath = inPath.split(".sbj")[0] + ".arj"
-    
-    if (tempAsset := FileInterface.getData(PATH_ANI % inPath)) != None:
-        if ".arj" in inPath:
-            tempImage = AnimatedImage.fromBytesArj(tempAsset, functionGetFileByName=functionGetAnimationFromName)
-        else:
-            tempImage = AnimatedImage.fromBytesArc(tempAsset, functionGetFileByName=functionGetAnimationFromName)
-
-        if enableSubAnimation:
-            tempImage = AnimatedImageObjectWithSubAnimation.fromMadhatter(tempImage)
-        else:
-            tempImage = AnimatedImageObject.fromMadhatter(tempImage)
-        tempImage.setPos(pos)
-        if type(spawnAnimName) == str:
-            tempImage.setAnimationFromName(spawnAnimName)
-        return tempImage
-    return tempAsset
+    Returns:
+        Union[AnimatedImageObject, AnimatedImageObjectWithSubAnimation]: Animation object. Empty animation if no animation could be loaded at the given path.
+    """
+    # TODO - Subanimation?
+    return _getAnimFromPath(laytonState, inPath, spawnAnimIndex, spawnAnimName, pos, namePosVar, enableSubAnimation, doOffset = False)
 
 # TODO - Remove this HACK (and use it wherever possible)
 def offsetVectorToSecondScreen(inPos : Tuple[int,int]):

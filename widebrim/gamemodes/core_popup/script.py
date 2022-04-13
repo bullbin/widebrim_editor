@@ -1,18 +1,20 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from widebrim.engine.state.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
     from widebrim.madhatter.hat_io.asset_script import GdScript
 
 from widebrim.engine.string.cmp import strCmp
-from ...engine.state.layer import ScreenLayerNonBlocking
-from ...engine.state.enum_mode import STRING_TO_GAMEMODE_VALUE, GAMEMODES
-from ...engine.anim.fader import Fader
-from ...engine.const import TIME_FRAMECOUNT_TO_MILLISECONDS, RESOLUTION_NINTENDO_DS, PATH_CHAP_ROOT
+from widebrim.engine.state.layer import ScreenLayerNonBlocking
+from widebrim.engine.state.enum_mode import STRING_TO_GAMEMODE_VALUE, GAMEMODES
+from widebrim.engine.anim.fader import Fader
+from widebrim.engine.const import TIME_FRAMECOUNT_TO_MILLISECONDS, RESOLUTION_NINTENDO_DS, PATH_CHAP_ROOT
 
-from ...madhatter.typewriter.stringsLt2 import OPCODES_LT2
-from ...madhatter.hat_io.asset_sav import FlagsAsArray
+from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from widebrim.madhatter.hat_io.asset_sav import FlagsAsArray
+from widebrim.madhatter.hat_io.asset_script import Instruction
 
 from pygame import MOUSEBUTTONDOWN
 
@@ -88,8 +90,8 @@ class ScriptPlayer(ScreenLayerNonBlocking):
     def _makeInactive(self):
         self._isActive = False
 
-    def executeCommand(self, command):
-        return self._doUnpackedCommand(int.from_bytes(command.opcode, byteorder = 'little'), command.operands)
+    def executeCommand(self, command : Instruction):
+        return self._doUnpackedCommand(int.from_bytes(command.opcode, byteorder = 'little'), command.getFilteredOperands())
 
     def _doUnpackedCommand(self, opcode, operands):
 

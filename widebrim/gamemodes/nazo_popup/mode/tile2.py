@@ -1,10 +1,9 @@
 from pygame.constants import MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION
 from .base import BaseQuestionObject
-from ....engine_ext.utils import getAnimFromPath
+from ....engine_ext.utils import getBottomScreenAnimFromPath
 from ....engine.const import RESOLUTION_NINTENDO_DS
 from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
 from .const import PATH_ANI_TILE2, PATH_ANI_TILE
-from math import sqrt
 
 from pygame import Rect, draw
 from pygame.transform import rotate
@@ -327,7 +326,7 @@ class HandlerTile2(BaseQuestionObject):
         # Duplicate resource for tile
         # TODO - Create a way to copy anim or have duplicates playing to reduce memory usage
         if indexResource in self._resources:
-            return getAnimFromPath(self._resources[indexResource])
+            return getBottomScreenAnimFromPath(self.laytonState, self._resources[indexResource])
         return None
 
     def _updateTilePoint(self, tile, pos):

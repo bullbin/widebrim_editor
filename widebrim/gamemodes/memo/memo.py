@@ -3,7 +3,7 @@ from typing import List, Optional, TYPE_CHECKING
 from widebrim.engine.anim.image_anim.image import AnimatedImageObject
 from widebrim.engine.state.enum_mode import GAMEMODES
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
-from widebrim.engine_ext.utils import getAnimFromPath, getButtonFromPath, getClickableButtonFromPath, getTxtString
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getButtonFromPath, getClickableButtonFromPath, getTxtString
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
 from widebrim.engine.state.layer import ScreenLayerNonBlocking
 from widebrim.engine.anim.button import AnimatedButton, NullButton
@@ -60,7 +60,7 @@ class MemoPlayer(ScreenLayerNonBlocking):
 
         self.__indexButton : int = 0
         self.__indexActiveEntry : int = -1
-        self.__animMemoGfx : Optional[AnimatedImageObject] = getAnimFromPath(PATH_ANIM_MEMO_GFX % self.laytonState.language.value)
+        self.__animMemoGfx : Optional[AnimatedImageObject] = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_MEMO_GFX)
         self.__doOnReloadPage()
     
     def __makeActive(self):

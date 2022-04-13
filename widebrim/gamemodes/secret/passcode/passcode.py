@@ -8,7 +8,7 @@ from widebrim.engine.state.layer import ScreenLayerNonBlocking
 from widebrim.engine.state.enum_mode import GAMEMODES
 from widebrim.engine.cipher import generatePasscode
 from widebrim.engine.const import CIPHER_IV
-from widebrim.engine_ext.utils import getAnimFromPath, getButtonFromPath, getStaticButtonFromAnim
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getButtonFromPath, getStaticButtonFromAnim
 
 from .const import *
 
@@ -30,7 +30,7 @@ class PasscodePlayer(ScreenLayerNonBlocking):
             if button != None:
                 self.__buttons.append(button)
 
-        self.__animBtn = getAnimFromPath(PATH_ANIM_BUTTONS % laytonState.language.value)
+        self.__animBtn = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_BUTTONS)
 
         # TODO - Should save somewhere near here...
         # TODO - Code overlay on these events

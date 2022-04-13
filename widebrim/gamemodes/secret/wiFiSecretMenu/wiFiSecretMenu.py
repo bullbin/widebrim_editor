@@ -1,10 +1,9 @@
 from __future__ import annotations
-from typing import List, Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 from widebrim.engine.state.layer import ScreenLayerNonBlocking
-from widebrim.engine.const import RESOLUTION_NINTENDO_DS
 from widebrim.engine.state.enum_mode import GAMEMODES
-from widebrim.engine_ext.utils import getAnimFromPath, getButtonFromPath, getStaticButtonFromAnim
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getButtonFromPath, getStaticButtonFromAnim
 
 from .const import *
 
@@ -31,7 +30,7 @@ class WiFiSecretMenuPlayer(ScreenLayerNonBlocking):
                 self.__buttons.append(button)
 
         self.__animNew : Optional[AnimatedImageObject] = None
-        self.__animBtn = getAnimFromPath(PATH_ANIM_SECRET_BUTTONS.replace("?", laytonState.language.value))
+        self.__animBtn = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_SECRET_BUTTONS)
         self.__btnSolve : Optional[StaticButton] = None
 
         if laytonState.wiFiData.getCountEntries() > 0:
@@ -53,9 +52,7 @@ class WiFiSecretMenuPlayer(ScreenLayerNonBlocking):
                         break
         
         if drawNew:
-            self.__animNew = getAnimFromPath(PATH_ANIM_NEW.replace("?", laytonState.language.value), pos=(POS_ANIM_NEW[0], POS_ANIM_NEW[1] + RESOLUTION_NINTENDO_DS[1]))
-            if self.__animNew != None:
-                self.__animNew.setAnimationFromIndex(1)
+            self.__animNew = getBottomScreenAnimFromPath(laytonState, PATH_ANIM_NEW, pos=POS_ANIM_NEW)
 
         screenController.setBgMain(PATH_BG_MAIN)
         screenController.setBgSub(PATH_BG_SUB)

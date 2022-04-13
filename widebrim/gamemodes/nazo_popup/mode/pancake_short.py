@@ -1,9 +1,9 @@
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
-from widebrim.engine_ext.utils import getAnimFromPath
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
 from .const import PATH_ANI_PANCAKE, PATH_ANI_SLIDE2_NUMBERS
 from pygame import MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION, Rect
 from .base import BaseQuestionObject
-from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
 
 # Ported from shortbrim
 # TODO - Rewrite this altogether - so many problems, not accurate, missing end graphics showing all lines, etc...
@@ -45,7 +45,7 @@ class HandlerShortbrimPancake(BaseQuestionObject):
     def __init__(self, laytonState, screenController, callbackOnTerminate):
         super().__init__(laytonState, screenController, callbackOnTerminate)
 
-        self.bankImages = getAnimFromPath(PATH_ANI_PANCAKE)
+        self.bankImages = getBottomScreenAnimFromPath(laytonState, PATH_ANI_PANCAKE)
         self.platesTargetHeight = 0
         self.plates = [[],[],[]]
         self.platesColliders = [None, None, None]
@@ -53,7 +53,7 @@ class HandlerShortbrimPancake(BaseQuestionObject):
         self.activePancakeMouseButtonOffset = (0,0)
         self.activePancakePos = (0,0)
 
-        self.countMoveFont = getAnimFromPath(PATH_ANI_SLIDE2_NUMBERS)
+        self.countMoveFont = getBottomScreenAnimFromPath(laytonState, PATH_ANI_SLIDE2_NUMBERS)
         self.countMoves = 0
 
     def hasSubmitButton(self):
