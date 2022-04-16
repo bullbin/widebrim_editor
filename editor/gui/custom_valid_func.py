@@ -1,5 +1,4 @@
-from widebrim.engine.file import FileInterface
-from widebrim.gui.gdscript_valid_func import OperandValidator
+from .gdscript_valid_func import OperandValidator
 
 class ValidatorBackgroundPath(OperandValidator):
     # TODO - Check language pathing

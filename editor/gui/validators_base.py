@@ -1,6 +1,6 @@
 from typing import List
-from widebrim.gui.custom_valid_func import ValidatorBackgroundPath, ValidatorColorComponent
-from widebrim.gui.gdscript_valid_func import InstructionValidator, ValidatorSigned32
+from .custom_valid_func import ValidatorBackgroundPath, ValidatorColorComponent
+from .gdscript_valid_func import InstructionValidator, ValidatorSigned32
 from widebrim.madhatter.hat_io.asset_script import Operand
 
 class CommandSetBackgroundValidator(InstructionValidator):

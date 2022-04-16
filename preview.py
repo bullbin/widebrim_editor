@@ -10,10 +10,10 @@ def noLog(*args, **kwargs):
     pass
 
 common.logVerbose = noLog
-
 from wx import App
 from editor.embed_mod import EditorWindow
 from editor.d_imp_back import DialogueImportBackground
+from widebrim.engine_ext.utils import cleanTempFolder
 import pygame
 
 class App(App):
@@ -35,6 +35,7 @@ debug.MainLoop()
 # TODO - widebrim cleanup
 
 pygame.quit()
+cleanTempFolder()
 
 # TODO - failure loading logo (oops) and broken border on title
 # TODO - String validation

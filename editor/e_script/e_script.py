@@ -13,7 +13,7 @@ from .opcode_translation import getInstructionName
 from wx import ID_ANY, DefaultPosition, Size, TAB_TRAVERSAL, EmptyString, NOT_FOUND
 
 from widebrim.madhatter.hat_io.asset_script import GdScript, Operand
-from widebrim.gui.command_annotator import Context
+from editor.gui.command_annotator.bank import Context
 from pygame import Surface
 from pygame.transform import flip
 from pygame.image import tostring
