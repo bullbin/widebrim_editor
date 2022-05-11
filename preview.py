@@ -10,6 +10,8 @@ def noLog(*args, **kwargs):
     pass
 
 common.logVerbose = noLog
+common.log = noLog
+
 from wx import App
 from editor.embed_mod import EditorWindow
 from editor.d_imp_back import DialogueImportBackground

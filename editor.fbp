@@ -1846,8 +1846,98 @@
                         <property name="shortcut"></property>
                         <property name="unchecked_bitmap"></property>
                     </object>
+                    <object class="separator" expanded="1">
+                        <property name="name">m_separator5</property>
+                        <property name="permission">none</property>
+                    </object>
+                    <object class="submenu" expanded="0">
+                        <property name="bitmap"></property>
+                        <property name="label">Script editing preferences...</property>
+                        <property name="name">menuVirtualAbstraction</property>
+                        <property name="permission">protected</property>
+                        <object class="wxMenuItem" expanded="0">
+                            <property name="bitmap"></property>
+                            <property name="checked">1</property>
+                            <property name="enabled">1</property>
+                            <property name="help"></property>
+                            <property name="id">wxID_ANY</property>
+                            <property name="kind">wxITEM_RADIO</property>
+                            <property name="label">Low abstraction level (powerful; no protections applied)</property>
+                            <property name="name">menuAbstractionLow</property>
+                            <property name="permission">none</property>
+                            <property name="shortcut"></property>
+                            <property name="unchecked_bitmap"></property>
+                            <event name="OnMenuSelection">menuAbstractionLowOnMenuSelection</event>
+                        </object>
+                        <object class="wxMenuItem" expanded="0">
+                            <property name="bitmap"></property>
+                            <property name="checked">0</property>
+                            <property name="enabled">1</property>
+                            <property name="help"></property>
+                            <property name="id">wxID_ANY</property>
+                            <property name="kind">wxITEM_RADIO</property>
+                            <property name="label">Medium abstraction level (balanced; specialized entry)</property>
+                            <property name="name">menuAbstractionMed</property>
+                            <property name="permission">none</property>
+                            <property name="shortcut"></property>
+                            <property name="unchecked_bitmap"></property>
+                            <event name="OnMenuSelection">menuAbstractionMedOnMenuSelection</event>
+                        </object>
+                        <object class="wxMenuItem" expanded="0">
+                            <property name="bitmap"></property>
+                            <property name="checked">0</property>
+                            <property name="enabled">1</property>
+                            <property name="help"></property>
+                            <property name="id">wxID_ANY</property>
+                            <property name="kind">wxITEM_RADIO</property>
+                            <property name="label">High abstraction level (safest; virtual scripting)</property>
+                            <property name="name">menuAbstractionHigh</property>
+                            <property name="permission">none</property>
+                            <property name="shortcut"></property>
+                            <property name="unchecked_bitmap"></property>
+                            <event name="OnMenuSelection">menuAbstractionHighOnMenuSelection</event>
+                        </object>
+                        <object class="separator" expanded="0">
+                            <property name="name">m_separator6</property>
+                            <property name="permission">none</property>
+                        </object>
+                        <object class="wxMenuItem" expanded="0">
+                            <property name="bitmap"></property>
+                            <property name="checked">1</property>
+                            <property name="enabled">0</property>
+                            <property name="help"></property>
+                            <property name="id">wxID_ANY</property>
+                            <property name="kind">wxITEM_CHECK</property>
+                            <property name="label">Permit lossy operations</property>
+                            <property name="name">menuVirtualScriptLossy</property>
+                            <property name="permission">none</property>
+                            <property name="shortcut"></property>
+                            <property name="unchecked_bitmap"></property>
+                            <event name="OnMenuSelection">menuVirtualScriptLossyOnMenuSelection</event>
+                        </object>
+                    </object>
+                    <object class="submenu" expanded="1">
+                        <property name="bitmap"></property>
+                        <property name="label">Overview preferences...</property>
+                        <property name="name">menuOverviewPreferences</property>
+                        <property name="permission">protected</property>
+                        <object class="wxMenuItem" expanded="1">
+                            <property name="bitmap"></property>
+                            <property name="checked">0</property>
+                            <property name="enabled">1</property>
+                            <property name="help"></property>
+                            <property name="id">wxID_ANY</property>
+                            <property name="kind">wxITEM_CHECK</property>
+                            <property name="label">Show event comments</property>
+                            <property name="name">menuPrefOverviewEnableEvtInf</property>
+                            <property name="permission">none</property>
+                            <property name="shortcut"></property>
+                            <property name="unchecked_bitmap"></property>
+                            <event name="OnMenuSelection">menuPrefOverviewEnableEvtInfOnMenuSelection</event>
+                        </object>
+                    </object>
                 </object>
-                <object class="wxMenu" expanded="1">
+                <object class="wxMenu" expanded="0">
                     <property name="label">Preview</property>
                     <property name="name">menuPreview</property>
                     <property name="permission">protected</property>
@@ -1878,7 +1968,7 @@
                         <property name="unchecked_bitmap"></property>
                         <event name="OnMenuSelection">submenuEnginePauseOnMenuSelection</event>
                     </object>
-                    <object class="submenu" expanded="1">
+                    <object class="submenu" expanded="0">
                         <property name="bitmap"></property>
                         <property name="label">Modify framerate...</property>
                         <property name="name">submenuEngineFramerate</property>
@@ -1911,7 +2001,7 @@
                             <property name="unchecked_bitmap"></property>
                             <event name="OnMenuSelection">framesFullOnMenuSelection</event>
                         </object>
-                        <object class="wxMenuItem" expanded="1">
+                        <object class="wxMenuItem" expanded="0">
                             <property name="bitmap"></property>
                             <property name="checked">1</property>
                             <property name="enabled">1</property>

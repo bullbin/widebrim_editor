@@ -1,5 +1,6 @@
 from typing import List
 from widebrim.engine.const import PATH_NAZO_A, PATH_NAZO_B, PATH_NAZO_C, PATH_PACK_NAZO, PATH_PUZZLE_SCRIPT, PATH_PACK_PUZZLE
+from widebrim.madhatter.common import log
 from widebrim.madhatter.hat_io.asset_dat import NazoDataNds
 from widebrim.engine.file import FileInterface
 from widebrim.engine.state.state import Layton2GameState
@@ -73,6 +74,6 @@ def getPuzzles(state : Layton2GameState) -> List[List[PuzzleEntry]]:
                 if packPuzzleScript.getData(PATH_PACK_PUZZLE % idInternal) != None:
                     addPuzzle(idInternal, puzzleDat)
                 else:
-                    print("Puzzle missing script", idInternal)
+                    log("Puzzle missing script", idInternal)
 
     return [puzzlesNormal, puzzlesWifi, puzzlesChallenge]

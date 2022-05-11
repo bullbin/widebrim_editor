@@ -6,8 +6,9 @@ from widebrim.engine.file import FileInterface, File
 from widebrim.madhatter.hat_io.asset import LaytonPack
 from widebrim.madhatter.hat_io.asset_script import GdScript, Instruction
 from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from widebrim.madhatter.common import logVerbose
 
-from .bank import InstructionDescription, OperandDescription, OperandType, Context, ScriptVerificationBank
+from .bank import InstructionDescription, OperandType, Context, ScriptVerificationBank
 
 PATH_PACK_EVENT = "/data_lt2/event/ev_d%s.plz"
 
@@ -38,7 +39,6 @@ class BaselineVerificationBank(ScriptVerificationBank):
             """
             newDefinition = InstructionDescription(int.from_bytes(command.opcode,  byteorder='little'))
             newDefinition.isUsed = True
-            newDefinition.minCountOperands = len(command.operands)
             newDefinition.contextValid = list(forceContext)
 
             for operand in command.getFilteredOperands():
@@ -92,8 +92,8 @@ class BaselineVerificationBank(ScriptVerificationBank):
         for opcodeUnused in unused:
             self.addInstruction(generateDescriptionForUnused(opcodeUnused))
 
-        print(len(unused), "valid instructions were not used in-game.")
-        print(unused)
+        logVerbose(len(unused), "valid instructions were not used in-game.")
+        logVerbose(unused)
 
     def fillUsedInstructions(self):
         """Uses scripts inside ROM to build descriptions on instructions.
@@ -129,7 +129,74 @@ class BaselineVerificationBank(ScriptVerificationBank):
             script.load(data)
             self.__parseScript(script, "logo.gds", forceContext=[Context.Base])
     
-    def applyDefaultHeuristics(self):
+    def applyExtendedOperandTypingHeuristics(self):
+
+        instruction = None
+
+        def switchByName(targetName : str, targetCount : str, newType : OperandType, lower=True):
+            try:
+                name = OPCODES_LT2(opcode).name
+            except:
+                name = None
+            if name != None:
+                if lower:
+                    name = name.lower()
+                if targetName in name and instruction.getCountOperands() == targetCount:
+                    for indexOperand in range(instruction.getCountOperands()):
+                        if instruction.getOperand(indexOperand).isBaseTypeCompatible(newType):
+                            instruction.getOperand(indexOperand).operandType = newType
+        
+        def switchByOpcode(targetOpcode : OPCODES_LT2, newTypes : List[OperandType]):
+            if (instruction := self.getInstructionByOpcode(targetOpcode.value)) != None:
+                if len(newTypes) == instruction.getCountOperands():
+                    for indexOperand, newType in zip(range(instruction.getCountOperands()), newTypes):
+                        operand = instruction.getOperand(indexOperand)
+                        if operand.isBaseTypeCompatible(newType):
+                            operand.operandType = newType
+
+        for opcode in self.getAllInstructionOpcodes():
+            instruction = self.getInstructionByOpcode(opcode)
+            switchByName("color", 3, OperandType.ColorComponent5)
+            switchByName("gamemode", 1, OperandType.StringGamemode)
+            switchByName("partyscreen", 1, OperandType.FlagCharacter)
+            switchByName("autoeventid", 1, OperandType.FlagAutoEvent)
+            switchByName("sprite", 1, OperandType.IndexEventDataCharacter)
+            switchByName("inframe", 1, OperandType.TimeFrameCount)
+            switchByName("outframe", 1, OperandType.TimeFrameCount)
+            switchByName("hukamaru", 1, OperandType.IndexMystery)
+        
+        switchByOpcode(OPCODES_LT2.SetDramaEventNum, [OperandType.InternalEventId])
+        switchByOpcode(OPCODES_LT2.SetPuzzleNum, [OperandType.InternalPuzzleId])
+        switchByOpcode(OPCODES_LT2.SetMovieNum, [OperandType.InternalMovieId])
+        switchByOpcode(OPCODES_LT2.SetPlace, [OperandType.InternalPlaceId])
+        switchByOpcode(OPCODES_LT2.ShakeBG, [OperandType.TimeFrameCount])
+        switchByOpcode(OPCODES_LT2.ShakeSubBG, [OperandType.TimeFrameCount])
+        switchByOpcode(OPCODES_LT2.DrawFrames, [OperandType.TimeFrameCount])
+        switchByOpcode(OPCODES_LT2.WaitFrame, [OperandType.TimeFrameCount])
+        switchByOpcode(OPCODES_LT2.WaitVSyncOrPenTouch, [OperandType.TimeFrameCount])
+        switchByOpcode(OPCODES_LT2.LoadBG, [OperandType.StringBackground, OperandType.ModeBackground])
+        switchByOpcode(OPCODES_LT2.LoadSubBG, [OperandType.StringBackground, OperandType.ModeBackground])
+        switchByOpcode(OPCODES_LT2.WaitFrame2, [OperandType.TimeDefinitionEntry])
+        switchByOpcode(OPCODES_LT2.SetSpriteAnimation, [OperandType.IndexEventDataCharacter, OperandType.StringAnimation])
+        switchByOpcode(OPCODES_LT2.OrEventCounter, [OperandType.IndexEventCounter, OperandType.Integer8])
+        switchByOpcode(OPCODES_LT2.AddEventCounter, [OperandType.IndexEventCounter, OperandType.Integer8])
+        switchByOpcode(OPCODES_LT2.DoSpriteFade, [OperandType.IndexEventDataCharacter, OperandType.TimeCharacterFade])
+        switchByOpcode(OPCODES_LT2.SetSpritePos, [OperandType.IndexEventDataCharacter, OperandType.IndexCharacterSlot])
+        switchByOpcode(OPCODES_LT2.SetSpriteShake, [OperandType.IndexEventDataCharacter, OperandType.TimeFrameCount])
+        switchByOpcode(OPCODES_LT2.DoSaveScreen, [OperandType.InternalEventId])
+        switchByOpcode(OPCODES_LT2.ReleaseItem, [OperandType.FlagStoryItem])
+        switchByOpcode(OPCODES_LT2.DoItemAddScreen, [OperandType.FlagStoryItem])
+        switchByOpcode(OPCODES_LT2.DoSubGameAddScreen, [OperandType.IndexSubGame])
+        switchByOpcode(OPCODES_LT2.DoPhotoPieceAddScreen, [OperandType.IndexPhotoPiece])
+        switchByOpcode(OPCODES_LT2.CheckCounterAutoEvent, [OperandType.IndexEventCounter, OperandType.Integer8])
+        switchByOpcode(OPCODES_LT2.AddMemo, [OperandType.FlagMemo])
+        switchByOpcode(OPCODES_LT2.SetVoiceID, [OperandType.IndexVoiceId])
+        switchByOpcode(OPCODES_LT2.CompleteWindow, [OperandType.IndexGenericTxt2, OperandType.Integer1])
+        switchByOpcode(OPCODES_LT2.EventSelect, [OperandType.Integer1, OperandType.CountStoryPuzzle, OperandType.InternalEventId])
+        switchByOpcode(OPCODES_LT2.DoNazobaListScreen, [OperandType.PuzzleGroupId])
+        switchByOpcode(OPCODES_LT2.DrawChapter, [OperandType.IndexChapter])
+
+    def applyDefaultInstructionHeuristics(self):
         """Unsafe but recommended. Relies on an unmodified scripting engine, but will cleanup definitions from prior methods by employing known good heuristics.
 
         6 passes are applied to the definitions and they may be destructive:
@@ -153,7 +220,7 @@ class BaselineVerificationBank(ScriptVerificationBank):
                     if Context.DramaEvent not in instruction.contextValid:
                         instruction.contextValid.append(Context.DramaEvent)
                 else:
-                    print("BAD", opcode)
+                    logVerbose("BAD", opcode)
 
         def confirmEventContext():
             for opcode in [47,141,147,154]:
@@ -161,7 +228,7 @@ class BaselineVerificationBank(ScriptVerificationBank):
                     if Context.DramaEvent not in instruction.contextValid:
                         instruction.contextValid.append(Context.DramaEvent)
                 else:
-                    print("BAD", opcode)
+                    logVerbose("BAD", opcode)
 
         def confirmStubbedContext():
             for opcode in [10,154,86]:
@@ -169,17 +236,17 @@ class BaselineVerificationBank(ScriptVerificationBank):
                     if Context.Stubbed not in instruction.contextValid:
                         instruction.contextValid.append(Context.Stubbed)
                 else:
-                    print("BAD", opcode)
+                    logVerbose("BAD", opcode)
 
         def confirmPuzzleContext():
-            
+            # TODO - Broken...
             def groupByTerm(term, targetContext):
                 for opcode in self.getAllInstructionOpcodes():
                     name = str(OPCODES_LT2(opcode))
                     instruction = self.getInstructionByOpcode(opcode)
                     if term in name and targetContext not in instruction.contextValid:
                         instruction.contextValid.append(targetContext)
-                        print("TERM\t" + str(OPCODES_LT2(opcode)), "->", str(targetContext))
+                        logVerbose("TERM\t" + str(OPCODES_LT2(opcode)), "->", str(targetContext))
             
             def groupByRange(rangeOp : Tuple[int,int], targetContext : Context, force = True):
                 for opcode in range(rangeOp[0], rangeOp[1] + 1):
@@ -188,10 +255,10 @@ class BaselineVerificationBank(ScriptVerificationBank):
                         if not(force):
                             if instruction.contextValid == []:
                                 instruction.contextValid.append(targetContext)
-                                print("RNGE\t" + str(OPCODES_LT2(opcode)), "->", str(targetContext))
+                                logVerbose("RNGE\t" + str(OPCODES_LT2(opcode)), "->", str(targetContext))
                         else:
                             instruction.contextValid.append(targetContext)
-                            print("FRNGE\t" + str(OPCODES_LT2(opcode)), "->", str(targetContext))
+                            logVerbose("FRNGE\t" + str(OPCODES_LT2(opcode)), "->", str(targetContext))
 
             mapTerms : Dict[str, List[Context]] = {"AddOnOffButton" : [Context.PuzzleBridge, Context.PuzzleOnOff],
                                                    "Rose" : [Context.PuzzleRose],
@@ -227,7 +294,7 @@ class BaselineVerificationBank(ScriptVerificationBank):
                 instruction = self.getInstructionByOpcode(opcode)
                 if instruction.contextValid == []:
                     instruction.contextValid.append(targetContext)
-                    print("NONE\t" + str(OPCODES_LT2(opcode)), "->", str(targetContext))
+                    logVerbose("NONE\t" + str(OPCODES_LT2(opcode)), "->", str(targetContext))
 
         def improveUnusedCoverage():
 

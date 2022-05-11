@@ -246,6 +246,10 @@ class EditorWindow(Editor):
         self._setWidebrimFramerate(1000)
         return super().framesExtendedOnMenuSelection(event)
     
+    def menuPrefOverviewEnableEvtInfOnMenuSelection(self, event):
+        self.auiTabs.GetPage(0).setCommentStatus(self.menuPrefOverviewEnableEvtInf.IsChecked())
+        return super().menuPrefOverviewEnableEvtInfOnMenuSelection(event)
+
     # TODO - Pause, play
     def submenuEnginePauseOnMenuSelection(self, event):
         return super().submenuEnginePauseOnMenuSelection(event)

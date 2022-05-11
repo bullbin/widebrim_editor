@@ -4,6 +4,7 @@ from widebrim.engine_ext.utils import substituteLanguageString
 
 from typing import List, Tuple, Type
 from widebrim.engine.state.state import Layton2GameState
+from widebrim.madhatter.common import log
 from widebrim.madhatter.hat_io.asset_dlz.ev_inf2 import EventInfoList
 
 class EventExecutionGroup():
@@ -197,7 +198,7 @@ def getEvents(laytonState : Layton2GameState) -> Tuple[Tuple[List[int], List[int
         for eventId in eventsTracked:
             entry = eventDb.searchForEntry(eventId)
             if entry.typeEvent not in [0,1,4]:
-                print("Broken link", entry.idEvent, entry.typeEvent)
+                log("Broken link", entry.idEvent, entry.typeEvent)
 
     #def cullUntrackedNullScripts():
     #    for eventId in eventsUntracked:
