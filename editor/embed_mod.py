@@ -10,6 +10,8 @@
 # Force SDL to disable video output
 from os import environ
 
+from widebrim.filesystem.fused import FusedFilesystem
+
 environ["SDL_VIDEODRIVER"] = "dummy"
 
 # Disable high DPI behaviour on Windows, which causes blurriness
@@ -38,7 +40,7 @@ convenience.initDisplay = initDisplayEmbed
 
 # After this point, be careful only with conflicts. Patches completed on widebrim
 
-from typing import Optional
+from typing import Callable, Optional
 from pygame import Surface
 import pygame
 from editor.nopush_editor import Editor
@@ -59,9 +61,9 @@ from time import sleep, perf_counter
 from traceback import print_exc
 
 class EditorWindow(Editor):
-    def __init__(self, parent):
+    def __init__(self, callbackReturnOnExit : Callable, parent):
         super().__init__(parent)
-        # self.MinSize = Size(round(self.MinSize.width * RESIZE_PERCENT), round(self.MinSize.height * RESIZE_PERCENT))
+        self.__callbackAfterExit = callbackReturnOnExit
         self.__widebrimTimer = Timer(self)
         self.__widebrimAnchor = self.panelWidebrimInjection
         self.__widebrimRenderSurface = Surface((RESOLUTION_NINTENDO_DS[0], RESOLUTION_NINTENDO_DS[1] * 2), 0 , 32)
@@ -114,6 +116,9 @@ class EditorWindow(Editor):
             print_exc()
         
         return super().forceSyncOnButtonClick(event)
+
+    def __ensureProgressSaved(self):
+        pass
 
     def __doOnClose(self, event):
         # Stop the timer to prevent widebrim being updated
@@ -250,7 +255,11 @@ class EditorWindow(Editor):
         self.auiTabs.GetPage(0).setCommentStatus(self.menuPrefOverviewEnableEvtInf.IsChecked())
         return super().menuPrefOverviewEnableEvtInfOnMenuSelection(event)
 
-    # TODO - Pause, play
+    def submenuFileReturnToStartupOnMenuSelection(self, event):
+        CallAfter(self.__callbackAfterExit)
+        return super().submenuFileReturnToStartupOnMenuSelection(event)
+
+    # TODO - Pause, play, return to startup
     def submenuEnginePauseOnMenuSelection(self, event):
         return super().submenuEnginePauseOnMenuSelection(event)
 

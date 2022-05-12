@@ -4,6 +4,10 @@ try:
 except ImportError:
     pass
 
+from os import getcwd, path
+from typing import Any, Dict, Optional, Union
+from editor.d_startup import DialogStartup
+from widebrim.filesystem.fused import FusedFilesystem
 from widebrim.madhatter import common
 
 def noLog(*args, **kwargs):
@@ -12,18 +16,103 @@ def noLog(*args, **kwargs):
 common.logVerbose = noLog
 common.log = noLog
 
-from wx import App
+from wx import App, ID_OK, ID_ABORT, EVT_CLOSE, ID_CANCEL
 from editor.embed_mod import EditorWindow
+from editor.d_firstrun import DialogFirstRunWarning
+from editor.d_startup import DialogStartup
 from editor.d_imp_back import DialogueImportBackground
 from widebrim.engine_ext.utils import cleanTempFolder
 import pygame
+from json import loads, dumps
+from ndspy import rom
+
+def getSettingsPath():
+    return path.join(getcwd(), "nopush_settings.json")
+
+def saveSettingsJson(settings : Dict[str, Union[bool, str]]) -> bool:
+    try:
+        with open(getSettingsPath(), "w+") as jsonOut:
+            jsonOut.write(dumps(settings))
+        return True
+    except:
+        return False
+
+def loadSettingsJson() -> Dict[str, Union[bool, str]]:
+
+    def getDefaultSettingsDict() -> Dict[str, Union[bool, str]]:
+        return {"acceptEula":False,
+                "autoloadLast":False,
+                "pathLastRom":"",
+                "pathLastPatch":""}
+
+    def getOnDeviceDict() -> Dict[str, Any]:
+        try:
+            jsonString = ""
+            with open(getSettingsPath(), 'r') as jsonDat:
+                jsonString = jsonDat.read()
+            return loads(jsonString)
+        except IOError:
+            return {}
+        except:
+            return {}
+    
+    settings = getDefaultSettingsDict()
+    settingsChanges = getOnDeviceDict()
+    for key in settings.keys():
+        if key in settingsChanges:
+            if type(settings[key]) == type(settingsChanges[key]):
+                settings[key] = settingsChanges[key]
+    # Does not account for ranges, but not a problem (yet)
+    return settings
 
 class App(App):
     def OnInit(self):
-        self.frame = EditorWindow(parent = None)
-        self.frame.Show()
-        self.SetTopWindow(self.frame)
+        self.__configuration = loadSettingsJson()
+        self.__filesystem : Optional[FusedFilesystem] = None
+
+        if not(self.__configuration["acceptEula"]):
+            with DialogFirstRunWarning(None) as firstRun:
+                if firstRun.ShowModal() == ID_OK:
+                    self.__configuration["acceptEula"] = True
+                    saveSettingsJson(self.__configuration)
+            
+        if self.__configuration["acceptEula"]:
+            forceStartup = False
+            if self.__configuration["autoloadLast"] and self.__configuration["pathLastPatch"] != "" and self.__configuration["pathLastRom"] != None:
+                try:
+                    romData = rom.NintendoDSRom.fromFile(self.__configuration["pathLastRom"])
+                    self.__filesystem = FusedFilesystem(romData, self.__configuration["pathLastPatch"], False)
+                except:
+                    forceStartup = True
+
+            if not(self.__configuration["autoloadLast"] and self.__configuration["pathLastPatch"] != "" and self.__configuration["pathLastRom"] != None) or forceStartup:
+                with DialogStartup(None, self.__configuration, self.__setFilesystem) as startup:
+                    if startup.ShowModal() == ID_CANCEL:
+                        self.__filesystem = None
+        
+        if self.__filesystem != None:
+            self.frame = EditorWindow(self.__triggerReturnOnClose, parent = None)
+            self.frame.Show()
+            self.SetTopWindow(self.frame)
         return True
+    
+    def __triggerReturnOnClose(self):
+        self.frame.Close()
+        with DialogStartup(None, self.__configuration, self.__setFilesystem) as startup:
+            if startup.ShowModal() == ID_CANCEL:
+                self.__filesystem = None
+        
+        if self.__filesystem != None:
+            self.frame = EditorWindow(self.__triggerReturnOnClose, parent = None)
+            self.frame.Show()
+            self.SetTopWindow(self.frame)
+
+    def __setFilesystem(self, fs : FusedFilesystem):
+        self.__filesystem = fs
+    
+    def OnExit(self):
+        saveSettingsJson(self.__configuration)
+        return super().OnExit()
 
 debug = App()
 debug.MainLoop()
