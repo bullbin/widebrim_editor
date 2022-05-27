@@ -3,7 +3,7 @@ from widebrim.engine.file import FileInterface
 from widebrim.gamemodes.dramaevent.const import PATH_BODY_ROOT, PATH_BODY_ROOT_LANG_DEP
 
 from typing import List, Optional
-from widebrim.engine.state.state import Layton2GameState
+from widebrim.engine.state.manager import Layton2GameState
 
 class CharacterEntry():
     def __init__(self, index : int, pathImage : str, pathName : Optional[str]):

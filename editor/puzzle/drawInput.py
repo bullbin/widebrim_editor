@@ -5,7 +5,7 @@ import wx
 from wx import Bitmap
 from pygame.image import tostring
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
-from widebrim.engine.state.state import Layton2GameState
+from widebrim.engine.state.manager import Layton2GameState
 from widebrim.engine_ext.utils import getImageFromPath
 from widebrim.gamemodes.nazo_popup.mode.const import PATH_BG_DRAWINPUT
 from widebrim.madhatter.hat_io.asset_dat.nazo import NazoData

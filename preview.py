@@ -6,8 +6,6 @@ except ImportError:
 
 from os import getcwd, path
 from typing import Any, Dict, Optional, Union
-from editor.d_startup import DialogStartup
-from widebrim.filesystem.fused import FusedFilesystem
 from widebrim.madhatter import common
 
 def noLog(*args, **kwargs):
@@ -21,6 +19,8 @@ from editor.embed_mod import EditorWindow
 from editor.d_firstrun import DialogFirstRunWarning
 from editor.d_startup import DialogStartup
 from editor.d_imp_back import DialogueImportBackground
+from editor.d_startup import DialogStartup
+from widebrim.filesystem.compatibility import FusedFileInterface
 from widebrim.engine_ext.utils import cleanTempFolder
 import pygame
 from json import loads, dumps
@@ -68,7 +68,7 @@ def loadSettingsJson() -> Dict[str, Union[bool, str]]:
 class App(App):
     def OnInit(self):
         self.__configuration = loadSettingsJson()
-        self.__filesystem : Optional[FusedFilesystem] = None
+        self.__filesystem : Optional[FusedFileInterface] = None
 
         if not(self.__configuration["acceptEula"]):
             with DialogFirstRunWarning(None) as firstRun:
@@ -81,7 +81,7 @@ class App(App):
             if self.__configuration["autoloadLast"] and self.__configuration["pathLastPatch"] != "" and self.__configuration["pathLastRom"] != None:
                 try:
                     romData = rom.NintendoDSRom.fromFile(self.__configuration["pathLastRom"])
-                    self.__filesystem = FusedFilesystem(romData, self.__configuration["pathLastPatch"], False)
+                    self.__filesystem = FusedFileInterface(romData, self.__configuration["pathLastPatch"], False)
                 except:
                     forceStartup = True
 
@@ -91,7 +91,7 @@ class App(App):
                         self.__filesystem = None
         
         if self.__filesystem != None:
-            self.frame = EditorWindow(self.__triggerReturnOnClose, parent = None)
+            self.frame = EditorWindow(self.__filesystem, self.__triggerReturnOnClose, parent = None)
             self.frame.Show()
             self.SetTopWindow(self.frame)
         return True
@@ -103,11 +103,11 @@ class App(App):
                 self.__filesystem = None
         
         if self.__filesystem != None:
-            self.frame = EditorWindow(self.__triggerReturnOnClose, parent = None)
+            self.frame = EditorWindow(self.__filesystem, self.__triggerReturnOnClose, parent = None)
             self.frame.Show()
             self.SetTopWindow(self.frame)
 
-    def __setFilesystem(self, fs : FusedFilesystem):
+    def __setFilesystem(self, fs : FusedFileInterface):
         self.__filesystem = fs
     
     def OnExit(self):

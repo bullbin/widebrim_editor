@@ -3,7 +3,7 @@ from widebrim.engine.file import FileInterface
 from widebrim.engine_ext.utils import substituteLanguageString
 
 from typing import List, Tuple, Type
-from widebrim.engine.state.state import Layton2GameState
+from widebrim.engine.state.manager import Layton2GameState
 from widebrim.madhatter.common import log
 from widebrim.madhatter.hat_io.asset_dlz.ev_inf2 import EventInfoList
 
@@ -97,7 +97,7 @@ def getEvents(laytonState : Layton2GameState) -> Tuple[Tuple[List[int], List[int
             packArchive = FileInterface.getPack(path)
             for x in range(start, stop):
                 pathScript = PATH_PACK_EVENT_SCR % (id, x)
-                if packArchive.getData(pathScript) != None:
+                if packArchive.getFile(pathScript) != None:
                     eventsUntracked.append((id * 1000) + x)
         
         for id in ids:

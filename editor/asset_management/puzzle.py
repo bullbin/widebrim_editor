@@ -3,7 +3,7 @@ from widebrim.engine.const import PATH_NAZO_A, PATH_NAZO_B, PATH_NAZO_C, PATH_PA
 from widebrim.madhatter.common import log
 from widebrim.madhatter.hat_io.asset_dat import NazoDataNds
 from widebrim.engine.file import FileInterface
-from widebrim.engine.state.state import Layton2GameState
+from widebrim.engine.state.manager import Layton2GameState
 from widebrim.engine_ext.utils import substituteLanguageString
 from widebrim.madhatter.hat_io.asset_dat.nazo import NazoData
 
@@ -68,10 +68,10 @@ def getPuzzles(state : Layton2GameState) -> List[List[PuzzleEntry]]:
         else:
             pack = packC
 
-        if (data := pack.getData(PATH_PACK_NAZO % idInternal)) != None:
+        if (data := pack.getFile(PATH_PACK_NAZO % idInternal)) != None:
             puzzleDat = NazoDataNds()
             if puzzleDat.load(data):
-                if packPuzzleScript.getData(PATH_PACK_PUZZLE % idInternal) != None:
+                if packPuzzleScript.getFile(PATH_PACK_PUZZLE % idInternal) != None:
                     addPuzzle(idInternal, puzzleDat)
                 else:
                     log("Puzzle missing script", idInternal)

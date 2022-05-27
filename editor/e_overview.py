@@ -4,7 +4,7 @@ from editor.asset_management.puzzle import PuzzleEntry, getPuzzles
 from editor.e_script import FrameScriptEditor
 from editor.e_puzzle import FramePuzzleEditor
 from .nopush_editor import pageOverview
-from widebrim.engine.state.state import Layton2GameState
+from widebrim.engine.state.manager import Layton2GameState
 from editor.asset_management import getCharacters, getEvents
 import wx
 

@@ -10,8 +10,6 @@
 # Force SDL to disable video output
 from os import environ
 
-from widebrim.filesystem.fused import FusedFilesystem
-
 environ["SDL_VIDEODRIVER"] = "dummy"
 
 # Disable high DPI behaviour on Windows, which causes blurriness
@@ -27,7 +25,7 @@ except:
 # Override display init to create raw canvas
 from pygame.display import init, set_mode
 from widebrim.engine import convenience
-from widebrim.engine.const import RESOLUTION_NINTENDO_DS
+from widebrim.engine.const import LANGUAGES, RESOLUTION_NINTENDO_DS
 
 def initDisplayEmbed():
     global _HAS_CAPTION_BEEN_SET
@@ -49,8 +47,9 @@ from widebrim.engine_ext.state_game import ScreenCollectionGameModeSpawner
 
 from wx import Timer, EVT_TIMER, EVT_PAINT, EVT_CLOSE, Bitmap, ClientDC, PaintDC, Icon, CallAfter, aui
 from wx import Image as WxImageNonConflict
-from widebrim.engine.state.state import Layton2GameState
+from widebrim.engine.state.manager import Layton2GameState
 from widebrim.engine.file import FileInterface
+from widebrim.filesystem.compatibility import FusedFileInterface
 
 from editor.e_puzzle import FramePuzzleEditor
 from editor.e_script import FrameScriptEditor
@@ -61,13 +60,18 @@ from time import sleep, perf_counter
 from traceback import print_exc
 
 class EditorWindow(Editor):
-    def __init__(self, callbackReturnOnExit : Callable, parent):
+    def __init__(self, fusedFi : FusedFileInterface, callbackReturnOnExit : Callable, parent):
         super().__init__(parent)
         self.__callbackAfterExit = callbackReturnOnExit
         self.__widebrimTimer = Timer(self)
         self.__widebrimAnchor = self.panelWidebrimInjection
         self.__widebrimRenderSurface = Surface((RESOLUTION_NINTENDO_DS[0], RESOLUTION_NINTENDO_DS[1] * 2), 0 , 32)
-        self._widebrimState = Layton2GameState()
+
+        language = fusedFi.getLanguage()
+        if language == None:
+            language = LANGUAGES.Japanese
+
+        self._widebrimState = Layton2GameState(language, fusedFi)
         self.__widebrimRenderLayers : Optional[ScreenCollectionGameModeSpawner] = None
         self.__widebrimSpeedMultipler = 1
 

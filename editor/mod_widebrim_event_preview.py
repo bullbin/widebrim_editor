@@ -2,7 +2,7 @@ from typing import Dict, List, Optional
 from widebrim.engine.const import PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C
 from widebrim.engine.file import FileInterface, VirtualArchive
 from widebrim.engine.state.enum_mode import GAMEMODES
-from widebrim.engine.state.state import Layton2GameState
+from widebrim.engine.state.manager import Layton2GameState
 from widebrim.gamemodes.core_popup.script import ScriptPlayer
 from widebrim.gamemodes.dramaevent import EventPlayer
 from widebrim.gamemodes.dramaevent.dramaevent import CharacterController

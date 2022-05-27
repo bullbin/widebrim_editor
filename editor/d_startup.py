@@ -1,10 +1,11 @@
 from typing import Dict, Optional, Union
+
+from widebrim.filesystem.compatibility import FusedFileInterface
 from .nopush_editor import StartupConfiguration
 from wx import FileDialog, FD_OPEN, FD_FILE_MUST_EXIST, DirDialog, ID_CANCEL, ID_OK, MessageDialog, ICON_ERROR, OK
 from ndspy import rom
 from widebrim.engine_ext.rom.banner import getBannerImageFromRom, getNameStringFromRom
 from widebrim.engine.const import LANGUAGES
-from widebrim.filesystem.fused import FusedFilesystem
 from os import listdir
 
 class DialogStartup(StartupConfiguration):
@@ -102,7 +103,7 @@ class DialogStartup(StartupConfiguration):
         if self.IsModal():
             self.__pathPatch = outPath
             self.__updateConfigurationState()
-            self.__callbackReturnFs(FusedFilesystem(self.__rom, outPath, True))
+            self.__callbackReturnFs(FusedFileInterface(self.__rom, outPath, True))
             self.EndModal(ID_OK)
         else:
             self.Close()
@@ -127,7 +128,7 @@ class DialogStartup(StartupConfiguration):
         if self.IsModal():
             self.__pathPatch = outPath
             self.__updateConfigurationState()
-            self.__callbackReturnFs(FusedFilesystem(self.__rom, outPath, False))
+            self.__callbackReturnFs(FusedFileInterface(self.__rom, outPath, False))
             self.EndModal(ID_OK)
         else:
             self.Close()
@@ -138,7 +139,7 @@ class DialogStartup(StartupConfiguration):
         self.__pathPatch = self.__configuration["pathLastPatch"]
         if self.IsModal():
             self.__updateConfigurationState()
-            self.__callbackReturnFs(FusedFilesystem(self.__rom, self.__pathPatch, False))
+            self.__callbackReturnFs(FusedFileInterface(self.__rom, self.__pathPatch, False))
             self.EndModal(ID_OK)
         else:
             self.Close()

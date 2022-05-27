@@ -3,7 +3,7 @@ from widebrim.engine.anim.image_anim.image import AnimatedImageObject
 from widebrim.engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C, PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, RESOLUTION_NINTENDO_DS
 from widebrim.engine.file import FileInterface
 from widebrim.engine.state.enum_mode import GAMEMODES
-from widebrim.engine.state.state import Layton2GameState
+from widebrim.engine.state.manager import Layton2GameState
 from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
 from widebrim.gamemodes.dramaevent.const import PATH_BODY_ROOT, PATH_BODY_ROOT_LANG_DEP
 from widebrim.madhatter.hat_io.asset_dat.event import EventData

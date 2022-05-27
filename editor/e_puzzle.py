@@ -10,8 +10,8 @@ from widebrim.engine.anim.font.scrolling import ScrollingFontHelper
 from widebrim.engine.const import PATH_NAZO_A, PATH_NAZO_B, PATH_NAZO_C, PATH_PACK_NAZO, PATH_PACK_PLACE_NAME, PATH_PACK_PUZZLE, PATH_PUZZLE_BG, PATH_PUZZLE_BG_LANGUAGE, PATH_PUZZLE_BG_NAZO_TEXT, PATH_PUZZLE_SCRIPT, PATH_TEXT_PLACE_NAME, RESOLUTION_NINTENDO_DS
 from widebrim.engine.file import FileInterface
 from widebrim.engine.state.enum_mode import GAMEMODES
-from widebrim.engine.state.state import Layton2GameState
-from widebrim.engine_ext.utils import getImageFromPath, substituteLanguageString
+from widebrim.engine.state.manager import Layton2GameState
+from widebrim.engine_ext.utils import decodeStringFromPack, getImageFromPath, substituteLanguageString
 from widebrim.gamemodes.nazo_popup.mode.base.base import BaseQuestionObject
 from widebrim.gamemodes.nazo_popup.mode.base.const import PATH_BG_UNLOCKED, POS_HINTTEXT
 from widebrim.gamemodes.nazo_popup.outro.const import PATH_BG_ANSWER, PATH_BG_ANSWER_LANG, PATH_BG_FAIL, PATH_BG_PASS
@@ -102,10 +102,9 @@ class FramePuzzleEditor(editorPuzzle):
         choicesPlace = []
         for indexPlace in range(256):
             stringName = PATH_TEXT_PLACE_NAME % indexPlace
-            dataName = packPlace.getString(stringName)
-            if dataName != None:
+            if packPlace.getFile(stringName) != None:
                 self.__choiceToIdMap.append(indexPlace)
-                choicesPlace.append(dataName)
+                choicesPlace.append(decodeStringFromPack(packPlace, stringName))
         self.choicePlace.AppendItems(choicesPlace)
 
     def _reload(self):
