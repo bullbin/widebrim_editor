@@ -10,6 +10,8 @@ from widebrim.filesystem.low_level import FilesystemNative, FilesystemNds
 from widebrim.filesystem.low_level.fs_template import Filesystem
 
 # TODO - PLZ filtering, directory filtering
+# TODO - Handle compression more gracefully
+# TODO - Caching
 
 class FusedFilesystem(Filesystem):
     def __init__(self, rom : NintendoDSRom, pathFused : str, generateNewFs : bool = True):
@@ -17,6 +19,7 @@ class FusedFilesystem(Filesystem):
         self.__fsPatch  = FilesystemNative(pathFused)
 
         if generateNewFs:
+            fsLogSevere("New filesystem being generated...")
             # TODO - Could be dangerous since we're modifying the object we're in
             #        As long as we're only generating ROM copy commands this should be fine
             builder = GeneralFileBuilder(self)
@@ -31,6 +34,7 @@ class FusedFilesystem(Filesystem):
                     script = script.encode("utf-8")
                     if not(self.__fsPatch.addFile(filepath + EXTENSION_FILE_NEEDS_BUILDING, script)):
                         raise FusedPatchFailedToInitialise()
+            fsLogSevere("Generation complete!")
 
     def __compileAsset(self, pathAssetRecipe : str) -> bytes:
         builder = GeneralFileBuilder(self)
@@ -110,7 +114,9 @@ class FusedFilesystem(Filesystem):
         filepath = self.__resolvePath(filepath)
         if filepath != None:
             if splitext(filepath)[1] == EXTENSION_FILE_NEEDS_BUILDING:
-                return self.__compileAsset(filepath)
+                output = self.__compileAsset(filepath)
+                # fsLogSpam(len(output))
+                return output
             return self.__fsPatch.getFile(filepath)
         return None
     
