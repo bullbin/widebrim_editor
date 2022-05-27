@@ -319,7 +319,7 @@ class EventPlayer(ScriptPlayer):
 
                 eventData = EventData()
 
-                if (data := packEventScript.getData(PATH_PACK_EVENT_DAT % (self._idMain, self._idSub))) != None:
+                if (data := packEventScript.getFile(PATH_PACK_EVENT_DAT % (self._idMain, self._idSub))) != None:
                     eventData.load(data)
                 else:
                     raise FileInvalidCritical()
@@ -333,7 +333,7 @@ class EventPlayer(ScriptPlayer):
                 if spawnEventData != None and spawnEventData.indexEventViewedFlag != None:
                     self.laytonState.saveSlot.eventViewed.setSlot(True, spawnEventData.indexEventViewedFlag)
 
-                self._loadEventAndScriptData(packEventScript.getData(PATH_PACK_EVENT_SCR % (self._idMain, self._idSub)), eventData)
+                self._loadEventAndScriptData(packEventScript.getFile(PATH_PACK_EVENT_SCR % (self._idMain, self._idSub)), eventData)
 
             except TypeError:
                 logSevere("Failed to catch script data for event!")
