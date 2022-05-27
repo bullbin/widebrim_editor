@@ -1,6 +1,5 @@
 from typing import List
 
-from widebrim.engine.file import FileInterface
 from ...engine.anim.font.static import generateImageFromString
 from ...engine.anim.button import NullButton
 from ...engine.config import PATH_SAVE
@@ -15,6 +14,8 @@ from pygame import Surface, BLEND_RGB_SUB
 
 # TODO - Bugfix, buttons can be pressed during fading operation
 # TODO - Needs rewrite...
+
+from widebrim.engine.state.manager.state import Layton2GameState
 
 class SaveLoadScreenPopup(MainScreenPopup):
 
@@ -37,7 +38,7 @@ class SaveLoadScreenPopup(MainScreenPopup):
     STRIDE_BOX          = 0x2e
     HEIGHT_SLOT         = 0x2b
 
-    def __init__(self, laytonState, screenController, mode, bgIndex, callbackOnTerminate, callbackOnSlot):
+    def __init__(self, laytonState : Layton2GameState, screenController, mode, bgIndex, callbackOnTerminate, callbackOnSlot):
         MainScreenPopup.__init__(self, callbackOnTerminate)
 
         self.saveData = Layton2SaveFile()
@@ -106,7 +107,7 @@ class SaveLoadScreenPopup(MainScreenPopup):
                 if indexPlace == 0x5c:
                     indexPlace = 0x26
                 # TODO - Decode...?
-                self.surfacePlace[indexSlot] = generateImageFromString(laytonState.fontQ, FileInterface.getPackedString(PATH_PACK_PLACE_NAME % laytonState.language.value, PATH_TEXT_PLACE_NAME % indexPlace))
+                self.surfacePlace[indexSlot] = generateImageFromString(laytonState.fontQ, laytonState.getFileAccessor().getPackedString(PATH_PACK_PLACE_NAME % laytonState.language.value, PATH_TEXT_PLACE_NAME % indexPlace))
                 self.surfacePlaceX[indexSlot] = SaveLoadScreenPopup.OFFSET_X_BOX_TEXT - self.surfacePlace[indexSlot].get_width() // 2
             except:
                 pass

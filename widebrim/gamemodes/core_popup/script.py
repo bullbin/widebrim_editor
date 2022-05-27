@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from widebrim.engine.state.state import Layton2GameState
+    from widebrim.engine.state.manager.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
     from widebrim.madhatter.hat_io.asset_script import GdScript
 

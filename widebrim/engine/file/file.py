@@ -2,17 +2,17 @@ from __future__ import annotations
 
 from typing import Literal, Optional, Union
 import ndspy.rom
-from widebrim.madhatter.hat_io import asset
+from widebrim.engine_ext.utils import decodeStringFromPack
 from widebrim.madhatter.common import log, logSevere
 from widebrim.engine.config import DEBUG_ALLOW_WIDEBRIM_NO_ROM, FILE_USE_PATCH, PATH_PATCH, PATH_ROM
 from os import makedirs, path
 
-from widebrim.madhatter.hat_io.asset import File
-from widebrim.madhatter.hat_io.const import ENCODING_DEFAULT_STRING
-from .exceptions import PathInvalidRom, RomInvalid
+from widebrim.madhatter.hat_io.asset import File, LaytonPack
+from ..exceptions import PathInvalidRom, RomInvalid
 from widebrim.engine.const import ADDRESS_ARM9_POINTER_FUNC_LANGUAGE, DICT_ID_TO_LANGUAGE, LANGUAGES
 
 # TODO - Improved patch support (file excluding for replacement)
+# TODO - Remove patching. New FS replaces this
 # TODO - Madhatter magic checks, file checks (there will be errors once patching starts...)
 
 def _getResolvedPatchPath(inPath : str) -> str:
@@ -22,58 +22,6 @@ def _getResolvedPatchPath(inPath : str) -> str:
         elif inPath[0] == "\\":
             return inPath.lstrip("\\")
     return inPath
-
-class VirtualArchive():
-
-    def __init__(self, pathPack : str, usePatch=True):
-        self.__romArchive = asset.LaytonPack()
-        if (data := FileInterface.getData(pathPack, usePatch=False)) != None:
-            self.__romArchive.load(data)
-        
-        self.__allowPatch       = usePatch and FILE_USE_PATCH
-        self.__pathPatchArchive = pathPack
-    
-    def getData(self, nameFile : str) -> Optional[bytes]:
-        if self.__allowPatch:
-            namePath = path.join(PATH_PATCH, _getResolvedPatchPath(self.__pathPatchArchive), nameFile)
-            if path.isfile(namePath):
-                try:
-                    with open(namePath, 'rb') as patchData:
-                        data = patchData.read()
-                        log("PatchGrabArchive", self.__pathPatchArchive, "->", nameFile)
-                        return data
-                except OSError:
-                    pass
-        return self.__romArchive.getFile(nameFile)
-
-    # TODO - File objects not really used
-    def writeData(self, nameFile : str, data : bytes) -> bool:
-        # TODO - No way of knowing references, constant repacking is slow for ROM accessing
-        if self.__allowPatch:
-            namePath = path.join(PATH_PATCH, _getResolvedPatchPath(self.__pathPatchArchive))
-            makedirs(namePath, exist_ok=True)
-            try:
-                with open(path.join(namePath, nameFile), 'wb') as outputFile:
-                    outputFile.write(data)
-                return True
-            except OSError:
-                return False
-        else:
-            # TODO - Extension?
-            self.__romArchive.files.append(File(name=nameFile, data=data))
-            self.__romArchive.save()
-            self.__romArchive.compress(addHeader=True)
-            # TODO - Will fail with new directories
-            FileInterface.getRom().setFileByName(self.__pathPatchArchive, self.__romArchive.data)
-
-    def getString(self, nameFile : str) -> Optional[str]:
-        data = self.getData(nameFile)
-        if data != None:
-            try:
-                return data.decode(ENCODING_DEFAULT_STRING)
-            except UnicodeDecodeError:
-                pass
-        return None
 
 class FileInterface():
 
@@ -105,7 +53,7 @@ class FileInterface():
     @staticmethod
     def _dataFromRom(filepath) -> Optional[bytearray]:
         if FileInterface._isPathAvailableRom(filepath):
-            testFile = asset.File(data=FileInterface._rom.getFileByName(filepath))
+            testFile = File(data=FileInterface._rom.getFileByName(filepath))
             testFile.decompress()
             log("RomGrab", filepath)
             return testFile.data
@@ -201,7 +149,7 @@ class FileInterface():
             return False
 
     @staticmethod
-    def getPack(filepath : str, usePatch=True) -> VirtualArchive:
+    def getPack(filepath : str, usePatch=True) -> LaytonPack:
         """Get an archive object representing files stored in the pack at the given filepath.
 
         Args:
@@ -209,9 +157,13 @@ class FileInterface():
             usePatch (bool, optional): Allow patch data to be returned if found instead of ROM data. Defaults to True.
 
         Returns:
-            VirtualArchive: Archive object regardless of if filepath exists or not
+            LaytonPack: Archive object regardless of if filepath exists or not
         """
-        return VirtualArchive(filepath, usePatch=usePatch)
+
+        archive = LaytonPack()
+        if (data := FileInterface.getData(filepath, usePatch=False)) != None:
+            archive.load(data)
+        return archive
     
     @staticmethod
     def getPackedData(pathPack : str, filename : str, usePatch=True) -> Optional[bytearray]:
@@ -225,7 +177,7 @@ class FileInterface():
         Returns:
             Optional[bytearray]: Raw bytearray of contents if file exists, else None
         """
-        return FileInterface.getPack(pathPack, usePatch=usePatch).getData(filename)
+        return FileInterface.getPack(pathPack, usePatch=usePatch).getFile(filename)
     
     @staticmethod
     def getPackedString(pathPack : str, filename : str, usePatch=True) -> Optional[str]:
@@ -239,7 +191,7 @@ class FileInterface():
         Returns:
             Optional[str]: Unicode string contents if file exists and could be decoded, else None
         """
-        return FileInterface.getPack(pathPack, usePatch=usePatch).getString(filename)
+        return decodeStringFromPack(FileInterface.getPack(pathPack, usePatch=usePatch), filename)
     
     @staticmethod
     def isRunningFromRom() -> bool:

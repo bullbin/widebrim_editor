@@ -2,14 +2,15 @@ from __future__ import annotations
 from typing import Callable, Optional, TYPE_CHECKING, Tuple, Union
 
 from widebrim.madhatter.common import logSevere
+from widebrim.madhatter.hat_io.asset import LaytonPack
+from widebrim.madhatter.hat_io.const import ENCODING_DEFAULT_STRING
 if TYPE_CHECKING:
-    from widebrim.engine.state.state import Layton2GameState
+    from widebrim.engine.state.manager.state import Layton2GameState
     from PIL.Image import Image as ImageType
 
 from widebrim.engine.anim.button import AnimatedButton, AnimatedClickableButton, StaticButton
 from ..madhatter.hat_io.asset_image import StaticImage
 from ..engine.const import PATH_BG_ROOT, PATH_ANI, PATH_FACE_ROOT, RESOLUTION_NINTENDO_DS
-from ..engine.file import FileInterface
 from ..madhatter.hat_io.asset_image import AnimatedImage
 from ..engine.anim.image_anim import AnimatedImageObject, AnimatedImageObjectWithSubAnimation
 from ..engine.const import PATH_PACK_TXT2, PATH_PACK_TXT
@@ -58,7 +59,7 @@ def doesAnimExist(laytonState : Layton2GameState, pathAnim : str) -> bool:
     else: # yes this will maybe cause bugs but the game really doesn't care about last 3 digits
         pathAnim = getFormatString(pathAnim, "arc")
     
-    return FileInterface.doesFileExist(substituteLanguageString(laytonState, PATH_ANI % pathAnim))
+    return laytonState.getFileAccessor().doesFileExist(substituteLanguageString(laytonState, PATH_ANI % pathAnim))
 
 def doesImageExist(laytonState : Layton2GameState, pathBg : str) -> bool:
     """Check for presence of file with image extension in background folder. Will substitute language if there is one missing string or a "?" symbol. Does not guarentee file is of image type or can be read.
@@ -70,7 +71,7 @@ def doesImageExist(laytonState : Layton2GameState, pathBg : str) -> bool:
     Returns:
         bool: True if file exists, may not be image
     """
-    return FileInterface.doesFileExist(substituteLanguageString(laytonState, PATH_BG_ROOT % getFormatString(pathBg, "arc")))
+    return laytonState.getFileAccessor().doesFileExist(substituteLanguageString(laytonState, PATH_BG_ROOT % getFormatString(pathBg, "arc")))
 
 def getImageFromPath(laytonState : Layton2GameState, pathBg : str) -> Optional[Surface]:
     """Get Surface representing some background image at the given path. Will substitute language if there is one missing string or a "?" symbol.
@@ -84,7 +85,7 @@ def getImageFromPath(laytonState : Layton2GameState, pathBg : str) -> Optional[S
     """
     def fetchBgxImage(path) -> Optional[ImageType]:
         # TODO - Fix unwanted behaviour with reading null-terminated strings, where a null character is left at the end
-        imageFile = FileInterface.getData(PATH_BG_ROOT % substituteLanguageString(laytonState, getFormatString(path, "arc")))
+        imageFile = laytonState.getFileAccessor().getData(PATH_BG_ROOT % substituteLanguageString(laytonState, getFormatString(path, "arc")))
         if imageFile != None:
             try:
                 imageFile = StaticImage.fromBytesArc(imageFile)
@@ -101,7 +102,7 @@ def getImageFromPath(laytonState : Layton2GameState, pathBg : str) -> Optional[S
         return output
 
 def getTxtString(laytonState, nameString, reportFailure=False) -> Optional[str]:
-    output = FileInterface.getPackedString(PATH_PACK_TXT % laytonState.language.value, nameString)
+    output = laytonState.getFileAccessor().getPackedString(PATH_PACK_TXT % laytonState.language.value, nameString)
     if output == None:
         if reportFailure:
             return None
@@ -110,7 +111,7 @@ def getTxtString(laytonState, nameString, reportFailure=False) -> Optional[str]:
     return output
 
 def getTxt2String(laytonState, nameString, reportFailure=False) -> Optional[str]:
-    output = FileInterface.getPackedString(PATH_PACK_TXT2 % laytonState.language.value, nameString)
+    output = laytonState.getFileAccessor().getPackedString(PATH_PACK_TXT2 % laytonState.language.value, nameString)
     if output == None:
         if reportFailure:
             return None
@@ -193,11 +194,11 @@ def _getAnimFromPath(laytonState : Layton2GameState, inPath : str, spawnAnimInde
     def functionGetAnimationFromName(name):
         name = name.split(".")[0] + "." + extension
         resolvedPath = PATH_FACE_ROOT % name
-        return FileInterface.getData(resolvedPath)
+        return laytonState.getFileAccessor().getData(resolvedPath)
 
     inPath = substituteLanguageString(laytonState, getFormatString(inPath, extension))
 
-    if (tempAsset := FileInterface.getData(PATH_ANI % inPath)) != None:
+    if (tempAsset := laytonState.getFileAccessor().getData(PATH_ANI % inPath)) != None:
         try:
             if doOffset:
                 tempImage = AnimatedImage.fromBytesArc(tempAsset, functionGetFileByName=functionGetAnimationFromName)
@@ -230,6 +231,23 @@ def _getAnimFromPath(laytonState : Layton2GameState, inPath : str, spawnAnimInde
     
     logSevere("Could not fetch image for", inPath)
     return AnimatedImageObject()
+
+def decodeStringFromPack(pack : LaytonPack, filename : str) -> str:
+    """Decodes a packed string.
+
+    Args:
+        pack (LaytonPack): Pack containing encoded strings.
+        filename (str): Filename for string inside pack. Should not include pack path.
+
+    Returns:
+        str: Decoded string. May be empty if file was empty, failed to decode or doesn't exist.
+    """
+    if (data := pack.getFile(filename)) != None:
+        try:
+            return data.decode(ENCODING_DEFAULT_STRING)
+        except UnicodeDecodeError:
+            pass
+    return ""
 
 # Accurate behaviour for game assets - divided into bottom and top screen (ARC and ARJ) and follow the given rules. If an animation is not found a void one is returned instead
 def getBottomScreenAnimFromPath(laytonState : Layton2GameState, inPath : str, spawnAnimIndex : Optional[int] = 1, spawnAnimName : Optional[str] = None, pos : Tuple[int,int] = (0,0), namePosVar : str = "pos", enableSubAnimation : bool = False) -> Optional[Union[AnimatedImageObject, AnimatedImageObjectWithSubAnimation]]:

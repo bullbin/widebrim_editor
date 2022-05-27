@@ -4,15 +4,15 @@ from typing import List, Optional, TYPE_CHECKING
 from pygame.constants import KEYUP
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
 from widebrim.madhatter.common import logSevere
+from widebrim.madhatter.hat_io.asset import LaytonPack
 from widebrim.madhatter.hat_io.asset_script import GdScript
 from widebrim.engine.keybinds import KEY_START
 
 from widebrim.engine_ext.const import PATH_TEMP
 from widebrim.engine.state.enum_mode import GAMEMODES
-from widebrim.engine.file import FileInterface, VirtualArchive
 from widebrim.engine.config import TIME_FRAMERATE
 from widebrim.engine.const import PATH_PACK_TXT, RESOLUTION_NINTENDO_DS
-from widebrim.engine_ext.utils import ensureTempFolder, substituteLanguageString
+from widebrim.engine_ext.utils import ensureTempFolder, substituteLanguageString, decodeStringFromPack
 from widebrim.gamemodes.core_popup.script import ScriptPlayer
 
 from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
@@ -25,14 +25,15 @@ from os import remove
 from math import ceil
 
 if TYPE_CHECKING:
-    from widebrim.engine.state.state import Layton2GameState
+    from widebrim.engine.state.manager.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
+    from widebrim.engine.file.file import FileInterface
 
 # Thank you FFMPEG team for supporting mobiclip! 4.4 minimum req.
 
 # TODO - Implement drawable
 class MovieSurface():
-    def __init__(self, indexMovie : int, callback : Optional[callable], framerate : float = 23.98):
+    def __init__(self, fileAccessor : FileInterface, indexMovie : int, callback : Optional[callable], framerate : float = 23.98):
         width, height               = RESOLUTION_NINTENDO_DS
         self.__pathMovieFile        = None
         self.__timeElapsed  : float = 0
@@ -40,7 +41,7 @@ class MovieSurface():
         self.__pos                  = (0,RESOLUTION_NINTENDO_DS[1])
 
         if ensureTempFolder():
-            if ((movieData := FileInterface.getData(PATH_MOBICLIP_MOVIE % indexMovie)) != None):
+            if ((movieData := fileAccessor.getData(PATH_MOBICLIP_MOVIE % indexMovie)) != None):
                 try:
                     # Credit to Gericom for MODS header information - https://github.com/Gericom/MobiclipDecoder
                     if len(movieData) > 30 and movieData[:4] == b'MODS':
@@ -139,24 +140,22 @@ class MovieSurface():
         gameDisplay.blit(self.__surfVideo, self.__pos)
 
 class SubtitleCommand():
-    def __init__(self, packSubtitle : VirtualArchive, indexMovie : int, indexSubtitle : int, timeStart : float, timeEnd : float):
-        self.text = packSubtitle.getString(PATH_TXT_SUBTITLE % (indexMovie, indexSubtitle))
-        if self.text == None:
-            self.text = ""
+    def __init__(self, packSubtitle : LaytonPack, indexMovie : int, indexSubtitle : int, timeStart : float, timeEnd : float):
+        self.text = decodeStringFromPack(packSubtitle, PATH_TXT_SUBTITLE % (indexMovie, indexSubtitle))
         self.timeStart = timeStart
         self.timeEnd = timeEnd
 
 class MoviePlayer(ScriptPlayer):
     def __init__(self, laytonState : Layton2GameState, screenController : ScreenController):
         ScriptPlayer.__init__(self, laytonState, screenController, GdScript())
-        self.__surfaceMovie = MovieSurface(laytonState.getMovieNum(), self.__fadeOutAndTerminate)
+        self.__surfaceMovie = MovieSurface(laytonState.getFileAccessor(), laytonState.getMovieNum(), self.__fadeOutAndTerminate)
 
-        if (scriptData := FileInterface.getPackedData(PATH_ARCHIVE_MOVIE_SUBTITLES.replace("?", laytonState.language.value), PATH_NAME_SUBTITLE_SCRIPT % laytonState.getMovieNum())) != None:
+        if (scriptData := laytonState.getFileAccessor().getPackedData(PATH_ARCHIVE_MOVIE_SUBTITLES.replace("?", laytonState.language.value), PATH_NAME_SUBTITLE_SCRIPT % laytonState.getMovieNum())) != None:
             self._script.load(scriptData)
         else:
             self.doOnComplete()
 
-        self.__packTxt = FileInterface.getPack(substituteLanguageString(laytonState, PATH_PACK_TXT))
+        self.__packTxt = laytonState.getFileAccessor().getPack(substituteLanguageString(laytonState, PATH_PACK_TXT))
         self.__indexActiveSubtitle = -1
         self.__waitingForNextSubtitle = False
         self.__textRendererSubtitle = StaticTextHelper(laytonState.fontEvent, yBias=2)

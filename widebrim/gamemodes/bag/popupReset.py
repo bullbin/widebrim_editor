@@ -6,7 +6,7 @@ from widebrim.gamemodes.bag.const import PATH_ANI_RESET_WINDOW, POS_TEXT_RESET_C
 from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getButtonFromPath, getTxt2String
 
 if TYPE_CHECKING:
-    from widebrim.engine.state.state import Layton2GameState
+    from widebrim.engine.state.manager.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
 
 from widebrim.gamemodes.dramaevent.popup.utils import FadingPopupAnimBackground

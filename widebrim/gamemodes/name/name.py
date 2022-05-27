@@ -6,17 +6,18 @@ from widebrim.engine.exceptions import FileInvalidCritical
 from widebrim.engine.anim.button import StaticButton, NullButton
 from widebrim.engine.string import getSubstitutedString
 from widebrim.engine.anim.font.static import generateImageFromStringStrided
-from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
+from widebrim.engine_ext.utils import decodeStringFromPack, getBottomScreenAnimFromPath
 from .const import PATH_BG_NAME_1, PATH_BG_NAME_2, PATH_BG_NAME_3, PATH_BG_NAME_4, PATH_BG_SUB_HAM, PATH_BG_SUB_NAME, PATH_ANI_BUTTON, PATH_ANI_CURSOR, PATH_ANI_OK, POS_BUTTON_OK
 from .const import POS_BUTTON_DOWN, SIZE_BUTTON_DOWN, POS_BUTTON_SHIFT, SIZE_BUTTON_SHIFT, COUNT_KEY, COUNT_KEY_SPECIAL, SIZE_KEY
 from .const import PATH_PACK_TEXT, PATH_KIGOU, PATH_KOMOJI, PATH_OOMOJI, PATH_TOKUSHU
 from .const import BTN_NORMAL_NAME, BTN_NORMAL_POS, BTN_ACCENT_NAME, BTN_ACCENT_POS, BTN_SPACE_NAME, BTN_SPACE_POS, BTN_BACK_NAME, BTN_BACK_POS, POS_ANI_CURSOR, STRIDE_CHARACTER, POS_ENTRY_TEXT
 from .const import NAMES_BLOCKED, PATH_BAD_NAME, POS_BAD_NAME
 
-from widebrim.engine.file import FileInterface
 from pygame import MOUSEBUTTONUP, BLEND_RGB_SUB, BLEND_RGB_MULT, Surface
 
 # TODO - This needs rewrite. Especially after doing CodeInput some of this is stupid
+
+from widebrim.engine.state.manager.state import Layton2GameState
 
 class KeyboardButton(NullButton):
     def __init__(self, pos, posEnd, callback=None):
@@ -33,7 +34,7 @@ class NamePlayer(ScreenLayerNonBlocking):
 
     LENGTH_ENTRY = 10
 
-    def __init__(self, laytonState, screenController):
+    def __init__(self, laytonState : Layton2GameState, screenController):
         ScreenLayerNonBlocking.__init__(self)
         self.screenController = screenController
         self.laytonState = laytonState
@@ -41,11 +42,11 @@ class NamePlayer(ScreenLayerNonBlocking):
         self.activeMap = ""
 
         try:
-            tempPack = FileInterface.getPack(PATH_PACK_TEXT)
-            self.mapKigou = getSubstitutedString(tempPack.getString(PATH_KIGOU))
-            self.mapKomoji = getSubstitutedString(tempPack.getString(PATH_KOMOJI))
-            self.mapOomoji = getSubstitutedString(tempPack.getString(PATH_OOMOJI))
-            self.mapTokushu = getSubstitutedString(tempPack.getString(PATH_TOKUSHU))
+            tempPack = self.laytonState.getFileAccessor().getPack(PATH_PACK_TEXT)
+            self.mapKigou = getSubstitutedString(decodeStringFromPack(tempPack, PATH_KIGOU))
+            self.mapKomoji = getSubstitutedString(decodeStringFromPack(tempPack, PATH_KOMOJI))
+            self.mapOomoji = getSubstitutedString(decodeStringFromPack(tempPack, PATH_OOMOJI))
+            self.mapTokushu = getSubstitutedString(decodeStringFromPack(tempPack, PATH_TOKUSHU))
             del tempPack
 
         except:

@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import List, Optional, TYPE_CHECKING
 from widebrim.engine.anim.image_anim.imageAsNumber import StaticImageAsNumericalFont
-from widebrim.engine.file import FileInterface
 from widebrim.gamemodes.jiten.hitbox import JitenHitbox
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
@@ -18,7 +17,7 @@ from .const import *
 from pygame import Surface
 
 if TYPE_CHECKING:
-    from widebrim.engine.state.state import Layton2GameState
+    from widebrim.engine.state.manager.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
     from widebrim.madhatter.hat_io.asset_sav import PuzzleData
     from widebrim.madhatter.hat_io.asset_dlz.nz_lst import DlzEntryNzLst
@@ -302,15 +301,15 @@ class JitenPlayer(ScreenLayerNonBlocking):
                     if nazoType == 0x23:
                         nazoType = 0x16
                     
-                    textType = FileInterface.getPackedString(PATH_PACK_JITEN.replace("?", self.__laytonState.language.value), PATH_TEXT_NAZO_TYPE % nazoType)
+                    textType = self.__laytonState.getFileAccessor().getPackedString(PATH_PACK_JITEN.replace("?", self.__laytonState.language.value), PATH_TEXT_NAZO_TYPE % nazoType)
                     self.__textRendererType.setText(textType[0:min(len(textType), 64)])
 
                     # TODO - Unk validation check (2_Nazo_ValidateAndGetUnkData)
                     
                     if puzzleData.enableNazoba:
-                        textLocation = FileInterface.getPackedString(PATH_PACK_JITEN.replace("?", self.__laytonState.language.value), PATH_TEXT_JITEN_MISSING)
+                        textLocation = self.__laytonState.getFileAccessor().getPackedString(PATH_PACK_JITEN.replace("?", self.__laytonState.language.value), PATH_TEXT_JITEN_MISSING)
                     else:
-                        textLocation = FileInterface.getPackedString(PATH_PACK_JITEN.replace("?", self.__laytonState.language.value), PATH_TEXT_JITEN_PLACE % nazoData.indexPlace)
+                        textLocation = self.__laytonState.getFileAccessor().getPackedString(PATH_PACK_JITEN.replace("?", self.__laytonState.language.value), PATH_TEXT_JITEN_PLACE % nazoData.indexPlace)
 
                     # TODO - madhatter needs nazoData variable scope changes
                     self.__textRendererLocation.setText(textLocation[0:min(len(textLocation), 64)])

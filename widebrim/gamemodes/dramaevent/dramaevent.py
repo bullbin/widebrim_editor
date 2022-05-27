@@ -5,9 +5,10 @@ from widebrim.engine_ext.const import SHAKE_PIX
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
 from widebrim.gamemodes.dramaevent.popup.utils import FadingPopupAnimBackground, FadingPopupMultipleAnimBackground
 from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getTxt2String
+from widebrim.madhatter.hat_io.asset import LaytonPack
 from widebrim.madhatter.hat_io.asset_dat.event import EventData
 if TYPE_CHECKING:
-    from widebrim.engine.state.state import Layton2GameState
+    from widebrim.engine.state.manager.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
     from widebrim.engine.anim.image_anim.image import AnimatedImageObjectWithSubAnimation
 
@@ -17,7 +18,6 @@ from ...engine.state.enum_mode import GAMEMODES
 from ...engine.anim.fader import Fader
 from ...engine.anim.font.scrolling import ScrollingFontHelper
 from ...engine.exceptions import FileInvalidCritical
-from ...engine.file import FileInterface, VirtualArchive
 from ..core_popup.script import ScriptPlayer
 
 from ...engine.const import PATH_EVENT_BG_LANG_DEP, PATH_TEXT_GENERIC, PATH_TEXT_PURPOSE, RESOLUTION_NINTENDO_DS, PATH_CHAP_ROOT
@@ -283,7 +283,7 @@ class EventPlayer(ScriptPlayer):
 
         # TODO - Type checking
         self.laytonState.setGameMode(GAMEMODES.Room)
-        self._packEventTalk : Optional[VirtualArchive] = None
+        self._packEventTalk : Optional[LaytonPack] = None
 
         if overrideId != None:
             spawnId = overrideId
@@ -314,8 +314,8 @@ class EventPlayer(ScriptPlayer):
             logVerbose("Loaded event", spawnId)
             # Centralise this so it can be deleted when finished
             try:
-                packEventScript = FileInterface.getPack(getEventScriptPath())
-                self._packEventTalk = FileInterface.getPack(getEventTalkPath())
+                packEventScript = self.laytonState.getFileAccessor().getPack(getEventScriptPath())
+                self._packEventTalk = self.laytonState.getFileAccessor().getPack(getEventTalkPath())
 
                 eventData = EventData()
 
@@ -458,7 +458,7 @@ class EventPlayer(ScriptPlayer):
             text = ""
 
             # No need to check for None, script can't execute without this loading
-            tempTalkScript = self._packEventTalk.getData(PATH_PACK_TALK % (self._idMain, self._idSub, operands[0].value))
+            tempTalkScript = self._packEventTalk.getFile(PATH_PACK_TALK % (self._idMain, self._idSub, operands[0].value))
             if tempTalkScript != None:
                 self.talkScript = GdScript()
                 self.talkScript.load(tempTalkScript, isTalkscript=True)

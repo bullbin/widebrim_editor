@@ -11,7 +11,7 @@ from widebrim.engine.anim.button import AnimatedButton
 from widebrim.gamemodes.mystery import MysteryPlayer
 
 if TYPE_CHECKING:
-    from widebrim.engine.state.state import Layton2GameState
+    from widebrim.engine.state.manager.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
     from widebrim.engine.anim.image_anim import AnimatedImageObject
 

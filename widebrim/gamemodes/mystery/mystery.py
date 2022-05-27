@@ -14,7 +14,7 @@ from pygame import Surface
 from math import sin, pi
 
 if TYPE_CHECKING:
-    from widebrim.engine.state.state import Layton2GameState
+    from widebrim.engine.state.manager.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
     from widebrim.engine.anim.button import StaticButton
     from widebrim.engine.anim.button import AnimatedButton

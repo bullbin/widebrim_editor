@@ -9,7 +9,7 @@ from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
 from widebrim.engine.anim.image_anim import AnimatedImageObject
 
 if TYPE_CHECKING:
-    from widebrim.engine.state.state import Layton2GameState
+    from widebrim.engine.state.manager.state import Layton2GameState
     from pygame import Surface
 
 class JitenHitbox():

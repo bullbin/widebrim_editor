@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
 if TYPE_CHECKING:
-    from widebrim.engine.state.state import Layton2GameState
+    from widebrim.engine.state.manager.state import Layton2GameState
     from widebrim.engine.anim.image_anim import AnimatedImageObject
 
 from .utils import PrizeWindow2PopupWithCursor

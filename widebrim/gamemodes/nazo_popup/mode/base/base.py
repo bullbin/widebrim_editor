@@ -1,13 +1,12 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Optional, Union
 from widebrim.engine.anim.button import AnimatedButton, AnimatedClickableButton
-from widebrim.engine.file import FileInterface
 from widebrim.gamemodes.nazo_popup.mode.base.const import NAME_ANIM_HINT_OFF, NAME_ANIM_HINT_ON, PATH_ANIM_HINT_GLOW, POS_ANIM_HINT_GLOW
 from widebrim.gamemodes.nazo_popup.mode.base.screenHint import BottomScreenOverlayHint
 from widebrim.gamemodes.nazo_popup.mode.base.screenQuit import BottomScreenOverlayQuit
 from widebrim.gamemodes.nazo_popup.mode.base.screenTutorial import BottomScreenOverlayTutorial, shouldTutorialSpawn
 if TYPE_CHECKING:
-    from widebrim.engine.state.state import Layton2GameState
+    from widebrim.engine.state.manager.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
 
 from widebrim.engine.state.enum_mode import GAMEMODES
@@ -76,7 +75,7 @@ class BaseQuestionObject(ScriptPlayer):
         
         # Initialise script
         if nzLstEntry != None:
-            scriptData = FileInterface.getPackedData(PATH_PUZZLE_SCRIPT, PATH_PACK_PUZZLE % nzLstEntry.idInternal)
+            scriptData = laytonState.getFileAccessor().getPackedData(PATH_PUZZLE_SCRIPT, PATH_PACK_PUZZLE % nzLstEntry.idInternal)
             if scriptData != None:
                 self._script.load(scriptData)
 

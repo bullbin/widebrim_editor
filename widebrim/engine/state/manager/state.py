@@ -6,6 +6,7 @@ if TYPE_CHECKING:
     from widebrim.madhatter.hat_io.asset_dlz.nz_lst import DlzEntryNzLst
     from widebrim.madhatter.hat_io.asset_dlz.sm_inf import DlzEntrySubmapInfoNds
     from widebrim.madhatter.hat_io.asset_dlz.ev_inf2 import DlzEntryEvInf2
+    from ...file import FileInterface
 
 from widebrim.madhatter.hat_io.asset_sav import Layton2SaveSlot, WiFiState
 from widebrim.madhatter.hat_io.asset_dlz import EventInfoList, SubmapInfoNds, GoalInfo, NazoListNds, HerbteaEvent, ChapterInfo, TimeDefinitionInfo
@@ -15,40 +16,36 @@ from widebrim.madhatter.hat_io.asset_storyflag import StoryFlag
 from widebrim.madhatter.hat_io.asset_autoevent import AutoEvent
 from widebrim.madhatter.hat_io.asset import File
 
-from ..const import LANGUAGES, EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_AUTOEVENT, PATH_DB_EV_INF2, PATH_DB_HTEVENT, PATH_DB_PLACEFLAG, PATH_DB_SM_INF, PATH_DB_STORYFLAG, PATH_PROGRESSION_DB, PATH_DB_RC_ROOT, PATH_DB_GOAL_INF, PATH_DB_NZ_LST, PATH_DB_TM_DEF, PATH_DB_RC_ROOT_LANG, PATH_DB_CHP_INF
-from ..const import PATH_NAZO_A, PATH_NAZO_B, PATH_NAZO_C, PATH_PACK_NAZO
-from ..exceptions import FileInvalidCritical
-from ..file import FileInterface
-
-from ...engine.anim.font.nftr_decode import NftrTiles
+from ...const import LANGUAGES, EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_AUTOEVENT, PATH_DB_EV_INF2, PATH_DB_HTEVENT, PATH_DB_PLACEFLAG, PATH_DB_SM_INF, PATH_DB_STORYFLAG, PATH_PROGRESSION_DB, PATH_DB_RC_ROOT, PATH_DB_GOAL_INF, PATH_DB_NZ_LST, PATH_DB_TM_DEF, PATH_DB_RC_ROOT_LANG, PATH_DB_CHP_INF
+from ...const import PATH_NAZO_A, PATH_NAZO_B, PATH_NAZO_C, PATH_PACK_NAZO
+from ...exceptions import FileInvalidCritical
+from ...anim.font.nftr_decode import NftrTiles
 
 from time import time
 from math import floor
 
-from .enum_mode import GAMEMODES
+from ..enum_mode import GAMEMODES
 
 class Layton2GameState():
-    def __init__(self, language=LANGUAGES.Japanese, forceUseLanguage=False):
-        """Convenience object to store entire game state required for playback. Where possible, language will be extracted from the asset data.
+    def __init__(self, language : LANGUAGES, fileInterface : FileInterface):
+        """Convenience object to store entire game state required for playback.
 
         Args:
-            language (LANGUAGES Enum member, optional): Language for filesystem access. Defaults to LANGUAGES.Japanese
-            forceUseLanguage (bool, optional): True to override detected with specified language. Defaults to False
+            language (LANGUAGES): Language for filesystem access.
+            fileInterface (FileInterface): Filesystem abstraction used for gameplay.
 
         Raises:
-            FileInvalidCritical: Raised if any immediate asset required for gameplay is missing. Further missing assets are not counted
+            FileInvalidCritical: Raised if any immediate asset required for gameplay is missing. Further missing assets are not counted.
         """
         
+        self.__fileInterface  = fileInterface
+
         # Save header is unused during gameplay
         self.saveSlot       = Layton2SaveSlot()
         # TODO - Index slot
         self.wiFiData       = WiFiState()
-
-        if forceUseLanguage or (fileLanguage := FileInterface.getLanguage()) == None:
-            self.language = language
-        else:
-            self.language = fileLanguage
-
+        self.language       = language
+        
         self._gameMode       = GAMEMODES.INVALID
         self._gameModeNext   = GAMEMODES.INVALID
 
@@ -74,7 +71,7 @@ class Layton2GameState():
 
         self.dlzHerbteaEvent    = HerbteaEvent()
 
-        if (herbteaData := FileInterface.getData(PATH_DB_HTEVENT)) != None:
+        if (herbteaData := self.__fileInterface.getData(PATH_DB_HTEVENT)) != None:
             try:
                 self.dlzHerbteaEvent.load(herbteaData)
             except:
@@ -82,10 +79,10 @@ class Layton2GameState():
 
         # Safe to assume always loaded
         try:
-            packedProgressionDbs = FileInterface.getPack(PATH_PROGRESSION_DB)
-            self.dbPlaceFlag.load(packedProgressionDbs.getData(PATH_DB_PLACEFLAG))
-            self.dbStoryFlag.load(packedProgressionDbs.getData(PATH_DB_STORYFLAG))
-            self.dbAutoEvent.load(packedProgressionDbs.getData(PATH_DB_AUTOEVENT))
+            packedProgressionDbs = self.__fileInterface.getPack(PATH_PROGRESSION_DB)
+            self.dbPlaceFlag.load(packedProgressionDbs.getFile(PATH_DB_PLACEFLAG))
+            self.dbStoryFlag.load(packedProgressionDbs.getFile(PATH_DB_STORYFLAG))
+            self.dbAutoEvent.load(packedProgressionDbs.getFile(PATH_DB_AUTOEVENT))
 
         except:
             raise FileInvalidCritical()
@@ -108,13 +105,13 @@ class Layton2GameState():
 
         # TODO - Add to const
         try:
-            self.font18             = NftrTiles(FileInterface.getData("/data_lt2/font/font18.NFTR"))
-            self.fontEvent          = NftrTiles(FileInterface.getData("/data_lt2/font/fontevent.NFTR"))
-            self.fontQ              = NftrTiles(FileInterface.getData("/data_lt2/font/fontq.NFTR"))
+            self.font18             = NftrTiles(self.__fileInterface.getData("/data_lt2/font/font18.NFTR"))
+            self.fontEvent          = NftrTiles(self.__fileInterface.getData("/data_lt2/font/fontevent.NFTR"))
+            self.fontQ              = NftrTiles(self.__fileInterface.getData("/data_lt2/font/fontq.NFTR"))
             self._dbNazoList        = NazoListNds()
-            self._dbNazoList.load(FileInterface.getData(PATH_DB_RC_ROOT_LANG % (self.language.value, PATH_DB_NZ_LST)))
+            self._dbNazoList.load(self.__fileInterface.getData(PATH_DB_RC_ROOT_LANG % (self.language.value, PATH_DB_NZ_LST)))
             self._dbTimeDef         = TimeDefinitionInfo()
-            self._dbTimeDef.load(FileInterface.getData(PATH_DB_RC_ROOT % (PATH_DB_TM_DEF)))
+            self._dbTimeDef.load(self.__fileInterface.getData(PATH_DB_RC_ROOT % (PATH_DB_TM_DEF)))
         except:
             raise FileInvalidCritical()
 
@@ -199,7 +196,7 @@ class Layton2GameState():
             # TODO : Load event info
             print("Bad: Event Info should have been loaded sooner!")
             self._dbEventInfo = EventInfoList()
-            self._dbEventInfo.load(FileInterface.getData(PATH_DB_EV_INF2 % self.language.value))
+            self._dbEventInfo.load(self.__fileInterface.getData(PATH_DB_EV_INF2 % self.language.value))
         
         return self._dbEventInfo.searchForEntry(idEvent)
     
@@ -307,7 +304,7 @@ class Layton2GameState():
             else:
                 pathNazo = PATH_NAZO_C
             
-            if (data := FileInterface.getPackedData(pathNazo % self.language.value, PATH_PACK_NAZO % idInternal)) != None:
+            if (data := self.__fileInterface.getPackedData(pathNazo % self.language.value, PATH_PACK_NAZO % idInternal)) != None:
                 output = NazoDataNds()
                 if output.load(data):
                     return output
@@ -328,7 +325,7 @@ class Layton2GameState():
 
     def loadChapterInfoDb(self):
         self._dbChapterInfo = ChapterInfo()
-        if (dbChapterInfo := FileInterface.getData(PATH_DB_RC_ROOT % PATH_DB_CHP_INF)) != None:
+        if (dbChapterInfo := self.__fileInterface.getData(PATH_DB_RC_ROOT % PATH_DB_CHP_INF)) != None:
             self._dbChapterInfo.load(dbChapterInfo)
 
     def unloadChapterInfoDb(self):
@@ -353,7 +350,7 @@ class Layton2GameState():
             self._dbGoalInfo = GoalInfo()
 
             # Temporary workaround
-            tempFile = File(data=FileInterface.getData(PATH_DB_RC_ROOT % PATH_DB_GOAL_INF))
+            tempFile = File(data=self.__fileInterface.getData(PATH_DB_RC_ROOT % PATH_DB_GOAL_INF))
             tempFile.decompressLz10()
 
             self._dbGoalInfo.load(tempFile.data)
@@ -362,7 +359,7 @@ class Layton2GameState():
     
     def loadSubmapInfo(self):
         if self._dbSubmapInfo == None:
-            if (submapData := FileInterface.getData(PATH_DB_RC_ROOT % PATH_DB_SM_INF)) != None:
+            if (submapData := self.__fileInterface.getData(PATH_DB_RC_ROOT % PATH_DB_SM_INF)) != None:
                 self._dbSubmapInfo = SubmapInfoNds()
                 self._dbSubmapInfo.load(submapData)
                 return True
@@ -487,3 +484,8 @@ class Layton2GameState():
     def setLastJitenWiFiExternal(self, idExternal : int):
         self._idExternalLastWiFiPuzzle = idExternal
     
+    def getFileAccessor(self) -> FileInterface:
+        return self.__fileInterface
+    
+    def resetState(self):
+        pass

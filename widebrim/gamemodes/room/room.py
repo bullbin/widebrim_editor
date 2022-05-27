@@ -5,13 +5,12 @@ from typing import List, Optional, TYPE_CHECKING, Tuple, Union
 from widebrim.engine.anim.image_anim.imageAsNumber import StaticImageAsNumericalFont
 from widebrim.engine.anim.button import NullButton
 from pygame.constants import BLEND_RGB_SUB, MOUSEBUTTONDOWN, MOUSEBUTTONUP
-from widebrim.engine.file import FileInterface
 from widebrim.madhatter.hat_io.asset_dat.place import Exit, PlaceDataNds
 
 from widebrim.engine.const import PATH_PACK_PLACE_NAME, PATH_TEXT_GOAL, PATH_TEXT_PLACE_NAME, RESOLUTION_NINTENDO_DS
 from widebrim.engine.state.enum_mode import GAMEMODES
 if TYPE_CHECKING:
-    from widebrim.engine.state.state import Layton2GameState
+    from widebrim.engine.state.manager.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
     from widebrim.engine.anim.button import AnimatedButton
     from widebrim.madhatter.hat_io.asset_dat.place import HintCoin, TObjEntry, BgAni, EventEntry
@@ -549,9 +548,9 @@ class RoomPlayer(ScreenLayerNonBlocking):
         def getPlaceData():
             namePlace = PATH_PACK_PLACE % (self.laytonState.getPlaceNum(), self.laytonState.saveSlot.roomSubIndex)
             if self.laytonState.getPlaceNum() < 40:
-                output = FileInterface.getPackedData(PATH_PLACE_A, namePlace)
+                output = self.laytonState.getFileAccessor().getPackedData(PATH_PLACE_A, namePlace)
             else:
-                output = FileInterface.getPackedData(PATH_PLACE_B, namePlace)
+                output = self.laytonState.getFileAccessor().getPackedData(PATH_PLACE_B, namePlace)
             
             if output == None:
                 raise FileInvalidCritical()
@@ -588,7 +587,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
             self.__posObjective = (RoomPlayer.POS_CENTER_TEXT_OBJECTIVE[0] - self.__textObjective.get_width() // 2, RoomPlayer.POS_CENTER_TEXT_OBJECTIVE[1])
             
             # Is there a NO ROOM or similar fail string?
-            if (titleText := FileInterface.getPackedString(PATH_PACK_PLACE_NAME % self.laytonState.language.value, PATH_TEXT_PLACE_NAME % self.__placeData.idNamePlace)) != "":
+            if (titleText := self.laytonState.getFileAccessor().getPackedString(PATH_PACK_PLACE_NAME % self.laytonState.language.value, PATH_TEXT_PLACE_NAME % self.__placeData.idNamePlace)) != "":
                 # TODO - String substituter
                 self.__textRoomTitle = generateImageFromString(self.laytonState.fontEvent, titleText)
                 self.__posRoomTitle = (RoomPlayer.POS_CENTER_TEXT_ROOM_TITLE[0] - self.__textRoomTitle.get_width() // 2, RoomPlayer.POS_CENTER_TEXT_ROOM_TITLE[1])
