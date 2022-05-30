@@ -6,6 +6,7 @@ except ImportError:
 
 from os import getcwd, path
 from typing import Any, Dict, Optional, Union
+
 from widebrim.madhatter import common
 
 def noLog(*args, **kwargs):
@@ -18,8 +19,12 @@ from wx import App, ID_OK, ID_CANCEL
 from editor.embed_mod import EditorWindow
 from editor.d_firstrun import DialogFirstRunWarning
 from editor.d_startup import DialogStartup
-from editor.d_imp_back import DialogueImportBackground
-from editor.d_startup import DialogStartup
+
+#from editor.d_imp_back import DialogueImportBackground
+#from editor.d_pickerBgx import DialogPickerBgx
+#from widebrim.engine.const import LANGUAGES
+#from widebrim.engine.state.manager.state import Layton2GameState
+
 from widebrim.filesystem.compatibility import FusedFileInterface
 from widebrim.engine_ext.utils import cleanTempFolder
 import pygame
@@ -117,9 +122,12 @@ class App(App):
 debug = App()
 debug.MainLoop()
 
-#testDialog = DialogueImportBackground(None)
+#debugState = Layton2GameState(LANGUAGES.English, FusedFileInterface(rom.NintendoDSRom.fromFile("rom2.nds"), r"patch", False))
+#testDialog = DialogPickerBgx(None, debugState, debugState.getFileAccessor(), "/data_lt2/bg")
 #testDialog.ShowModal()
 #testDialog.Destroy()
+#print(testDialog.GetPath())
+
 # TODO - Doctor's home chain?
 
 # TODO - Puzzle 24, wrong number of operations

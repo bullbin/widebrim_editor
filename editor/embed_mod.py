@@ -48,7 +48,6 @@ from widebrim.engine_ext.state_game import ScreenCollectionGameModeSpawner
 from wx import Timer, EVT_TIMER, EVT_PAINT, EVT_CLOSE, Bitmap, ClientDC, PaintDC, Icon, CallAfter, aui
 from wx import Image as WxImageNonConflict
 from widebrim.engine.state.manager import Layton2GameState
-from widebrim.engine.file import FileInterface
 from widebrim.filesystem.compatibility import FusedFileInterface
 
 from editor.e_puzzle import FramePuzzleEditor
@@ -71,6 +70,7 @@ class EditorWindow(Editor):
         if language == None:
             language = LANGUAGES.Japanese
 
+        self._fusedFi = fusedFi
         self._widebrimState = Layton2GameState(language, fusedFi)
         self.__widebrimRenderLayers : Optional[ScreenCollectionGameModeSpawner] = None
         self.__widebrimSpeedMultipler = 1
@@ -87,15 +87,15 @@ class EditorWindow(Editor):
         self.Bind(EVT_CLOSE, self.__doOnClose)
         self.spawnHandler(GAMEMODES.Reset)
 
-        self.auiTabs.AddPage(FrameOverview(self.auiTabs, self._widebrimState), "Overview", select=False)
+        self.auiTabs.AddPage(FrameOverview(self.auiTabs, self._fusedFi, self._widebrimState), "Overview", select=False)
         self.framesExtended.Check()
         self._setWidebrimFramerate(1000)
         self.__refreshRomProperties()
 
     def __refreshRomProperties(self):
-        self.romTextCode.SetValue(FileInterface.getRom().idCode.decode('ascii'))
-        self.romTextName.SetValue(getNameStringFromRom(FileInterface.getRom(), FileInterface.getLanguage()))
-        bannerImage = getBannerImageFromRom(FileInterface.getRom())
+        self.romTextCode.SetValue(self._fusedFi.getRom().idCode.decode('ascii'))
+        self.romTextName.SetValue(getNameStringFromRom(self._fusedFi.getRom(), self._fusedFi.getLanguage()))
+        bannerImage = getBannerImageFromRom(self._fusedFi.getRom())
         bitmapBanner = Bitmap.FromBuffer(bannerImage.size[0], bannerImage.size[1], bannerImage.convert("RGB").tobytes("raw", "RGB"))
         self.previewIcon.SetBitmap(bitmapBanner)
         self.SetIcon(Icon(bitmapBanner))

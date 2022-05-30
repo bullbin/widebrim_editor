@@ -4,11 +4,11 @@
 from typing import List, Optional
 
 from editor.puzzle.drawInput import DrawInputEditor
+from widebrim.filesystem.compatibility import FusedFileInterface
 from widebrim.madhatter.hat_io.asset_script import GdScript
 from .nopush_editor import editorPuzzle
 from widebrim.engine.anim.font.scrolling import ScrollingFontHelper
 from widebrim.engine.const import PATH_NAZO_A, PATH_NAZO_B, PATH_NAZO_C, PATH_PACK_NAZO, PATH_PACK_PLACE_NAME, PATH_PACK_PUZZLE, PATH_PUZZLE_BG, PATH_PUZZLE_BG_LANGUAGE, PATH_PUZZLE_BG_NAZO_TEXT, PATH_PUZZLE_SCRIPT, PATH_TEXT_PLACE_NAME, RESOLUTION_NINTENDO_DS
-from widebrim.engine.file import FileInterface
 from widebrim.engine.state.enum_mode import GAMEMODES
 from widebrim.engine.state.manager import Layton2GameState
 from widebrim.engine_ext.utils import decodeStringFromPack, getImageFromPath, substituteLanguageString
@@ -38,8 +38,9 @@ class FramePuzzleEditor(editorPuzzle):
 
     INVALID_FRAME_COLOR = (255,0,0)
 
-    def __init__(self, parent, internalId : int, state : Layton2GameState, id=wx.ID_ANY, pos=wx.DefaultPosition, size=wx.Size(640, 640), style=wx.TAB_TRAVERSAL, name=wx.EmptyString):
+    def __init__(self, parent, fusedFi : FusedFileInterface, internalId : int, state : Layton2GameState, id=wx.ID_ANY, pos=wx.DefaultPosition, size=wx.Size(640, 640), style=wx.TAB_TRAVERSAL, name=wx.EmptyString):
         super().__init__(parent, id, pos, size, style, name)
+        self._fusedFi = fusedFi
         self.__state = state
         self.__idInternal = internalId
         self.__nazoData : Optional[NazoDataNds] = None
@@ -98,7 +99,7 @@ class FramePuzzleEditor(editorPuzzle):
     
     def __generatePlaceStrings(self):
         # TODO - If editing, do not enable changing 63 (needs to be Riddleton's Shack)
-        packPlace = FileInterface.getPack(substituteLanguageString(self.__state, PATH_PACK_PLACE_NAME))
+        packPlace = self._fusedFi.getPack(substituteLanguageString(self.__state, PATH_PACK_PLACE_NAME))
         choicesPlace = []
         for indexPlace in range(256):
             stringName = PATH_TEXT_PLACE_NAME % indexPlace
@@ -116,7 +117,7 @@ class FramePuzzleEditor(editorPuzzle):
             logSevere("ERROR LOADING DATA FOR PUZZLE", self.__idInternal)
             return
 
-        if (data := FileInterface.getPackedData(PATH_PUZZLE_SCRIPT, PATH_PACK_PUZZLE % self.__idInternal)) != None:
+        if (data := self._fusedFi.getPackedData(PATH_PUZZLE_SCRIPT, PATH_PACK_PUZZLE % self.__idInternal)) != None:
             self.__nazoScript = GdScript()
             self.__nazoScript.load(data)
         
@@ -326,7 +327,7 @@ class FramePuzzleEditor(editorPuzzle):
         else:
             pathNazo = PATH_NAZO_C
         
-        packNazo = FileInterface.getPack(substituteLanguageString(self.__state, pathNazo))
+        packNazo = self._fusedFi.getPack(substituteLanguageString(self.__state, pathNazo))
         self.__nazoData.save()
         packNazo.writeData(PATH_PACK_NAZO % self.__idInternal, self.__nazoData.data)
 

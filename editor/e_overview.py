@@ -3,12 +3,12 @@ from editor.asset_management.event import EventConditionAwaitingViewedExecutionG
 from editor.asset_management.puzzle import PuzzleEntry, getPuzzles
 from editor.e_script import FrameScriptEditor
 from editor.e_puzzle import FramePuzzleEditor
+from widebrim.filesystem.compatibility import FusedFileInterface
 from .nopush_editor import pageOverview
 from widebrim.engine.state.manager import Layton2GameState
 from editor.asset_management import getCharacters, getEvents
 import wx
 
-from widebrim.engine.file import FileInterface
 from widebrim.engine.const import PATH_ANI, PATH_DB_RC_ROOT
 from widebrim.engine_ext.utils import substituteLanguageString
 from widebrim.madhatter.hat_io.asset_image import AnimatedImage, getTransparentLaytonPaletted
@@ -22,13 +22,15 @@ class FrameOverview(pageOverview):
 
     SIZE_ICONS = (16,16)
 
-    def __init__(self, parent, state : Layton2GameState, id=wx.ID_ANY, pos=wx.DefaultPosition, size=wx.Size(640, 640), style=wx.TAB_TRAVERSAL, name=wx.EmptyString):
+    def __init__(self, parent, fusedFi : FusedFileInterface, state : Layton2GameState, id=wx.ID_ANY, pos=wx.DefaultPosition, size=wx.Size(640, 640), style=wx.TAB_TRAVERSAL, name=wx.EmptyString):
+
+        self._fusedFi = fusedFi
 
         # TODO - Maybe make class variable. Should only load once though
         def prepareIcons(size : Tuple[int,int]):
 
             def getFrameOfImage(aniPath : str, frameIndex=0) -> Optional[ImageType]:
-                if (data := FileInterface.getData(PATH_ANI % aniPath)) != None:
+                if (data := self._fusedFi.getData(PATH_ANI % aniPath)) != None:
                     if len(aniPath) > 3:
                         if aniPath[-3:] == "arc":
                             image = AnimatedImage.fromBytesArc(data)
@@ -82,7 +84,7 @@ class FrameOverview(pageOverview):
 
         super().__init__(parent, id, pos, size, style, name)
         self._characters = getCharacters(state)
-        self._eventsLoose, self._eventsGrouped = getEvents(state)
+        self._eventsLoose, self._eventsGrouped = getEvents(self._fusedFi, state)
         self._puzzles : List[List[PuzzleEntry]] = [[],[],[]]
         self._idToPuzzleEntry : Dict[int, PuzzleEntry] = {}
         # TODO - Puzzles?
@@ -102,6 +104,7 @@ class FrameOverview(pageOverview):
         self._state = state
         self._treeItemEvent = None
         self._treeItemPuzzle = None
+        self._treeItemCharacter = None
         self._loaded = False
         self._areCommentsLoaded = False
 
@@ -143,9 +146,9 @@ class FrameOverview(pageOverview):
             if eventId < 10000:
                 # HACK - This is a puzzle instead!
                 if self.__useIcons:
-                    self.GetParent().AddPage(FramePuzzleEditor(self.GetParent(), eventId, self._state), self.treeOverview.GetItemText(treeParent), bitmap=self.__icons.GetBitmap(self.__idImagePuzzle))
+                    self.GetParent().AddPage(FramePuzzleEditor(self.GetParent(), self._fusedFi, eventId, self._state), self.treeOverview.GetItemText(treeParent), bitmap=self.__icons.GetBitmap(self.__idImagePuzzle))
                 else:
-                    self.GetParent().AddPage(FramePuzzleEditor(self.GetParent(), eventId, self._state), self.treeOverview.GetItemText(treeParent))
+                    self.GetParent().AddPage(FramePuzzleEditor(self.GetParent(), self._fusedFi, eventId, self._state), self.treeOverview.GetItemText(treeParent))
                 return
 
             name = str(eventId)
@@ -185,9 +188,9 @@ class FrameOverview(pageOverview):
             # TODO - See above
             # TODO - Add page method this is stupid
             if self.__useIcons:
-                self.GetParent().AddPage(FramePuzzleEditor(self.GetParent(), idInternal, self._state), self.treeOverview.GetItemText(item), bitmap=self.__icons.GetBitmap(self.__idImagePuzzle))
+                self.GetParent().AddPage(FramePuzzleEditor(self.GetParent(), self._fusedFi, idInternal, self._state), self.treeOverview.GetItemText(item), bitmap=self.__icons.GetBitmap(self.__idImagePuzzle))
             else:
-                self.GetParent().AddPage(FramePuzzleEditor(self.GetParent(), idInternal, self._state), self.treeOverview.GetItemText(item))
+                self.GetParent().AddPage(FramePuzzleEditor(self.GetParent(), self._fusedFi, idInternal, self._state), self.treeOverview.GetItemText(item))
 
         item = event.GetItem()
 
@@ -217,7 +220,7 @@ class FrameOverview(pageOverview):
         if self._areCommentsLoaded:
             # TODO - Compile this database when needed. Ideally should not be loaded here...
             evLch = EventDescriptorBankNds()
-            if (data := FileInterface.getData(substituteLanguageString(self._state, PATH_DB_RC_ROOT % ("%s/ev_lch.dlz")))) != None:
+            if (data := self._fusedFi.getData(substituteLanguageString(self._state, PATH_DB_RC_ROOT % ("%s/ev_lch.dlz")))) != None:
                 evLch.load(data)
 
         self.treeOverview.DeleteAllItems()
@@ -371,5 +374,12 @@ class FrameOverview(pageOverview):
             fillPuzzleBranch(wifiItem, self._puzzles[1])
             fillPuzzleBranch(specialItem, self._puzzles[2])
 
+        def generateCharacterBranch():
+            characterItem = self.treeOverview.AppendItem(rootItem, "Characters")
+            self._treeItemCharacter = characterItem
+            for indexCharacter, character in enumerate(self._characters):
+                self.treeOverview.AppendItem(characterItem, "Character " + str(indexCharacter + 1))
+
         generateEventBranch()
         generatePuzzleBranch()
+        generateCharacterBranch()
