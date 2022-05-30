@@ -14,7 +14,7 @@ def noLog(*args, **kwargs):
 common.logVerbose = noLog
 common.log = noLog
 
-from wx import App, ID_OK, ID_ABORT, EVT_CLOSE, ID_CANCEL
+from wx import App, ID_OK, ID_CANCEL
 from editor.embed_mod import EditorWindow
 from editor.d_firstrun import DialogFirstRunWarning
 from editor.d_startup import DialogStartup
