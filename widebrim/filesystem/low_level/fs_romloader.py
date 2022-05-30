@@ -184,3 +184,7 @@ class FilesystemNds(FilesystemBase):
             return True
 
         return recursiveFolderDelete(folderPath, None)
+    
+    def getRom(self):
+		# TODO - Abstract to only save. Don't want this accessible
+        return self.__rom
