@@ -1,9 +1,10 @@
-from editor.e_script.virtual.converter import VirtualInstruction
+from editor.e_script.virtual.custom import VirtualInstructionGenerator
+from editor.gui.command_annotator.bank import InstructionDescription
 
-class FadeInstruction(VirtualInstruction):
+class FadeInstruction(InstructionDescription, VirtualInstructionGenerator):
     pass
 
-class DialogueInstruction(VirtualInstruction):
+class DialogueInstruction(InstructionDescription, VirtualInstructionGenerator):
     def __init__(self):
         super().__init__()
         self.__idCharacter          = 0
@@ -13,8 +14,11 @@ class DialogueInstruction(VirtualInstruction):
         self.__characterEndAnim     = "NONE"
         self.__idVoiceClip          = -1
 
-class ShowHideCharacterInstruction(VirtualInstruction):
+class ShowHideCharacterInstruction(InstructionDescription, VirtualInstructionGenerator):
     pass
 
-class PauseInstruction(VirtualInstruction):
+class PauseInstruction(InstructionDescription, VirtualInstructionGenerator):
+    pass
+
+class SwitchGameModeInstruction(InstructionDescription, VirtualInstructionGenerator):
     pass

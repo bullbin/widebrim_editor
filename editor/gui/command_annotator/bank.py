@@ -89,6 +89,10 @@ class OperandType(int, Enum):
     TimeDefinitionEntry = 91
     TimeCharacterFade   = 92
 
+    StringTalkScript    = 100
+    StringCharAnim      = 101
+    
+
 class OperandCompatibility(int, Enum):
     """Enum storing compatible base case for all overriden operands. Required for validating allowed context replacement.
 
@@ -142,6 +146,9 @@ class OperandCompatibility(int, Enum):
     TimeFrameCount      = OperandType.StandardS32.value
     TimeDefinitionEntry = OperandType.StandardS32.value
     TimeCharacterFade   = OperandType.StandardS32.value
+
+    StringTalkScript    = OperandType.StandardString.value
+    StringCharAnim      = OperandType.StandardString.value
 
 class OperandDescription():
     # TODO - Scoping
