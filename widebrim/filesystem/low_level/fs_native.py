@@ -61,6 +61,7 @@ class FilesystemNative(FilesystemBase):
     
     def _requiredGetFilepathsInFolder(self, folderPath: str) -> List[str]:
         # HACK - Add trailing slash
+        outputFolderPath = folderPath
         folderPath = self._sensitiveFsJoin(self.__pathRoot, folderPath)
         output = []
 
@@ -71,7 +72,7 @@ class FilesystemNative(FilesystemBase):
                     relpath = "\\"
                 else:
                     relpath = "\\" + relpath
-                temp = self._sensitiveFsJoin(relpath, file)
+                temp = self._sensitiveFsJoin(outputFolderPath, self._sensitiveFsJoin(relpath, file))
                 output.append(temp.replace("\\", "/"))
         return output
     
