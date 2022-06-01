@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Tuple
 
-from widebrim.engine.file import FileInterface, File
+from widebrim.engine.file import FileInterface
 from widebrim.madhatter.hat_io.asset import LaytonPack
 from widebrim.madhatter.hat_io.asset_script import GdScript, Instruction
 from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
@@ -13,7 +13,8 @@ from .bank import InstructionDescription, OperandType, Context, ScriptVerificati
 PATH_PACK_EVENT = "/data_lt2/event/ev_d%s.plz"
 
 class BaselineVerificationBank(ScriptVerificationBank):
-    def __init__(self):
+    def __init__(self, fileInterface : FileInterface):
+        self.__fileInterface = fileInterface
         super().__init__()
 
     def __parseScript(self, script : GdScript, id : Optional[str] = None, forceContext=[]):
@@ -104,27 +105,27 @@ class BaselineVerificationBank(ScriptVerificationBank):
                 pass
             elif indexEventScript == 24:
                 for segment in ["24a", "24b", "24c"]:
-                    if (data := FileInterface.getData(PATH_PACK_EVENT % segment)) != None:
+                    if (data := self.__fileInterface.getData(PATH_PACK_EVENT % segment)) != None:
                         pack = LaytonPack()
                         pack.load(data)
                         self.__extractCommands(pack, [Context.DramaEvent])
             else:
-                if (data := FileInterface.getData(PATH_PACK_EVENT % str(indexEventScript))) != None:
+                if (data := self.__fileInterface.getData(PATH_PACK_EVENT % str(indexEventScript))) != None:
                     pack = LaytonPack()
                     pack.load(data)
                     self.__extractCommands(pack, [Context.DramaEvent])
 
-        if (data := FileInterface.getData("/data_lt2/script/movie.plz")) != None:
+        if (data := self.__fileInterface.getData("/data_lt2/script/movie.plz")) != None:
             pack = LaytonPack()
             pack.load(data)
             self.__extractCommands(pack, [Context.Movie])
 
-        if (data := FileInterface.getData("/data_lt2/script/puzzle.plz")) != None:
+        if (data := self.__fileInterface.getData("/data_lt2/script/puzzle.plz")) != None:
             pack = LaytonPack()
             pack.load(data)
             self.__extractCommands(pack)
 
-        if (data := FileInterface.getData("/data_lt2/script/logo.gds")) != None:
+        if (data := self.__fileInterface.getData("/data_lt2/script/logo.gds")) != None:
             script = GdScript()
             script.load(data)
             self.__parseScript(script, "logo.gds", forceContext=[Context.Base])

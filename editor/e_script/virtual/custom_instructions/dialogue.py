@@ -14,7 +14,7 @@ class DialogueInstructionDescription(InstructionDescription):
         self.description    = "Virtual Instruction\nBrings up the text box for dialogue in events. Script execution is paused while dialogue is playing back."
         self.contextValid   = [Context.DramaEvent]
         self.isUsed         = True
-        self.permittedOperandTypes = [OperandDescription(OperandType.IndexCharacterSlot, "Character index from event data, starting at 0 and reading top to bottom."),
+        self.permittedOperandTypes = [OperandDescription(OperandType.IndexEventDataCharacter, "Character index from event data, starting at 0 and reading top to bottom."),
                                       OperandDescription(OperandType.StringTalkScript, "Spoken dialogue sequence."),
                                       OperandDescription(OperandType.StringCharAnim, "Animation called on the character when dialogue starts. 'NONE' will leave the character alone."),
                                       OperandDescription(OperandType.StringCharAnim, "Animation called on the character when dialogue ends. 'NONE' will leave the character alone."),
@@ -30,7 +30,7 @@ class DialogueInstructionGenerator(VirtualInstructionGenerator):
 
         def createDialogueInstruction(idxChar : int, animStart : str, animEnd : str, pitch : int, text : str, idVoice : int) -> Instruction:
             output = Instruction()
-            output.opcode = OPCODES_LT2.TextWindow.value + 0x0100
+            output.opcode = (OPCODES_LT2.TextWindow.value + 0x0100).to_bytes(2, byteorder='little')
             output.operands.append(Operand(1, idxChar))
             output.operands.append(Operand(3, text))
             output.operands.append(Operand(3, animStart))
@@ -42,15 +42,16 @@ class DialogueInstructionGenerator(VirtualInstructionGenerator):
         idxPop = []
         nextVoiceLine = -1
         # TODO - Does match description would be a great method here...
-        for idxInstruction in range(len(script.getInstructionCount())):
-            
+        for idxInstruction in range(script.getInstructionCount()):
             instruction = script.getInstruction(idxInstruction)
-            if instruction.opcode == OPCODES_LT2.SetVoiceID.value:
+            opcode = int.from_bytes(instruction.opcode, byteorder = 'little')
+
+            if opcode == OPCODES_LT2.SetVoiceID.value:
                 if len(instruction.operands) > 0 and type(instruction.operands[0].value) == int:
                     nextVoiceLine = instruction.operands[0].value
                     idxPop.append(idxInstruction)
 
-            if instruction.opcode == OPCODES_LT2.TextWindow.value:
+            if opcode == OPCODES_LT2.TextWindow.value:
                 useVoiceLine = nextVoiceLine
                 nextVoiceLine = -1
                 if len(instruction.operands) > 0 and type(instruction.operands[0].value) == int:

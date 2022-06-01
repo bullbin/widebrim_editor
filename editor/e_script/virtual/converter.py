@@ -1,11 +1,8 @@
 from widebrim.madhatter.hat_io.asset_script import GdScript
-from .defined import *
+from .custom_instructions import *
 
-HEURISTIC_PASSES = [DialogueInstruction,
-                    FadeInstruction,
-                    ShowHideCharacterInstruction,
-                    PauseInstruction,
-                    SwitchGameModeInstruction]
+HEURISTIC_PASSES = [DialogueInstructionGenerator]
 
 def convertToVirtual(script : GdScript) -> GdScript:
-    pass
+    for stage in HEURISTIC_PASSES:
+        pass

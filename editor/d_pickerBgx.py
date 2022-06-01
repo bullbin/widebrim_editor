@@ -13,13 +13,15 @@ from PIL.Image import Image as ImageType
 # TODO - Slow to import big images, don't let the user do that
 
 class DialogPickerBgx(PickerBgx):
-    def __init__(self, parent, state : Layton2GameState, fusedFi : FusedFileInterface, pathRoot : str):
+    def __init__(self, parent, state : Layton2GameState, fusedFi : FusedFileInterface, pathRoot : str, defaultPathRelative : Optional[str] = None):
         super().__init__(parent)
         self.fusedFi = fusedFi
         self.__rootFolder, self.__folderLookup = generateFolderStructureFromRelativeRoot(fusedFi.fused, pathRoot)
         self.__pathOut = ""
         self.btnConfirmSelected.Disable()
         populateTreeCtrlFromFolderTree(self.treeFilesystem, self.__rootFolder)
+        if defaultPathRelative != None:
+            self.setDefaultRelativePath(defaultPathRelative)
     
     def __getSelectedFolder(self) -> str:
         selected = self.treeFilesystem.GetSelection()
@@ -54,24 +56,56 @@ class DialogPickerBgx(PickerBgx):
     def __doOnSuccessfulImage(self):
         self.EndModal(ID_OK)
 
-    def treeFilesystemOnTreeItemActivated(self, event):
-        selected = self.treeFilesystem.GetSelection()
-        path = self.treeFilesystem.GetItemData(selected)
+    def __updatePreviewImage(self, path) -> bool:
         if path in self.__folderLookup:
-            return super().treeFilesystemOnTreeItemActivated(event)
+            return False
         
-        decompFile = File(data=self.fusedFi.getData(path))
+        imageData = self.fusedFi.getData(path)
+        # TODO - Bugfix, why does this happen?
+        if imageData == None or len(imageData) == 0:
+            print("Failed", path)
+            return False
+
+        # TODO - This should be already decompressed under fusedFi
+        decompFile = File(data=imageData)
         decompFile.decompress()
         previewImage = StaticImage.fromBytesArc(decompFile.data)
         if previewImage.getCountImages() != 1:
-            return super().treeFilesystemOnTreeItemActivated(event)
+            return False
         
         pillowImage = previewImage.getImage(0)
         pillowImage : ImageType
         self.bitmapPreviewBackground.SetBitmap(Bitmap.FromBuffer(pillowImage.size[0], pillowImage.size[1], pillowImage.convert("RGB").tobytes("raw", "RGB")))
         self.__pathOut = path
         self.btnConfirmSelected.Enable()
+        return True
+
+    def treeFilesystemOnTreeItemActivated(self, event):
+        selected = self.treeFilesystem.GetSelection()
+        path = self.treeFilesystem.GetItemData(selected)
+        self.__updatePreviewImage(path)
         return super().treeFilesystemOnTreeItemActivated(event)
+
+    def setDefaultRelativePath(self, pathRelative : str):
+        subsPath = (self.__rootFolder.path + "/" + pathRelative).replace("/?/", "/" + self.fusedFi.getLanguage().value + "/")
+        if len(subsPath) > 4 and subsPath[-4:] == ".bgx":
+            subsPath = subsPath[:-4] + ".arc"
+        if self.__updatePreviewImage(subsPath):
+            folderPath = subsPath
+            while folderPath != self.__rootFolder.path:
+                folderPath = "/".join(folderPath.split("/")[:-1])
+                folderNode = self.__folderLookup[folderPath]
+                self.treeFilesystem.Expand(folderNode.treeRef)
+            
+            folderNode = self.__folderLookup["/".join(subsPath.split("/")[:-1])]
+
+            sibling, cookie = self.treeFilesystem.GetFirstChild(folderNode.treeRef)
+            for _idxChild in range(self.treeFilesystem.GetChildrenCount(folderNode.treeRef, recursively=False)):
+                if self.treeFilesystem.GetItemData(sibling) == subsPath:
+                    self.treeFilesystem.ScrollTo(sibling)
+                    self.treeFilesystem.SetFocusedItem(sibling)
+                    break
+                sibling = self.treeFilesystem.GetNextSibling(sibling)
 
     def btnConfirmSelectedOnButtonClick(self, event):
         if self.__pathOut != "":
@@ -156,6 +190,7 @@ class DialogPickerBgx(PickerBgx):
 
         self.fusedFi.fused.addFile(filepath, packer.data)
         folder.files.append(filepath)
+        self.__pathOut = filepath
         self.__doOnSuccessfulImage()
         return super().btnImportImageOnButtonClick(event)
 
@@ -229,3 +264,7 @@ class DialogPickerBgx(PickerBgx):
             # populateTreeCtrlFromFolderTree(self.treeFilesystem, self.__rootFolder)
 
         return super().btnAddFolderOnButtonClick(event)
+
+    def btnCancelOnButtonClick(self, event):
+        self.EndModal(ID_CANCEL)
+        return super().btnCancelOnButtonClick(event)

@@ -3,6 +3,7 @@ from editor.asset_management.event import EventConditionAwaitingViewedExecutionG
 from editor.asset_management.puzzle import PuzzleEntry, getPuzzles
 from editor.e_script import FrameScriptEditor
 from editor.e_puzzle import FramePuzzleEditor
+from editor.gui.command_annotator.bank import ScriptVerificationBank
 from widebrim.filesystem.compatibility import FusedFileInterface
 from .nopush_editor import pageOverview
 from widebrim.engine.state.manager import Layton2GameState
@@ -22,8 +23,9 @@ class FrameOverview(pageOverview):
 
     SIZE_ICONS = (16,16)
 
-    def __init__(self, parent, fusedFi : FusedFileInterface, state : Layton2GameState, id=wx.ID_ANY, pos=wx.DefaultPosition, size=wx.Size(640, 640), style=wx.TAB_TRAVERSAL, name=wx.EmptyString):
+    def __init__(self, parent, fusedFi : FusedFileInterface, state : Layton2GameState, instructionBank : ScriptVerificationBank, id=wx.ID_ANY, pos=wx.DefaultPosition, size=wx.Size(640, 640), style=wx.TAB_TRAVERSAL, name=wx.EmptyString):
 
+        self._bankInstructions = instructionBank
         self._fusedFi = fusedFi
 
         # TODO - Maybe make class variable. Should only load once though
@@ -176,9 +178,9 @@ class FrameOverview(pageOverview):
             #        (this is immediately overridden, plus multiple page changes are being registered...)
             # TODO - GetItemText...?
             if self.__useIcons:
-                self.GetParent().AddPage(FrameScriptEditor(self.GetParent(), eventId, self._state), name, bitmap=self.__icons.GetBitmap(self.__idImageEvent))
+                self.GetParent().AddPage(FrameScriptEditor(self.GetParent(), self._bankInstructions, eventId, self._state), name, bitmap=self.__icons.GetBitmap(self.__idImageEvent))
             else:
-                self.GetParent().AddPage(FrameScriptEditor(self.GetParent(), eventId, self._state), name)
+                self.GetParent().AddPage(FrameScriptEditor(self.GetParent(), self._bankInstructions, eventId, self._state), name)
 
         def handlePuzzleItem(item):
             idInternal = self.treeOverview.GetItemData(item)

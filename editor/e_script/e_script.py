@@ -1,4 +1,5 @@
 from typing import List, Optional, Tuple
+from editor.e_script.get_input_popup import getDialogForType
 from widebrim.engine.anim.image_anim.image import AnimatedImageObject
 from widebrim.engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C, PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, RESOLUTION_NINTENDO_DS
 from widebrim.engine.file import FileInterface
@@ -12,12 +13,12 @@ from ..nopush_editor import editorScript
 from .opcode_translation import getInstructionName
 from wx import ID_ANY, DefaultPosition, Size, TAB_TRAVERSAL, EmptyString, NOT_FOUND
 
-from widebrim.madhatter.hat_io.asset_script import GdScript, Operand
-from editor.gui.command_annotator.bank import Context
+from widebrim.madhatter.hat_io.asset_script import GdScript, Instruction, Operand
+from editor.gui.command_annotator.bank import Context, OperandCompatibility, OperandType, ScriptVerificationBank
 from pygame import Surface
 from pygame.transform import flip
 from pygame.image import tostring
-from wx import Bitmap, TreeEvent
+from wx import Bitmap, TreeEvent, TreeItemId
 
 MAP_POS_TO_INGAME = {0:0,
                      1:3,
@@ -54,9 +55,17 @@ class FrameScriptEditor(editorScript):
                    6:0xe0}
     SLOT_LEFT  = [0,3,4]    # Left side characters need flipping
 
-    def __init__(self, parent, idEvent : int, state : Layton2GameState, id=ID_ANY, pos=DefaultPosition, size=Size(640, 640), style=TAB_TRAVERSAL, name=EmptyString):
+    CONVERSION_OPERAND_TO_COMPATIBILITY = {1:OperandType.StandardS32,
+                                           2:OperandType.StandardF32,
+                                           3:OperandType.StandardString,
+                                           4:OperandType.StandardU16,
+                                           6:OperandType.StandardS32,
+                                           7:OperandType.StandardS32}
+
+    def __init__(self, parent, bankInstructions : ScriptVerificationBank, idEvent : int, state : Layton2GameState, id=ID_ANY, pos=DefaultPosition, size=Size(640, 640), style=TAB_TRAVERSAL, name=EmptyString):
         super().__init__(parent, id, pos, size, style, name)
 
+        self.__bankInstructions = bankInstructions
         self.__state = state
         self.__context = None
         self.__eventData :  Optional[EventData] = None
@@ -125,12 +134,49 @@ class FrameScriptEditor(editorScript):
                 self.treeScript.Delete(self.treeScript.GetItemParent(itemId))
         return super().buttonDeleteInstructionOnButtonClick(event)
 
+    def __getAbstractionLevel(self):
+        return 1
+
+    def __getPopupForOperandType(self, instruction : Instruction, idxOperand : int, treeItem : TreeItemId) -> None:
+
+        operand = instruction.operands[idxOperand]
+        if operand.type not in FrameScriptEditor.CONVERSION_OPERAND_TO_COMPATIBILITY:
+            return None
+        
+        baseType    = FrameScriptEditor.CONVERSION_OPERAND_TO_COMPATIBILITY[operand.type]
+        baseValue   = operand.value
+
+        if self.__getAbstractionLevel() != 0:
+            definition = self.__bankInstructions.getInstructionByOpcode(int.from_bytes(instruction.opcode, byteorder='little'))
+            if definition != None:
+                if (operandDef := definition.getOperand(idxOperand)) != None:
+                    if operandDef.isBaseTypeCompatible(baseType):
+                        print(baseType, "->", operandDef.operandType)
+                        baseType = operandDef.operandType
+                    else:
+                        print("Incompatible", baseType, "->", operandDef.operandType)
+                else:
+                    print("Missing definition for operand")
+            else:
+                print("Missing instruction definition")
+        
+        # TODO - Need to pass file accessor (gross)
+        dialog = getDialogForType(self, self.__state, self.__state.getFileAccessor(), baseType)
+        if dialog != None:
+            newVal = dialog.do(str(baseValue))
+            if newVal != None:
+                operand.value = newVal
+                self.treeScript.SetItemText(treeItem, str(newVal))
+                
     def treeScriptOnTreeItemActivated(self, event : TreeEvent):
         isInstruction, instructionDetails = self.__decodeTreeItem(event.GetItem())
         if isInstruction:
             print("Instruction", instructionDetails[0])
+            return super().treeScriptOnTreeItemActivated(event)
         else:
             print("Instruction", instructionDetails[0], "Operand", instructionDetails[1])
+            self.__getPopupForOperandType(self.__eventScript.getInstruction(instructionDetails[0]), instructionDetails[1], event.GetItem())
+            event.Skip()
         # return super().treeScriptOnTreeItemActivated(event)
 
     def syncChanges(self):

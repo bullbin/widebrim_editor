@@ -46,10 +46,12 @@ class OperandType(int, Enum):
     StandardS32         = 0
     StandardString      = 1
     StandardF32         = 2
+    StandardU16         = 3
 
-    Integer1            = 3
-    Integer8            = 4
-    Integer32           = 5
+    Integer1            = 4
+    Integer8            = 5
+    Integer16           = 6
+    Integer32           = 7
 
     InternalPlaceId     = 10
     InternalPuzzleId    = 11
@@ -92,7 +94,6 @@ class OperandType(int, Enum):
     StringTalkScript    = 100
     StringCharAnim      = 101
     
-
 class OperandCompatibility(int, Enum):
     """Enum storing compatible base case for all overriden operands. Required for validating allowed context replacement.
 
@@ -104,9 +105,11 @@ class OperandCompatibility(int, Enum):
     StandardS32         = OperandType.StandardS32.value
     StandardString      = OperandType.StandardString.value
     StandardF32         = OperandType.StandardF32.value
+    StandardU16         = OperandType.StandardU16.value
 
     Integer1            = OperandType.StandardS32.value
     Integer8            = OperandType.StandardS32.value
+    Integer16           = OperandType.StandardS32.value
     Integer32           = OperandType.StandardS32.value
 
     InternalPlaceId     = OperandType.StandardS32.value
@@ -271,6 +274,7 @@ class ScriptVerificationBank():
     def __init__(self):
         self.__version : float = 0.01
         self.__instructions : Dict[int, InstructionDescription] = {}
+        self.__hasChanged = False
     
     def __str__(self) -> str:
         output = ""
@@ -302,7 +306,12 @@ class ScriptVerificationBank():
                 outputStr += "\n\t" + str(opcode) + "\t" + str(OPCODES_LT2(opcode))
         return outputStr
 
+    def hasBankChanged(self) -> str:
+        # May not be accurate...
+        return self.__hasChanged
+
     def addInstruction(self, instruction : InstructionDescription) -> bool:
+        self.__hasChanged = True
         if instruction.opcode in self.__instructions.keys():
             self.__instructions[instruction.opcode].mergeDefinition(instruction)
         else:

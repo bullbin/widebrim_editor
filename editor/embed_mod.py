@@ -53,6 +53,8 @@ from widebrim.filesystem.compatibility import FusedFileInterface
 from editor.e_puzzle import FramePuzzleEditor
 from editor.e_script import FrameScriptEditor
 from editor.e_overview import FrameOverview
+from editor.gui.command_annotator.baselineAnnotationGenerator import BaselineVerificationBank
+from editor.gui.command_annotator.bank import ScriptVerificationBank
 from widebrim.engine_ext.rom.banner import getBannerImageFromRom, getNameStringFromRom
 from threading import Thread, Lock
 from time import sleep, perf_counter
@@ -81,13 +83,21 @@ class EditorWindow(Editor):
         self.__widebrimDrawLock = Lock()            # Lock to prevent widebrim screen being modified while update is running
         self.__widebrimStateLock = Lock()           # Lock to prevent widebrim state being modified while update is running
 
+        # TODO - Loading instruction definitions should refresh editor
+        self.__instructionDescriptions = ScriptVerificationBank()
+        # TODO - Not wanted, but faster for testing...
+        self.__instructionDescriptions = BaselineVerificationBank(self._fusedFi)
+        self.__instructionDescriptions.populateBankFromRom()
+        self.__instructionDescriptions.applyDefaultInstructionHeuristics()
+        self.__instructionDescriptions.applyExtendedOperandTypingHeuristics()
+
         # Bind drawing and timing events to pygame routines
         self.Bind(EVT_PAINT, self.__repaintWidebrim)
         self.Bind(EVT_TIMER, self.__updateWidebrim, self.__widebrimTimer)
         self.Bind(EVT_CLOSE, self.__doOnClose)
         self.spawnHandler(GAMEMODES.Reset)
 
-        self.auiTabs.AddPage(FrameOverview(self.auiTabs, self._fusedFi, self._widebrimState), "Overview", select=False)
+        self.auiTabs.AddPage(FrameOverview(self.auiTabs, self._fusedFi, self._widebrimState, self.__instructionDescriptions), "Overview", select=False)
         self.framesExtended.Check()
         self._setWidebrimFramerate(1000)
         self.__refreshRomProperties()
@@ -262,6 +272,20 @@ class EditorWindow(Editor):
     def submenuFileReturnToStartupOnMenuSelection(self, event):
         CallAfter(self.__callbackAfterExit)
         return super().submenuFileReturnToStartupOnMenuSelection(event)
+
+    def menuDefinitionLoadOnMenuSelection(self, event):
+        return super().menuDefinitionLoadOnMenuSelection(event)
+    
+    def menuDefinitionSaveOnMenuSelection(self, event):
+        print("save")
+        return super().menuDefinitionLoad(event)
+    
+    def menuDefinitionGenerateOnMenuSelection(self, event):
+        self.__instructionDescriptions = BaselineVerificationBank(self._fusedFi)
+        self.__instructionDescriptions.populateBankFromRom()
+        self.__instructionDescriptions.applyDefaultInstructionHeuristics()
+        self.__instructionDescriptions.applyExtendedOperandTypingHeuristics()
+        return super().menuDefinitionGenerateOnMenuSelection(event)
 
     # TODO - Pause, play, return to startup
     def submenuEnginePauseOnMenuSelection(self, event):
