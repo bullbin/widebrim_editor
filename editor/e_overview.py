@@ -4,6 +4,7 @@ from editor.asset_management.puzzle import PuzzleEntry, getPuzzles
 from editor.e_script import FrameScriptEditor
 from editor.e_puzzle import FramePuzzleEditor
 from editor.gui.command_annotator.bank import ScriptVerificationBank
+from editor.asset_management.room import getPlaceGroups
 from widebrim.filesystem.compatibility import FusedFileInterface
 from .nopush_editor import pageOverview
 from widebrim.engine.state.manager import Layton2GameState
@@ -107,6 +108,7 @@ class FrameOverview(pageOverview):
         self._treeItemEvent = None
         self._treeItemPuzzle = None
         self._treeItemCharacter = None
+        self._treeItemPlace = None
         self._loaded = False
         self._areCommentsLoaded = False
 
@@ -382,6 +384,14 @@ class FrameOverview(pageOverview):
             for indexCharacter, character in enumerate(self._characters):
                 self.treeOverview.AppendItem(characterItem, "Character " + str(indexCharacter + 1))
 
+        def generatePlaceBranch():
+            placeGroups = getPlaceGroups(self._fusedFi)
+            self._treeItemPlace = self.treeOverview.AppendItem(rootItem, "Rooms")
+            self.treeOverview.AppendItem(self._treeItemPlace, "Bootstrap Room")
+            for group in placeGroups:
+                self.treeOverview.AppendItem(self._treeItemPlace, "Room " + str(group.indexPlace), data=group)
+
         generateEventBranch()
         generatePuzzleBranch()
         generateCharacterBranch()
+        generatePlaceBranch()
