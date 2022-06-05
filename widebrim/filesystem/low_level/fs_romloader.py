@@ -17,6 +17,8 @@ class FilesystemNds(FilesystemBase):
         Args:
             rom (ndspy.rom.NintendoDSRom): Nintendo DS ROM to open filesystem of.
         """
+        super().__init__()
+
         self.__folderNameToFolder : Dict[str, ndspy.fnt.Folder] = {} 
         self.__foldersInRom : List[ndspy.fnt.Folder]            = []
         self.__rom : ndspy.rom.NintendoDSRom                    = rom
@@ -187,4 +189,5 @@ class FilesystemNds(FilesystemBase):
     
     def getRom(self):
 		# TODO - Abstract to only save. Don't want this accessible
+        # TODO - Can mess with modification function, be careful
         return self.__rom

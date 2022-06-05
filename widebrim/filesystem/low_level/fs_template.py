@@ -184,3 +184,18 @@ class Filesystem(ABC):
             int: Count of how many items are within this folder.
         """
         return 0
+    
+    @abstractmethod
+    def hasFilesystemBeenModified(self) -> bool:
+        """Returns True if the filesystem has been modified. Changes may not be important (e.g., renaming a file to itself)
+
+        Returns:
+            bool: True if the filesystem was modified.
+        """
+        return False
+    
+    @abstractmethod
+    def resetModifiedFlag(self):
+        """Resets the modifie flag for this filesystem. Required, for example, when triggering a save operation.
+        """
+        pass

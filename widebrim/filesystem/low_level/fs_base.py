@@ -9,7 +9,10 @@ from widebrim.filesystem.low_level.fs_template import Filesystem
 class FilesystemBase(Filesystem):
     """Class for lowest level abstraction of filesystem access.
     """
-    
+    def __init__(self) -> None:
+        super().__init__()
+        self._wasModified = False
+
     # These methods are needed to get the filesystem functional
     def _requiredGetFile(self, filepath : str) -> Optional[bytes]:
         """Reimplement this in your filesystem. This is expected to run on any path and return the file data if it exists.
@@ -287,8 +290,10 @@ class FilesystemBase(Filesystem):
     def addFile(self, filepath : str, file : bytes, overwriteIfExists : bool = True) -> bool:
         if self.doesFileExist(filepath):
             if overwriteIfExists:
+                self._wasModified = True
                 return self._replaceExistentFile(filepath, file)
             return False
+        self._wasModified = True
         return self._addNewFile(filepath, file)
 
     def renameFile(self, filepath : str, filenameRename : str, overwriteIfExists = True) -> bool:
@@ -297,11 +302,13 @@ class FilesystemBase(Filesystem):
             filenameRename = self._sensitiveFsJoin(folderPath, filenameRename)
             if filepath == filenameRename:
                 return True
+            self._wasModified = True
             return self._renameFile(filepath, filenameRename, overwriteIfExists)
         return False
 
     def replaceFile(self, filepath : str, file : bytes, createIfNotExists : bool = True) -> bool:
         if self.doesFileExist(filepath):
+            self._wasModified = True
             return self._replaceExistentFile(filepath, file)
         elif createIfNotExists:
             return self.addFile(filepath, file)
@@ -310,6 +317,7 @@ class FilesystemBase(Filesystem):
 
     def removeFile(self, filepath : str) -> bool:
         if self.doesFileExist(filepath):
+            self._wasModified = True
             return self._requiredRemoveExistentFile(filepath)
         return True
 
@@ -317,12 +325,14 @@ class FilesystemBase(Filesystem):
         if filepathSource == filepathDest:
             return True
         if self.doesFileExist(filepathSource):
+            self._wasModified = True
             return self._moveExistentFile(filepathSource, filepathDest, overwriteIfExists)
         return False
 
     def addFolder(self, folderPath : str) -> bool:
         if self.doesFolderExist(folderPath):
             return True
+        self._wasModified = True
         return self._requiredAddNewFolderNested(folderPath)
                 
     def removeFolder(self, folderPath : str, removeIfFull : bool = True) -> bool:
@@ -330,6 +340,7 @@ class FilesystemBase(Filesystem):
             return True
         elif self.getCountItemsInFolder(folderPath) > 0 and not(removeIfFull):
             return False
+        self._wasModified = True
         return self._requiredRemoveFolderNested(folderPath)
     
     def renameFolder(self, folderPath : str, folderName : str, mergeIfExists : bool = True) -> bool:
@@ -346,6 +357,7 @@ class FilesystemBase(Filesystem):
             if not(self.addFolder(folderPathNew)):
                 return False
 
+        self._wasModified = True
         return self._renameFolder(folderPath, folderPathNew)
 
     def moveFolderContents(self, folderPathSource : str, folderPathDest : str, overwriteIfExists : bool = True) -> bool:
@@ -354,6 +366,8 @@ class FilesystemBase(Filesystem):
             if not(self.doesFolderExist(folderPathDest)):
                 if not(self.addFolder(folderPathDest)):
                     return False
+            
+            self._wasModified = True
             return self._moveFolderContents(folderPathSource, folderPathDest, overwriteIfExists)
         # Return True if there was nothing to move in the first place
         return True
@@ -382,3 +396,9 @@ class FilesystemBase(Filesystem):
         if self.doesFolderExist(folderPath):
             return self._getCountItemsInFolder(folderPath)
         return 0
+    
+    def hasFilesystemBeenModified(self) -> bool:
+        return self._wasModified
+    
+    def resetModifiedFlag(self):
+        self._wasModified = False

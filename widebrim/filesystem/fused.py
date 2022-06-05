@@ -201,3 +201,10 @@ class FusedFilesystem(Filesystem):
         if splitext(filepath)[1] != EXTENSION_FILE_NEEDS_BUILDING:
             raise FusedPatchOperationInvalidatesFilesystem("FusedFilesystem.replaceFileBuilt only supports asset recipes to ensure the filesystem stays valid. Use FusedFilesystem.replaceFile instead.")
         return self.__fsPatch.replaceFile(filepath, file, False)
+    
+    def hasFilesystemBeenModified(self) -> bool:
+        return self.__fsPatch.hasFilesystemBeenModified() | self.__fsRom.hasFilesystemBeenModified()
+    
+    def resetModifiedFlag(self):
+        self.__fsPatch.resetModifiedFlag()
+        self.__fsRom.resetModifiedFlag()

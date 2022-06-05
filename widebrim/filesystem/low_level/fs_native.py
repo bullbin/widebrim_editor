@@ -17,6 +17,7 @@ class FilesystemNative(FilesystemBase):
         Args:
             pathFsRootFolder (str, optional): Filesystem root directory. Should not end in slashes. Defaults to current working directory.
         """
+        super().__init__()
         self.__pathRoot = pathFsRootFolder
     
     def _sensitiveFsJoin(self, x: str, y: str) -> str:
@@ -85,3 +86,8 @@ class FilesystemNative(FilesystemBase):
         # TODO - May raise errors, need to check
         rmtree(folderPath)
         return True
+    
+    def hasFilesystemBeenModified(self) -> bool:
+        # Native FS blocks while doing file operations, and there is no in-memory duplication of resources.
+        # Therefore, the filesystem is never in a 'modified' state since modifications are always permanent.
+        return False
