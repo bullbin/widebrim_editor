@@ -1,5 +1,4 @@
 from widebrim.engine.const import PATH_NAME_ROOT, PATH_ANI
-from widebrim.engine.file import FileInterface
 from widebrim.gamemodes.dramaevent.const import PATH_BODY_ROOT, PATH_BODY_ROOT_LANG_DEP
 
 from typing import List, Optional
@@ -31,8 +30,8 @@ def getCharacters(laytonState : Layton2GameState) -> List[CharacterEntry]:
         else:
             pathAsset =  PATH_BODY_ROOT
         pathAsset = PATH_ANI % pathAsset
-        if FileInterface.doesFileExist(pathAsset % charIndex):
-            if FileInterface.doesFileExist(PATH_ANI % (PATH_NAME_ROOT % (laytonState.language.value, charIndex))):
+        if laytonState.getFileAccessor().doesFileExist(pathAsset % charIndex):
+            if laytonState.getFileAccessor().doesFileExist(PATH_ANI % (PATH_NAME_ROOT % (laytonState.language.value, charIndex))):
                 output.append(CharacterEntry(charIndex, pathAsset % charIndex, PATH_ANI % (PATH_NAME_ROOT % (laytonState.language.value, charIndex))))
             else:
                 output.append(CharacterEntry(charIndex, pathAsset % charIndex, None))

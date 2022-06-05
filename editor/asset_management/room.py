@@ -1,7 +1,7 @@
 from typing import List
 from widebrim.gamemodes.room.const import PATH_PACK_PLACE, PATH_PLACE_A, PATH_PLACE_B
 from widebrim.madhatter.hat_io.asset import LaytonPack
-from widebrim.engine.file import FileInterface
+from widebrim.engine.file import ReadOnlyFileInterface
 from re import search
 
 class PlaceGroup():
@@ -30,11 +30,11 @@ def getPackPathForPlaceIndex(indexPlace : str) -> str:
         return PATH_PLACE_A
     return PATH_PLACE_B
 
-def getPlaceGroups(fileInterface : FileInterface) -> List[PlaceGroup]:
+def getPlaceGroups(fileInterface : ReadOnlyFileInterface) -> List[PlaceGroup]:
     """Returns a sorted list of place groups containing information about all place substates.
 
     Args:
-        fileInterface (FileInterface): FileInterface for getting place packs.
+        fileInterface (ReadOnlyFileInterface): File interface for getting place packs.
 
     Returns:
         List[PlaceGroup]: Sorted list of place groups.

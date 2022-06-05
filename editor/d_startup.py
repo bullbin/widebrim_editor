@@ -66,7 +66,6 @@ class DialogStartup(StartupConfiguration):
         else:
             updateRom = True
             
-        # TODO - Depreciate FileInterface
         # TODO - Extract icon, language
         if self.__rom == None:
             # TODO - Remove icon?

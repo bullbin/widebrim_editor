@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Tuple
 
-from widebrim.engine.file import FileInterface
+from widebrim.engine.file import ReadOnlyFileInterface
 from widebrim.madhatter.hat_io.asset import LaytonPack
 from widebrim.madhatter.hat_io.asset_script import GdScript, Instruction
 from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
@@ -13,7 +13,7 @@ from .bank import InstructionDescription, OperandType, Context, ScriptVerificati
 PATH_PACK_EVENT = "/data_lt2/event/ev_d%s.plz"
 
 class BaselineVerificationBank(ScriptVerificationBank):
-    def __init__(self, fileInterface : FileInterface):
+    def __init__(self, fileInterface : ReadOnlyFileInterface):
         self.__fileInterface = fileInterface
         super().__init__()
 

@@ -1,6 +1,5 @@
-from typing import Dict, List, Optional
+from typing import Dict, List
 from widebrim.engine.const import PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C
-from widebrim.engine.file import FileInterface, VirtualArchive
 from widebrim.engine.state.enum_mode import GAMEMODES
 from widebrim.engine.state.manager import Layton2GameState
 from widebrim.gamemodes.core_popup.script import ScriptPlayer
@@ -35,7 +34,7 @@ class ModifiedEventPlayer(EventPlayer):
             return substituteEventPath(PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C)
 
         self.laytonState.setGameMode(GAMEMODES.Room)
-        self._packEventTalk : Optional[VirtualArchive] = FileInterface.getPack(getEventTalkPath())
+        self._packEventTalk = laytonState.getFileAccessor().getPack(getEventTalkPath())
         
         self._id = spawnId
         self._idMain = spawnId // 1000

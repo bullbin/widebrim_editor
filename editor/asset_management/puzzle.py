@@ -2,7 +2,6 @@ from typing import List
 from widebrim.engine.const import PATH_NAZO_A, PATH_NAZO_B, PATH_NAZO_C, PATH_PACK_NAZO, PATH_PUZZLE_SCRIPT, PATH_PACK_PUZZLE
 from widebrim.madhatter.common import log
 from widebrim.madhatter.hat_io.asset_dat import NazoDataNds
-from widebrim.engine.file import FileInterface
 from widebrim.engine.state.manager import Layton2GameState
 from widebrim.engine_ext.utils import substituteLanguageString
 from widebrim.madhatter.hat_io.asset_dat.nazo import NazoData
@@ -55,10 +54,10 @@ def getPuzzles(state : Layton2GameState) -> List[List[PuzzleEntry]]:
                 
 
     # TODO - vfs rewrite allows proper access to archives to prevent this brokenness
-    packA = FileInterface.getPack(substituteLanguageString(state, PATH_NAZO_A))
-    packB = FileInterface.getPack(substituteLanguageString(state, PATH_NAZO_B))
-    packC = FileInterface.getPack(substituteLanguageString(state, PATH_NAZO_C))
-    packPuzzleScript = FileInterface.getPack(PATH_PUZZLE_SCRIPT)
+    packA = state.getFileAccessor().getPack(substituteLanguageString(state, PATH_NAZO_A))
+    packB = state.getFileAccessor().getPack(substituteLanguageString(state, PATH_NAZO_B))
+    packC = state.getFileAccessor().getPack(substituteLanguageString(state, PATH_NAZO_C))
+    packPuzzleScript = state.getFileAccessor().getPack(PATH_PUZZLE_SCRIPT)
 
     for idInternal in range(1, 256):
         if idInternal < 60:
