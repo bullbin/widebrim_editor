@@ -4,6 +4,8 @@ from widebrim.filesystem.fusedError import BuilderRomAssetNotAvailable
 from widebrim.madhatter.hat_io.asset import File
 from shlex import split as splitQuote
 
+# TODO - Switch to JSON, file copies on compiled will be painful otherwise with recursive identification
+
 if TYPE_CHECKING:
     from widebrim.filesystem.fused import FusedFilesystem
 
@@ -78,6 +80,10 @@ class BuildLoadFromSource(BuildCommand):
     
     def __str__(self) -> str:
         return "GEN_ROMLOAD " + '"' + self.__pathAsset + '"'
+
+class BuildSetSpecialisation(BuildCommand):
+    def __init__(self):
+        self.__builder = GeneralFileBuilder
 
 class BuildInsertIntoRaw(BuildCommand):
     def __init__(self, absoluteOffset : int, insertion : bytes):
