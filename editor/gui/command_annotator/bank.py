@@ -221,11 +221,21 @@ class InstructionDescription():
         
         self.isUsed = self.isUsed | definition.isUsed
         minCountOperands = min(self.getCountOperands(), definition.getCountOperands())
-        for idxOperand, selfDesc, mergeDesc in zip(range(minCountOperands), self.permittedOperandTypes[:minCountOperands], definition.permittedOperandTypes[:minCountOperands]):
-            if not(self.changeOperandType(idxOperand, mergeDesc.operandType)):
-                raise Exception("Inconsistent definition detected!")
-        self.permittedOperandTypes = self.permittedOperandTypes[:minCountOperands]
-    
+
+        if minCountOperands > 0:
+            for idxOperand, selfDesc, mergeDesc in zip(range(minCountOperands), self.permittedOperandTypes[:minCountOperands], definition.permittedOperandTypes[:minCountOperands]):
+                if not(self.changeOperandType(idxOperand, mergeDesc.operandType)):
+                    raise Exception("Inconsistent definition detected!")
+            self.permittedOperandTypes = self.permittedOperandTypes[:minCountOperands]
+        else:
+            # TextWindow breaks because there are some poorly formatted entries in ROM, e.g., 20032.
+            # To fix this, we only perform a merge when there's more than 1 minimum count.
+            # Else, we just accept the first available definition. 
+        
+            # TODO - Nothing stopping us from getting mode operand count, except counting every definition...
+            if self.getCountOperands() < definition.getCountOperands():
+                self.permittedOperandTypes = definition.permittedOperandTypes
+
     def addOperand(self, newType : OperandType) -> bool:
         self.permittedOperandTypes.append(OperandDescription(newType))
         return True

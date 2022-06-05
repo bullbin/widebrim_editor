@@ -78,10 +78,10 @@ class BackgroundDialog():
         return None
 
 def getDialogForType(parent, state, filesystem, operandType : OperandType) -> Optional[VerifiedDialog]:
-    compatDict = {OperandType.StandardS32           : VerifiedDialog(TextEntryDialog(parent, "Enter a number"), numCheckFunction()),
+    compatDict = {OperandType.StandardS32           : VerifiedDialog(TextEntryDialog(parent, "Enter a number"), rangeIntCheckFunction(-(2 ** 31), (2 ** 31) - 1)),
                   OperandType.StandardString        : VerifiedDialog(TextEntryDialog(parent, "Enter a string"), strCheckFunction()),
                   OperandType.StandardF32           : VerifiedDialog(TextEntryDialog(parent, "Enter a decimal"), floatCheckFunction()),
-                  OperandType.StandardU16           : VerifiedDialog(TextEntryDialog(parent, "Enter a short"), numCheckFunction()),
+                  OperandType.StandardU16           : VerifiedDialog(TextEntryDialog(parent, "Enter a short"), rangeIntCheckFunction(0, (2 ** 16) - 1)),
                   
                   OperandType.StringBackground      : BackgroundDialog(parent, state, filesystem),
                   

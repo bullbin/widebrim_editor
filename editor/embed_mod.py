@@ -38,7 +38,7 @@ convenience.initDisplay = initDisplayEmbed
 
 # After this point, be careful only with conflicts. Patches completed on widebrim
 
-from typing import Callable, Optional
+from typing import Callable, Optional, Tuple
 from pygame import Surface
 import pygame
 from editor.nopush_editor import Editor
@@ -107,6 +107,8 @@ class EditorWindow(Editor):
         self._setWidebrimFramerate(1000)
         self.__refreshRomProperties()
 
+        self.__widebrimLastPosition = (0,0)
+
     def __refreshRomProperties(self):
         self.romTextCode.SetValue(self._filesystem.getRom().idCode.decode('ascii'))
         self.romTextName.SetValue(getNameStringFromRom(self._filesystem.getRom(), self._filesystem.getLanguage()))
@@ -122,6 +124,7 @@ class EditorWindow(Editor):
         self.__widebrimDrawLock.acquire()
         self._widebrimState.setGameMode(gamemode)
         self.__widebrimRenderLayers = ScreenCollectionGameModeSpawner(self._widebrimState)
+        pygame.event.pump()
         self.__widebrimDrawLock.release()
         self.__widebrimStateLock.release()
     
@@ -201,6 +204,27 @@ class EditorWindow(Editor):
             self.__widebrimSpeedMultipler = multiplier
             return True
         return False
+    
+    def panelWidebrimInjectionOnLeftDown(self, event):
+        self.__widebrimLastPosition = event.GetPosition()
+        pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, pos=self.__widebrimLastPosition, button=1))
+        return super().panelWidebrimInjectionOnLeftDown(event)
+    
+    def panelWidebrimInjectionOnLeftUp(self, event):
+        self.__widebrimLastPosition = event.GetPosition()
+        pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONUP, pos=self.__widebrimLastPosition, button=1))
+        return super().panelWidebrimInjectionOnLeftUp(event)
+    
+    def panelWidebrimInjectionOnMotion(self, event):
+        pos = event.GetPosition()
+        rel = (pos[0] - self.__widebrimLastPosition[0], pos[1] - self.__widebrimLastPosition[1])
+        if event.LeftIsDown():
+            buttons = (1,0,0)
+        else:
+            buttons = (0,0,0)
+        pygame.event.post(pygame.event.Event(pygame.MOUSEMOTION, {'pos': pos, 'rel': rel, 'buttons': buttons}))
+        self.__widebrimLastPosition = pos
+        return super().panelWidebrimInjectionOnMotion(event)
 
     def __drawWidebrim(self, dc):
         pos = self.__widebrimAnchor.GetPosition()
@@ -232,7 +256,7 @@ class EditorWindow(Editor):
                     print("\tThis is usually recoverable; to prevent the GUI from crashing, we will continue.")
                     print_exc()
                 for event in pygame.event.get():
-                    if event.type == pygame.MOUSEBUTTONUP or event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.type == pygame.MOUSEBUTTONUP or event.type == pygame.MOUSEBUTTONDOWN or event.type == pygame.MOUSEMOTION:
                         self.__widebrimRenderLayers.handleTouchEvent(event)
 
                 self.__widebrimLastUpdateTime = perf_counter()
