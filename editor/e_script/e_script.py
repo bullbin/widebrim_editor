@@ -1,16 +1,19 @@
 from typing import List, Optional, Tuple
 from editor.e_script.get_input_popup import getDialogForType
+from editor.gui.command_annotator.default_value import getDefaultValue
 from widebrim.engine.anim.image_anim.image import AnimatedImageObject
 from widebrim.engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C, PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, RESOLUTION_NINTENDO_DS
-from widebrim.engine.file import FileInterface
 from widebrim.engine.state.enum_mode import GAMEMODES
 from widebrim.engine.state.manager import Layton2GameState
 from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
+from widebrim.filesystem.compatibility import FusedFileInterface
 from widebrim.gamemodes.dramaevent.const import PATH_BODY_ROOT, PATH_BODY_ROOT_LANG_DEP
+from widebrim.madhatter.common import logSevere
 from widebrim.madhatter.hat_io.asset_dat.event import EventData
+from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
 
 from ..nopush_editor import editorScript
-from .opcode_translation import getInstructionName
+from .opcode_translation import MAP_OPCODE_TO_FRIENDLY, getInstructionName
 from wx import ID_ANY, DefaultPosition, Size, TAB_TRAVERSAL, EmptyString, NOT_FOUND
 
 from widebrim.madhatter.hat_io.asset_script import GdScript, Instruction, Operand
@@ -18,7 +21,7 @@ from editor.gui.command_annotator.bank import Context, OperandCompatibility, Ope
 from pygame import Surface
 from pygame.transform import flip
 from pygame.image import tostring
-from wx import Bitmap, TreeEvent, TreeItemId
+from wx import Bitmap, TreeEvent, TreeItemId, SingleChoiceDialog, ID_OK
 
 MAP_POS_TO_INGAME = {0:0,
                      1:3,
@@ -46,6 +49,7 @@ def getOperandName(opcode : bytes, operand : Operand) -> str:
     return str(operand.value)
 
 # TODO - Eventually build into vfs by modifying script editing to generate build commands instead of modifying file
+# TODO - Prevent interaction with widebrim while event is being edited - can lead to major desync!
 
 class FrameScriptEditor(editorScript):
 
@@ -61,8 +65,12 @@ class FrameScriptEditor(editorScript):
                                            4:OperandType.StandardU16,
                                            6:OperandType.StandardS32,
                                            7:OperandType.StandardS32}
+    CONVERSION_COMPATIBILITY_TO_OPERAND = {OperandType.StandardS32:1,
+                                           OperandType.StandardF32:2,
+                                           OperandType.StandardString:3,
+                                           OperandType.StandardU16:4}
 
-    def __init__(self, parent, bankInstructions : ScriptVerificationBank, idEvent : int, state : Layton2GameState, id=ID_ANY, pos=DefaultPosition, size=Size(640, 640), style=TAB_TRAVERSAL, name=EmptyString):
+    def __init__(self, parent,  fusedFi : FusedFileInterface, bankInstructions : ScriptVerificationBank, idEvent : int, state : Layton2GameState, id=ID_ANY, pos=DefaultPosition, size=Size(640, 640), style=TAB_TRAVERSAL, name=EmptyString):
         super().__init__(parent, id, pos, size, style, name)
 
         self.__bankInstructions = bankInstructions
@@ -84,7 +92,32 @@ class FrameScriptEditor(editorScript):
         self.__setContext(Context.DramaEvent)
         self.__selectedCharacterIndex : Optional[int] = None
 
+        self._fusedFi = fusedFi
         self._loaded = False
+    
+    def substituteEventPath(self, inPath, inPathA, inPathB, inPathC):
+
+        def trySubstitute(path, lang, evId):
+            try:
+                return path % (lang, evId)
+            except TypeError:
+                return path % evId
+
+        # TODO - Update this in widebrim too
+        if self.__idMain != 24:
+            return trySubstitute(inPath, self.__state.language.value, self.__idMain)
+        elif self.__idSub < 300:
+            return trySubstitute(inPathA, self.__state.language.value, self.__idMain)
+        elif self.__idSub < 600:
+            return trySubstitute(inPathB, self.__state.language.value, self.__idMain)
+        else:
+            return trySubstitute(inPathC, self.__state.language.value, self.__idMain)
+
+    def getEventTalkPath(self):
+        return self.substituteEventPath(PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C)
+
+    def getEventScriptPath(self):
+        return self.substituteEventPath(PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C)
     
     def ensureLoaded(self):
         if not(self._loaded):
@@ -94,18 +127,19 @@ class FrameScriptEditor(editorScript):
                 self.__generateScriptingTree(self.__eventScript)
             self._loaded = True
             self.Thaw()
-
-    def __getItemIndex(self, itemId):
-        indexItem = 0
-        while True:
-            itemId = self.treeScript.GetPrevSibling(itemId)
-            if itemId.IsOk():
-                indexItem += 1
-            else:
-                break
-        return indexItem
     
     def __decodeTreeItem(self, itemId) -> Tuple[bool, Optional[Tuple[int, int]]]:
+
+        def getItemIndex(itemId):
+            indexItem = 0
+            while True:
+                itemId = self.treeScript.GetPrevSibling(itemId)
+                if itemId.IsOk():
+                    indexItem += 1
+                else:
+                    break
+            return indexItem
+
         if not(itemId.IsOk()):
             return (False, None)
 
@@ -114,12 +148,10 @@ class FrameScriptEditor(editorScript):
         indexOperand = 0
         if self.treeScript.GetItemParent(itemId) == self.treeScript.GetRootItem():
             isInstruction = True
-            indexInstruction = self.__getItemIndex(itemId)
-            #print("Instruction", indexInstruction)
+            indexInstruction = getItemIndex(itemId)
         else:
-            indexInstruction = self.__getItemIndex(self.treeScript.GetItemParent(itemId))
-            indexOperand = self.__getItemIndex(itemId)
-            #print("Instruction", indexInstruction, "Operand", indexOperand)
+            indexInstruction = getItemIndex(self.treeScript.GetItemParent(itemId))
+            indexOperand = getItemIndex(itemId)
         return (isInstruction, (indexInstruction, indexOperand))
 
     def buttonDeleteInstructionOnButtonClick(self, event):
@@ -177,39 +209,30 @@ class FrameScriptEditor(editorScript):
             print("Instruction", instructionDetails[0], "Operand", instructionDetails[1])
             self.__getPopupForOperandType(self.__eventScript.getInstruction(instructionDetails[0]), instructionDetails[1], event.GetItem())
             event.Skip()
-        # return super().treeScriptOnTreeItemActivated(event)
 
     def syncChanges(self):
-        # TODO - Compile here
-        # FileInterface.getPack()
-        pass
+        # TODO - Compile with file builders
+        print("attempt sync operation...")
+        packEvent = self._fusedFi.getPack(self.getEventScriptPath())
+        # TODO - Virtual scripting
+        filenameScript = PATH_PACK_EVENT_SCR % (self.__idMain, self.__idSub)
+        filenameData = PATH_PACK_EVENT_DAT % (self.__idMain, self.__idSub)
+        self.__eventScript.save()
+        self.__eventData.save()
+
+        # TODO - Madhatter archive support rewrite, this is terrible syntax. Could break very, very easily
+        for file in packEvent.files:
+            if file.name == filenameScript:
+                file.data = self.__eventScript.data
+            elif file.name == filenameData:
+                file.data = self.__eventData.data
+
+        packEvent.save()
+        packEvent.compress()
+        self._fusedFi.fused.replaceFile(self.getEventScriptPath(), packEvent.data)
+        print("synced?")
 
     def _refresh(self):
-
-        def substituteEventPath(inPath, inPathA, inPathB, inPathC):
-
-            def trySubstitute(path, lang, evId):
-                try:
-                    return path % (lang, evId)
-                except TypeError:
-                    return path % evId
-
-            # TODO - Update this in widebrim too
-            if self.__idMain != 24:
-                return trySubstitute(inPath, self.__state.language.value, self.__idMain)
-            elif self.__idSub < 300:
-                return trySubstitute(inPathA, self.__state.language.value, self.__idMain)
-            elif self.__idSub < 600:
-                return trySubstitute(inPathB, self.__state.language.value, self.__idMain)
-            else:
-                return trySubstitute(inPathC, self.__state.language.value, self.__idMain)
-
-        def getEventTalkPath():
-            return substituteEventPath(PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C)
-
-        def getEventScriptPath():
-            return substituteEventPath(PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C)
-
         entry = self.__state.getEventInfoEntry(self.__idEvent)
         self.__eventData = None
         self.__eventScript = None
@@ -218,7 +241,7 @@ class FrameScriptEditor(editorScript):
         
         if self.__context == Context.DramaEvent:
             
-            if (data := FileInterface.getPackedData(getEventScriptPath(), PATH_PACK_EVENT_DAT % (self.__idMain, self.__idSub))) != None:
+            if (data := self._fusedFi.getPackedData(self.getEventScriptPath(), PATH_PACK_EVENT_DAT % (self.__idMain, self.__idSub))) != None:
                 eventData = EventData()
                 eventData.load(data)
                 self.__eventData = eventData
@@ -235,7 +258,7 @@ class FrameScriptEditor(editorScript):
                     self.listAllCharacters.SetSelection(0)
                     self.__updateCharacterSelection()
             
-            if (data := FileInterface.getPackedData(getEventScriptPath(), PATH_PACK_EVENT_SCR % (self.__idMain, self.__idSub))) != None:
+            if (data := self._fusedFi.getPackedData(self.getEventScriptPath(), PATH_PACK_EVENT_SCR % (self.__idMain, self.__idSub))) != None:
                 eventScript = GdScript()
                 eventScript.load(data)
                 self.__eventScript = eventScript
@@ -350,6 +373,194 @@ class FrameScriptEditor(editorScript):
             for operand in instruction.operands:
                 self.treeScript.AppendItem(parent=commandRoot, text=getOperandName(instruction.opcode, operand), data=operand)
 
+    def __getNewInstruction(self) -> Optional[Instruction]:
+
+        def doDialog() -> Optional[int]:
+            filteredOpcodes = []
+            strings = []
+            for opcode in self.__bankInstructions.getAllInstructionOpcodes():
+                description = self.__bankInstructions.getInstructionByOpcode(opcode)
+                if self.__context in description.contextValid or self.__context == None:
+                    if Context.Stubbed not in description.contextValid:
+                        try:
+                            friendlyString = MAP_OPCODE_TO_FRIENDLY[OPCODES_LT2(opcode)]
+                            if friendlyString == None:
+                                friendlyString = "(No helper) " + OPCODES_LT2(opcode).name
+                            strings.append(friendlyString)
+                        except:
+                            strings.append("(No rename) Instruction " + str(opcode))
+                        filteredOpcodes.append(opcode)
+
+            dlg = SingleChoiceDialog(self, "Select an instruction to add...", "Add New Instruction", strings)
+            confirm = dlg.ShowModal()
+            if confirm == ID_OK:
+                return filteredOpcodes[dlg.GetSelection()]
+            return None
+        
+        newOpcode = doDialog()
+        if newOpcode == None:
+            return None
+        
+        output = Instruction()
+        output.opcode = newOpcode.to_bytes(2, byteorder = 'little')
+        description = self.__bankInstructions.getInstructionByOpcode(newOpcode)
+        for idxOperand in range(description.getCountOperands()):
+            descOperand = description.getOperand(idxOperand)
+            baseType = OperandCompatibility[descOperand.operandType.name]
+            if baseType not in FrameScriptEditor.CONVERSION_COMPATIBILITY_TO_OPERAND:
+                logSevere("[GDSEDT - D ] No base type for " + descOperand.operandType.name)
+                return None
+            
+            defaultValue = getDefaultValue(descOperand.operandType)
+            if defaultValue == None:
+                logSevere("[GDSEDT - D ] No default value for " + descOperand.operandType.name)
+                return None
+
+            tempOperand = Operand(FrameScriptEditor.CONVERSION_COMPATIBILITY_TO_OPERAND[baseType], defaultValue)
+            output.operands.append(tempOperand)
+        return output
+
+    def __getTreeItemForInstruction(self, idxInstruction):
+        item, cookie = self.treeScript.GetFirstChild(self.treeScript.GetRootItem())
+        for _idxMove in range(idxInstruction):
+            item, cookie = self.treeScript.GetNextChild(self.treeScript.GetRootItem(), cookie)
+        return item
+
+    def __insertBelow(self, command : Instruction, reference : TreeItemId) -> TreeItemId:
+        isInstruction, instructionDetails = self.__decodeTreeItem(reference)
+        if instructionDetails == None:
+            # Tree item was not valid, so we are the first item
+            operandRoot = self.treeScript.AppendItem(self.treeScript.GetRootItem(),
+                                                     getInstructionName(command.opcode),
+                                                     data=command.opcode)
+            self.__eventScript.addInstruction(command)
+        else:
+            idxInstruction, idxOperand = instructionDetails
+            operandRoot = self.treeScript.InsertItem(self.treeScript.GetRootItem(),
+                                                     self.__getTreeItemForInstruction(idxInstruction),
+                                                     getInstructionName(command.opcode),
+                                                     data=command.opcode)
+            # TODO - why does this add before...?
+            self.__eventScript.insertInstruction(idxInstruction + 1, command)
+
+        for operand in command.operands:
+            self.treeScript.AppendItem(parent=operandRoot, text=getOperandName(command.opcode, operand), data=operand)
+        return operandRoot
+
+    def __insertAbove(self, command : Instruction, reference : TreeItemId) -> TreeItemId:
+        isInstruction, instructionDetails = self.__decodeTreeItem(reference)
+        if instructionDetails == None:
+            # Tree item was not valid, so we are the first item
+            operandRoot = self.treeScript.AppendItem(self.treeScript.GetRootItem(),
+                                                     getInstructionName(command.opcode),
+                                                     data=command.opcode)
+            self.__eventScript.addInstruction(command)
+        else:
+            idxInstruction, idxOperand = instructionDetails
+            if idxInstruction == 0:
+                # If this is the topmost instruction, use prepend instead to add at top
+                operandRoot = self.treeScript.PrependItem(self.treeScript.GetRootItem(),
+                                                          getInstructionName(command.opcode),
+                                                          data=command.opcode)
+            else:
+                # Else we know there is an item above it which we can add below
+                operandRoot = self.treeScript.InsertItem(self.treeScript.GetRootItem(),
+                                                         self.__getTreeItemForInstruction(idxInstruction - 1),
+                                                         getInstructionName(command.opcode),
+                                                         data=command.opcode)
+            # TODO - Insert below...
+            self.__eventScript.insertInstruction(idxInstruction, command)
+
+        for operand in command.operands:
+            self.treeScript.AppendItem(parent=operandRoot, text=getOperandName(command.opcode, operand), data=operand)
+        return operandRoot
+
+    def buttonInsertBelowOnButtonClick(self, event):
+        # TODO - Dialogue has bad operand count!
+        # TODO - Make use of focused consistent, we want focused, not selected
+
+        command = self.__getNewInstruction()
+        if command == None:
+            return super().buttonInsertBelowOnButtonClick(event)
+
+        self.__insertBelow(command, self.treeScript.GetFocusedItem())
+
+        # TODO - Hook to script generator for file building
+        # TODO - Write a subclass that manages this (redirects insert to custom command)
+        return super().buttonInsertBelowOnButtonClick(event)
+
+    def buttonInsertAboveOnButtonClick(self, event):
+        # TODO - see above
+        isInstruction, instructionDetails = self.__decodeTreeItem(self.treeScript.GetFocusedItem())
+        command = self.__getNewInstruction()
+        if command == None:
+            return super().buttonInsertAboveOnButtonClick(event)
+
+        self.__insertAbove(command, self.treeScript.GetFocusedItem())
+        return super().buttonInsertAboveOnButtonClick(event)
+
+    def buttonMoveUpOnButtonClick(self, event):
+        isInstruction, instructionDetails = self.__decodeTreeItem(self.treeScript.GetFocusedItem())
+        if instructionDetails == None:
+            return super().buttonMoveUpOnButtonClick(event)
+        
+        idxInstruction, idxOperand = instructionDetails
+        if idxInstruction > 0:
+            # Can move up
+            instruction = self.__eventScript.getInstruction(idxInstruction)
+            treeItem = self.__getTreeItemForInstruction(idxInstruction)
+
+            newItem = self.__insertAbove(instruction, self.__getTreeItemForInstruction(idxInstruction - 1))
+            self.__eventScript.removeInstruction(idxInstruction + 1)
+            
+            isExpanded = self.treeScript.IsExpanded(treeItem)
+            
+            self.treeScript.DeleteChildren(treeItem)
+            self.treeScript.Delete(treeItem)
+
+            if isExpanded:
+                self.treeScript.Expand(newItem)
+
+            self.treeScript.SetFocusedItem(newItem)
+        return super().buttonMoveUpOnButtonClick(event)
+
+    def buttonMoveDownOnButtonClick(self, event):
+        isInstruction, instructionDetails = self.__decodeTreeItem(self.treeScript.GetFocusedItem())
+        if instructionDetails == None:
+            return super().buttonMoveDownOnButtonClick(event)
+        
+        idxInstruction, idxOperand = instructionDetails
+        if idxInstruction < self.__eventScript.getInstructionCount() - 1:
+            # Can move down
+            instruction = self.__eventScript.getInstruction(idxInstruction)
+            treeItem = self.__getTreeItemForInstruction(idxInstruction)
+
+            newItem = self.__insertBelow(instruction, self.__getTreeItemForInstruction(idxInstruction + 1))
+            self.__eventScript.removeInstruction(idxInstruction)
+            
+            isExpanded = self.treeScript.IsExpanded(treeItem)
+            
+            self.treeScript.DeleteChildren(treeItem)
+            self.treeScript.Delete(treeItem)
+
+            if isExpanded:
+                self.treeScript.Expand(newItem)
+
+            self.treeScript.SetFocusedItem(newItem)
+        return super().buttonMoveDownOnButtonClick(event)
+
+    def buttonCopyOnButtonClick(self, event):
+        isInstruction, instructionDetails = self.__decodeTreeItem(self.treeScript.GetFocusedItem())
+        if instructionDetails == None:
+            return super().buttonCopyOnButtonClick(event)
+        idxInstruction, _idxOperand = instructionDetails
+        treeRef = self.__getTreeItemForInstruction(idxInstruction)
+        isExpanded = self.treeScript.IsExpanded(treeRef)
+        treeRef = self.__insertBelow(self.__eventScript.getInstruction(idxInstruction), self.__getTreeItemForInstruction(idxInstruction))
+        if isExpanded:
+            self.treeScript.Expand(treeRef)
+        return super().buttonCopyOnButtonClick(event)
+
     def __updateCharacterSelection(self):
         selection = self.listAllCharacters.GetSelection()
         if selection == NOT_FOUND:
@@ -408,7 +619,7 @@ class FrameScriptEditor(editorScript):
         return super().checkDisableCharacterVisibilityOnCheckBox(event)
 
     def prepareWidebrimState(self):
-        # return GAMEMODES.INVALID
+        self.syncChanges()
         self.__state.setEventId(self.__idEvent)
         return GAMEMODES.DramaEvent
             

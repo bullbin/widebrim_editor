@@ -180,9 +180,9 @@ class FrameOverview(pageOverview):
             #        (this is immediately overridden, plus multiple page changes are being registered...)
             # TODO - GetItemText...?
             if self.__useIcons:
-                self.GetParent().AddPage(FrameScriptEditor(self.GetParent(), self._bankInstructions, eventId, self._state), name, bitmap=self.__icons.GetBitmap(self.__idImageEvent))
+                self.GetParent().AddPage(FrameScriptEditor(self.GetParent(), self._fusedFi, self._bankInstructions, eventId, self._state), name, bitmap=self.__icons.GetBitmap(self.__idImageEvent))
             else:
-                self.GetParent().AddPage(FrameScriptEditor(self.GetParent(), self._bankInstructions, eventId, self._state), name)
+                self.GetParent().AddPage(FrameScriptEditor(self.GetParent(), self._fusedFi, self._bankInstructions, eventId, self._state), name)
 
         def handlePuzzleItem(item):
             idInternal = self.treeOverview.GetItemData(item)
