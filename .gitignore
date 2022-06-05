@@ -13,3 +13,5 @@ nopush_*
 *.fbp
 *.txt
 *.gds
+*.recipe
+*.plz

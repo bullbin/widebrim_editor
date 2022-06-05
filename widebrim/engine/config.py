@@ -9,8 +9,6 @@ NDS_USE_FIRMWARE_MAC    = True                  # Uses MAC address from DS firmw
 NAME_INTERFACE_MAC      = None                  # String representation of the interface used for grabbing the MAC address. Leave as 'None' if default is okay.
                                                 #     If you're experiencing very slow cipher generations or odd results, make sure the name given is a valid interface
 
-FILE_USE_PATCH          = True                  # For patching - allows filesystem commands to be intercepted to redirect to custom files
-
 WINDOW_DEFAULT_NAME     = "widebrim"
 WINDOW_SCALE_TO_VIEW    = True                  # For high DPI devices, widebrim will be small at default resolution. Enable this to integer scale where possible
 WINDOW_USE_VSYNC        = True                  # Eliminates screen tearing. pygame has some issues with this flag, however, so disable this if you get a black screen
@@ -24,4 +22,3 @@ PATH_PATCH      = getcwd() + "\\patch\\"
 # Debug configurations below. Don't change these unless you know what you're doing!
 
 DEBUG_BYPASS_PUZZLE_INTRO   = False             # Bypass puzzle intro scene - good for rapid puzzle testing
-DEBUG_ALLOW_WIDEBRIM_NO_ROM = False             # Allow widebrim to run without a ROM - can't operate without a full filesystem in patch folder

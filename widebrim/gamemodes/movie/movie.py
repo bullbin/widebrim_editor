@@ -27,13 +27,13 @@ from math import ceil
 if TYPE_CHECKING:
     from widebrim.engine.state.manager.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
-    from widebrim.engine.file.file import FileInterface
+    from widebrim.engine.file import ReadOnlyFileInterface
 
 # Thank you FFMPEG team for supporting mobiclip! 4.4 minimum req.
 
 # TODO - Implement drawable
 class MovieSurface():
-    def __init__(self, fileAccessor : FileInterface, indexMovie : int, callback : Optional[callable], framerate : float = 23.98):
+    def __init__(self, fileAccessor : ReadOnlyFileInterface, indexMovie : int, callback : Optional[callable], framerate : float = 23.98):
         width, height               = RESOLUTION_NINTENDO_DS
         self.__pathMovieFile        = None
         self.__timeElapsed  : float = 0

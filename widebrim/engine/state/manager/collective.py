@@ -1,5 +1,5 @@
 from widebrim.engine.const import LANGUAGES
-from widebrim.engine.file import FileInterface
+from widebrim.engine.file import NativeRomFileInterface
 from .state import Layton2GameState
 
 class Layton2CollectiveState(Layton2GameState):
@@ -10,7 +10,7 @@ class Layton2CollectiveState(Layton2GameState):
             language (LANGUAGES, optional): Language to load asset with, ignored unless forced. Defaults to LANGUAGES.Japanese.
             forceUseLanguage (bool, optional): Override ROM language detection with selected language. Defaults to False.
         """
-        fileInterface = FileInterface
+        fileInterface = NativeRomFileInterface()
         if not(forceUseLanguage or (fileLanguage := fileInterface.getLanguage()) == None):
             language = fileLanguage
         super().__init__(language, fileInterface)

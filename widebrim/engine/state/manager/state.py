@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from widebrim.madhatter.hat_io.asset_dlz.nz_lst import DlzEntryNzLst
     from widebrim.madhatter.hat_io.asset_dlz.sm_inf import DlzEntrySubmapInfoNds
     from widebrim.madhatter.hat_io.asset_dlz.ev_inf2 import DlzEntryEvInf2
-    from ...file import FileInterface
+    from widebrim.engine.file import ReadOnlyFileInterface
 
 from widebrim.madhatter.hat_io.asset_sav import Layton2SaveSlot, WiFiState
 from widebrim.madhatter.hat_io.asset_dlz import EventInfoList, SubmapInfoNds, GoalInfo, NazoListNds, HerbteaEvent, ChapterInfo, TimeDefinitionInfo
@@ -27,7 +27,7 @@ from math import floor
 from ..enum_mode import GAMEMODES
 
 class Layton2GameState():
-    def __init__(self, language : LANGUAGES, fileInterface : FileInterface):
+    def __init__(self, language : LANGUAGES, fileInterface : ReadOnlyFileInterface):
         """Convenience object to store entire game state required for playback.
 
         Args:
@@ -484,7 +484,7 @@ class Layton2GameState():
     def setLastJitenWiFiExternal(self, idExternal : int):
         self._idExternalLastWiFiPuzzle = idExternal
     
-    def getFileAccessor(self) -> FileInterface:
+    def getFileAccessor(self) -> ReadOnlyFileInterface:
         return self.__fileInterface
     
     def resetState(self):
