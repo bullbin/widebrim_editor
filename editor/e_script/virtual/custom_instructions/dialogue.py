@@ -2,7 +2,7 @@ from typing import Optional
 from editor.e_script.virtual.custom import VirtualInstructionGenerator
 from editor.gui.command_annotator.bank import Context, InstructionDescription, OperandDescription, OperandType
 from widebrim.engine.const import PATH_PACK_TALK
-from widebrim.filesystem.compatibility import FusedFileInterface
+from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
 from widebrim.madhatter.hat_io.asset import LaytonPack
 from widebrim.madhatter.hat_io.asset_script import GdScript, Instruction, Operand
 from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
@@ -23,8 +23,8 @@ class DialogueInstructionDescription(InstructionDescription):
 
 class DialogueInstructionGenerator(VirtualInstructionGenerator):
 
-    def __init__(self, fusedFi : FusedFileInterface, packTalkScript : LaytonPack, idEvent : Optional[int]):
-        super().__init__(fusedFi, packTalkScript, idEvent)
+    def __init__(self, filesystem : WriteableFilesystemCompatibilityLayer, packTalkScript : LaytonPack, idEvent : Optional[int]):
+        super().__init__(filesystem, packTalkScript, idEvent)
 
     def replaceInScript(self, script: GdScript):
 

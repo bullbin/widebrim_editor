@@ -1,7 +1,7 @@
 from typing import Optional, Tuple
 from editor.generateFsTree import FolderTreeNode, generateFolderStructureFromRelativeRoot, populateTreeCtrlFromFolderTree
 from widebrim.engine.state.manager.state import Layton2GameState
-from widebrim.filesystem.compatibility import FusedFileInterface
+from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
 from widebrim.madhatter.hat_io.asset import File
 from .nopush_editor import PickerBgx
 from widebrim.madhatter.hat_io.asset_image import StaticImage
@@ -13,10 +13,10 @@ from PIL.Image import Image as ImageType
 # TODO - Slow to import big images, don't let the user do that
 
 class DialogPickerBgx(PickerBgx):
-    def __init__(self, parent, state : Layton2GameState, fusedFi : FusedFileInterface, pathRoot : str, defaultPathRelative : Optional[str] = None):
+    def __init__(self, parent, state : Layton2GameState, fileAccessor : WriteableFilesystemCompatibilityLayer, pathRoot : str, defaultPathRelative : Optional[str] = None):
         super().__init__(parent)
-        self.fusedFi = fusedFi
-        self.__rootFolder, self.__folderLookup = generateFolderStructureFromRelativeRoot(fusedFi.fused, pathRoot)
+        self.fileAccessor = fileAccessor
+        self.__rootFolder, self.__folderLookup = generateFolderStructureFromRelativeRoot(fileAccessor.writeableFs, pathRoot)
         self.__pathOut = ""
         self.btnConfirmSelected.Disable()
         populateTreeCtrlFromFolderTree(self.treeFilesystem, self.__rootFolder)
@@ -48,7 +48,7 @@ class DialogPickerBgx(PickerBgx):
 
     # Naming convention to match wx...
     def GetPath(self) -> str:
-        languageString = "/%s/" % self.fusedFi.getLanguage().value
+        languageString = "/%s/" % self.fileAccessor.getLanguage().value
         if self.__pathOut.count(languageString) == 1:
             return self.__pathOut.replace(languageString, "/?/")
         return self.__pathOut
@@ -60,7 +60,7 @@ class DialogPickerBgx(PickerBgx):
         if path in self.__folderLookup:
             return False
         
-        imageData = self.fusedFi.getData(path)
+        imageData = self.fileAccessor.getData(path)
         # TODO - Bugfix, why does this happen?
         if imageData == None or len(imageData) == 0:
             print("Failed", path)
@@ -87,7 +87,7 @@ class DialogPickerBgx(PickerBgx):
         return super().treeFilesystemOnTreeItemActivated(event)
 
     def setDefaultRelativePath(self, pathRelative : str):
-        subsPath = (self.__rootFolder.path + "/" + pathRelative).replace("/?/", "/" + self.fusedFi.getLanguage().value + "/")
+        subsPath = (self.__rootFolder.path + "/" + pathRelative).replace("/?/", "/" + self.fileAccessor.getLanguage().value + "/")
         if len(subsPath) > 4 and subsPath[-4:] == ".bgx":
             subsPath = subsPath[:-4] + ".arc"
         if self.__updatePreviewImage(subsPath):
@@ -157,7 +157,7 @@ class DialogPickerBgx(PickerBgx):
                         MessageDialog(self, errorMsg, "Invalid Name").ShowModal()
                     else:
                         testPath = rootPath + "/" + forceExtension(inputFilepath)
-                        if self.fusedFi.doesFileExist(testPath):
+                        if self.fileAccessor.doesFileExist(testPath):
                             MessageDialog(self, "Name refers to an existing file.", "Invalid Name").ShowModal()
                         else:
                             doImport = False
@@ -188,7 +188,7 @@ class DialogPickerBgx(PickerBgx):
         packer = File(data=packer[0])
         packer.compress(addHeader=True)
 
-        self.fusedFi.fused.addFile(filepath, packer.data)
+        self.fileAccessor.writeableFs.addFile(filepath, packer.data)
         folder.files.append(filepath)
         self.__pathOut = filepath
         self.__doOnSuccessfulImage()
@@ -201,7 +201,7 @@ class DialogPickerBgx(PickerBgx):
             MessageDialog(self, "The root folder cannot be deleted.", "Important Folder").ShowModal()
             return super().btnDeleteFolderOnButtonClick(event)
 
-        if self.fusedFi.fused.getCountItemsInFolder(path) > 0:
+        if self.fileAccessor.writeableFs.getCountItemsInFolder(path) > 0:
             MessageDialog(self, "Deleting this folder may be harmful. To delete non-empty folders, use the Asset Management page.", "Folder not Empty").ShowModal()
             return super().btnDeleteFolderOnButtonClick(event)
         
@@ -213,7 +213,7 @@ class DialogPickerBgx(PickerBgx):
         self.treeFilesystem.DeleteChildren(folder.treeRef)
         self.treeFilesystem.Delete(folder.treeRef)
         folder.clearTreeReferencesForGc()
-        self.fusedFi.fused.removeFolder(path)
+        self.fileAccessor.writeableFs.removeFolder(path)
         return super().btnDeleteFolderOnButtonClick(event)
 
     def btnAddFolderOnButtonClick(self, event):

@@ -1,5 +1,5 @@
 from widebrim.engine.const import EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_EV_INF2, PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_PACK_EVENT_SCR
-from widebrim.filesystem.compatibility import FusedFileInterface
+from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
 from widebrim.engine_ext.utils import substituteLanguageString
 
 from typing import List, Tuple, Type
@@ -62,7 +62,7 @@ class EventConditionPuzzleExecutionGroup(EventConditionAwaitingViewedExecutionGr
 
 # TODO - Refigure out tea hooks for random events
 # Room: No effective limit, can launch any handler. But branching on room loading and event setting?
-def getEvents(fusedFi : FusedFileInterface, laytonState : Layton2GameState) -> Tuple[Tuple[List[int], List[int]], List[Type[EventExecutionGroup]]]:
+def getEvents(filesystem : WriteableFilesystemCompatibilityLayer, laytonState : Layton2GameState) -> Tuple[Tuple[List[int], List[int]], List[Type[EventExecutionGroup]]]:
     """Gets a list of every event stored inside ROM and bundles them according to branching rules.
     
     Note that this approach does not take into account engine edits or forced behaviours, eg breaking execution by jumping to leaves in event branches rather than the head itself.
@@ -85,16 +85,16 @@ def getEvents(fusedFi : FusedFileInterface, laytonState : Layton2GameState) -> T
         output = []
         for x in range(10, 100):
             if x == 24:
-                if fusedFi.doesFileExist(PATH_EVENT_SCRIPT_A % x) or fusedFi.doesFileExist(PATH_EVENT_SCRIPT_B % x) or fusedFi.doesFileExist(PATH_EVENT_SCRIPT_C % x):
+                if filesystem.doesFileExist(PATH_EVENT_SCRIPT_A % x) or filesystem.doesFileExist(PATH_EVENT_SCRIPT_B % x) or filesystem.doesFileExist(PATH_EVENT_SCRIPT_C % x):
                     output.append(x)
             else:
-                if fusedFi.doesFileExist(PATH_EVENT_SCRIPT % x):
+                if filesystem.doesFileExist(PATH_EVENT_SCRIPT % x):
                     output.append(x)
         return output
     
     def addEventsFromIdToUntracked(ids : List[int]):
         def exploreArchive(path : str, id : int, start=0, stop=1000):
-            packArchive = fusedFi.getPack(path)
+            packArchive = filesystem.getPack(path)
             for x in range(start, stop):
                 pathScript = PATH_PACK_EVENT_SCR % (id, x)
                 if packArchive.getFile(pathScript) != None:
@@ -111,7 +111,7 @@ def getEvents(fusedFi : FusedFileInterface, laytonState : Layton2GameState) -> T
     def classifyByEventDatabase():
         eventDb = EventInfoList()
         pathEventDb = substituteLanguageString(laytonState, PATH_DB_EV_INF2)
-        if (data := fusedFi.getData(pathEventDb)) != None:
+        if (data := filesystem.getData(pathEventDb)) != None:
             eventDb.load(data)
         
         for indexEntry in range(eventDb.getCountEntries()):

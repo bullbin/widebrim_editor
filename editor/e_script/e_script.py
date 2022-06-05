@@ -6,7 +6,7 @@ from widebrim.engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_E
 from widebrim.engine.state.enum_mode import GAMEMODES
 from widebrim.engine.state.manager import Layton2GameState
 from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
-from widebrim.filesystem.compatibility import FusedFileInterface
+from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
 from widebrim.gamemodes.dramaevent.const import PATH_BODY_ROOT, PATH_BODY_ROOT_LANG_DEP
 from widebrim.madhatter.common import logSevere
 from widebrim.madhatter.hat_io.asset_dat.event import EventData
@@ -70,7 +70,7 @@ class FrameScriptEditor(editorScript):
                                            OperandType.StandardString:3,
                                            OperandType.StandardU16:4}
 
-    def __init__(self, parent,  fusedFi : FusedFileInterface, bankInstructions : ScriptVerificationBank, idEvent : int, state : Layton2GameState, id=ID_ANY, pos=DefaultPosition, size=Size(640, 640), style=TAB_TRAVERSAL, name=EmptyString):
+    def __init__(self, parent,  filesystem : WriteableFilesystemCompatibilityLayer, bankInstructions : ScriptVerificationBank, idEvent : int, state : Layton2GameState, id=ID_ANY, pos=DefaultPosition, size=Size(640, 640), style=TAB_TRAVERSAL, name=EmptyString):
         super().__init__(parent, id, pos, size, style, name)
 
         self.__bankInstructions = bankInstructions
@@ -92,7 +92,7 @@ class FrameScriptEditor(editorScript):
         self.__setContext(Context.DramaEvent)
         self.__selectedCharacterIndex : Optional[int] = None
 
-        self._fusedFi = fusedFi
+        self._filesystem = filesystem
         self._loaded = False
     
     def substituteEventPath(self, inPath, inPathA, inPathB, inPathC):
@@ -213,7 +213,8 @@ class FrameScriptEditor(editorScript):
     def syncChanges(self):
         # TODO - Compile with file builders
         print("attempt sync operation...")
-        packEvent = self._fusedFi.getPack(self.getEventScriptPath())
+        packEvent = self._filesystem.getPack(self.getEventScriptPath())
+
         # TODO - Virtual scripting
         filenameScript = PATH_PACK_EVENT_SCR % (self.__idMain, self.__idSub)
         filenameData = PATH_PACK_EVENT_DAT % (self.__idMain, self.__idSub)
@@ -229,7 +230,7 @@ class FrameScriptEditor(editorScript):
 
         packEvent.save()
         packEvent.compress()
-        self._fusedFi.fused.replaceFile(self.getEventScriptPath(), packEvent.data)
+        self._filesystem.writeableFs.replaceFile(self.getEventScriptPath(), packEvent.data)
         print("synced?")
 
     def _refresh(self):
@@ -241,7 +242,7 @@ class FrameScriptEditor(editorScript):
         
         if self.__context == Context.DramaEvent:
             
-            if (data := self._fusedFi.getPackedData(self.getEventScriptPath(), PATH_PACK_EVENT_DAT % (self.__idMain, self.__idSub))) != None:
+            if (data := self._filesystem.getPackedData(self.getEventScriptPath(), PATH_PACK_EVENT_DAT % (self.__idMain, self.__idSub))) != None:
                 eventData = EventData()
                 eventData.load(data)
                 self.__eventData = eventData
@@ -258,7 +259,7 @@ class FrameScriptEditor(editorScript):
                     self.listAllCharacters.SetSelection(0)
                     self.__updateCharacterSelection()
             
-            if (data := self._fusedFi.getPackedData(self.getEventScriptPath(), PATH_PACK_EVENT_SCR % (self.__idMain, self.__idSub))) != None:
+            if (data := self._filesystem.getPackedData(self.getEventScriptPath(), PATH_PACK_EVENT_SCR % (self.__idMain, self.__idSub))) != None:
                 eventScript = GdScript()
                 eventScript.load(data)
                 self.__eventScript = eventScript
@@ -619,7 +620,9 @@ class FrameScriptEditor(editorScript):
         return super().checkDisableCharacterVisibilityOnCheckBox(event)
 
     def prepareWidebrimState(self):
-        self.syncChanges()
+        # Hopefully don't need to call sync here - hope that the state was loaded properly
+        # Calling sync here causes changes to ROM under current heuristic which is no good
+        # TODO - Maybe detect state before so we can sync anyway without changes
         self.__state.setEventId(self.__idEvent)
         return GAMEMODES.DramaEvent
             

@@ -1,5 +1,4 @@
 from typing import Dict, List, Tuple
-from widebrim.filesystem.fused import FusedFilesystem
 from widebrim.filesystem.low_level.fs_base import FilesystemBase
 from wx import TreeCtrl
 

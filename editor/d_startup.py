@@ -1,21 +1,30 @@
 from typing import Dict, Optional, Union
 
-from widebrim.filesystem.compatibility import FusedFileInterface
+from widebrim.filesystem.compatibility import WriteableFusedFileInterface
+from widebrim.filesystem.compatibility.compatibilityRom import WriteableRomFileInterface
 from .nopush_editor import StartupConfiguration
 from wx import FileDialog, FD_OPEN, FD_FILE_MUST_EXIST, DirDialog, ID_CANCEL, ID_OK, MessageDialog, ICON_ERROR, OK
 from ndspy import rom
-from widebrim.engine_ext.rom.banner import getBannerImageFromRom, getNameStringFromRom
+from widebrim.engine_ext.rom.banner import getNameStringFromRom
 from widebrim.engine.const import LANGUAGES
 from os import listdir
+
+# TODO - rewrite this!!
 
 class DialogStartup(StartupConfiguration):
     def __init__(self, parent, configuration : Dict[str, Union[str, bool]], callbackReturnFs):
         super().__init__(parent)
-        self.__rom = None
-        self.__romPath = None
-        self.__pathPatch = None
+
+        self.__stringCreateLoadedVfs = self.btnCreateNew.GetLabel()
+        self.__stringCreateLoaded = "Edit loaded ROM"
+
         self.__configuration = configuration
+        self.__controlsDisabled = False
+        self.__rom = None
+        self.__romPath = self.__configuration["pathLastRom"]
+        self.__pathPatch = self.__configuration["pathLastPatch"]
         self.__callbackReturnFs = callbackReturnFs
+        self.useVfs.SetValue(self.__configuration["useVfs"])
 
         def getLastLoadedRom():
             if self.__configuration["pathLastRom"] != "":
@@ -25,8 +34,16 @@ class DialogStartup(StartupConfiguration):
         
         self.reopenOnBoot.SetValue(self.__configuration["autoloadLast"])
         getLastLoadedRom()
+        self.__updateVfsTooltip()
  
+    def __updateVfsTooltip(self):
+        if self.useVfs.IsChecked():
+            self.btnCreateNew.SetLabel(self.__stringCreateLoadedVfs)
+        else:
+            self.btnCreateNew.SetLabel(self.__stringCreateLoaded)
+
     def __disableRomControls(self):
+        self.__controlsDisabled = True
         self.textRomName.Disable()
         self.btnCreateEmpty.Disable()
         self.btnReopenLast.Disable()
@@ -34,23 +51,27 @@ class DialogStartup(StartupConfiguration):
         self.btnCreateNew.Disable()
     
     def __enableRomControls(self):
+        self.__controlsDisabled = False
         self.textRomName.Enable()
         self.btnCreateEmpty.Enable()
 
         # TODO - Handle last properly (tampered FS?)
-        if self.__configuration["pathLastPatch"] != "":
+        if self.__configuration["pathLastPatch"] != "" and self.__configuration["useVfs"]:
             self.btnReopenLast.Enable()
+        if self.__configuration["useVfs"]:
+            self.btnOpenFolder.Enable()
 
-        self.btnOpenFolder.Enable()
         self.btnCreateNew.Enable()
     
     def __updateConfigurationState(self):
+        self.__configuration["useVfs"] = self.useVfs.IsChecked()
         self.__configuration["autoloadLast"] = self.reopenOnBoot.IsChecked()
         self.__configuration["pathLastRom"] = self.__romPath
         self.__configuration["pathLastPatch"] = self.__pathPatch
 
     def __verifyAndLoadRom(self, pathRom : Optional[str]):
         # TODO - Create widebrim system to do this
+        self.__disableRomControls()
         updateRom = False
         if pathRom != None:
             try:
@@ -69,7 +90,6 @@ class DialogStartup(StartupConfiguration):
         # TODO - Extract icon, language
         if self.__rom == None:
             # TODO - Remove icon?
-            self.__disableRomControls()
             self.textRomName.SetLabel("No ROM loaded...")
         else:
             self.__romPath = pathRom
@@ -77,6 +97,14 @@ class DialogStartup(StartupConfiguration):
             self.__enableRomControls()
             if updateRom:
                 self.textRomName.SetLabel(" ".join(getNameStringFromRom(self.__rom, LANGUAGES.English).split("\n")))
+
+    def useVfsOnCheckBox(self, event):
+        self.__configuration["useVfs"] = self.useVfs.IsChecked()
+        self.__updateVfsTooltip()
+        if not(self.__controlsDisabled):
+            self.__disableRomControls()
+            self.__enableRomControls()
+        return super().useVfsOnCheckBox(event)
 
     def btnCreateEmptyOnButtonClick(self, event):
         return super().btnCreateEmptyOnButtonClick(event)
@@ -86,26 +114,34 @@ class DialogStartup(StartupConfiguration):
         return super().reopenOnBootOnCheckBox(event)
 
     def btnCreateNewOnButtonClick(self, event):
-        outPath = None
-        with DirDialog(self, "Open Empty Patch Folder") as emptyFolder:
-            if emptyFolder.ShowModal() != ID_CANCEL:
-                outPath = emptyFolder.GetPath()
+        if self.__configuration["useVfs"]:
+            outPath = None
+            with DirDialog(self, "Open Empty Patch Folder") as emptyFolder:
+                if emptyFolder.ShowModal() != ID_CANCEL:
+                    outPath = emptyFolder.GetPath()
 
-        if outPath == None or self.__rom == None:
-            return super().btnCreateNewOnButtonClick(event)
+            if outPath == None or self.__rom == None:
+                return super().btnCreateNewOnButtonClick(event)
 
-        if len(listdir(outPath)) > 0:
-            # TODO - yes no
-            # Folder isn't empty, might be bad
-            pass
+            if len(listdir(outPath)) > 0:
+                # TODO - yes no
+                # Folder isn't empty, might be bad
+                pass
 
-        if self.IsModal():
-            self.__pathPatch = outPath
-            self.__updateConfigurationState()
-            self.__callbackReturnFs(FusedFileInterface(self.__rom, outPath, True))
-            self.EndModal(ID_OK)
+            if self.IsModal():
+                self.__pathPatch = outPath
+                self.__updateConfigurationState()
+                self.__callbackReturnFs(WriteableFusedFileInterface(self.__rom, outPath, True))
+                self.EndModal(ID_OK)
+            else:
+                self.Close()
         else:
-            self.Close()
+            if self.IsModal():
+                self.__updateConfigurationState()
+                self.__callbackReturnFs(WriteableRomFileInterface(self.__rom))
+                self.EndModal(ID_OK)
+            else:
+                self.Close()
         return super().btnCreateNewOnButtonClick(event)
     
     def btnOpenFolderOnButtonClick(self, event):
@@ -127,7 +163,7 @@ class DialogStartup(StartupConfiguration):
         if self.IsModal():
             self.__pathPatch = outPath
             self.__updateConfigurationState()
-            self.__callbackReturnFs(FusedFileInterface(self.__rom, outPath, False))
+            self.__callbackReturnFs(WriteableFusedFileInterface(self.__rom, outPath, False))
             self.EndModal(ID_OK)
         else:
             self.Close()
@@ -138,7 +174,7 @@ class DialogStartup(StartupConfiguration):
         self.__pathPatch = self.__configuration["pathLastPatch"]
         if self.IsModal():
             self.__updateConfigurationState()
-            self.__callbackReturnFs(FusedFileInterface(self.__rom, self.__pathPatch, False))
+            self.__callbackReturnFs(WriteableFusedFileInterface(self.__rom, self.__pathPatch, False))
             self.EndModal(ID_OK)
         else:
             self.Close()

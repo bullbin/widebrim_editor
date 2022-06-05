@@ -25,7 +25,9 @@ from editor.d_startup import DialogStartup
 #from widebrim.engine.const import LANGUAGES
 #from widebrim.engine.state.manager.state import Layton2GameState
 
-from widebrim.filesystem.compatibility import FusedFileInterface
+from widebrim.filesystem.compatibility import WriteableFusedFileInterface
+from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
+from widebrim.filesystem.compatibility.compatibilityRom import WriteableRomFileInterface
 from widebrim.engine_ext.utils import cleanTempFolder
 import pygame
 from json import loads, dumps
@@ -47,6 +49,7 @@ def loadSettingsJson() -> Dict[str, Union[bool, str]]:
     def getDefaultSettingsDict() -> Dict[str, Union[bool, str]]:
         return {"acceptEula":False,
                 "autoloadLast":False,
+                "useVfs":False,
                 "pathLastRom":"",
                 "pathLastPatch":""}
 
@@ -73,7 +76,7 @@ def loadSettingsJson() -> Dict[str, Union[bool, str]]:
 class App(App):
     def OnInit(self):
         self.__configuration = loadSettingsJson()
-        self.__filesystem : Optional[FusedFileInterface] = None
+        self.__filesystem : Optional[WriteableFilesystemCompatibilityLayer] = None
 
         if not(self.__configuration["acceptEula"]):
             with DialogFirstRunWarning(None) as firstRun:
@@ -82,15 +85,17 @@ class App(App):
                     saveSettingsJson(self.__configuration)
             
         if self.__configuration["acceptEula"]:
-            forceStartup = False
-            if self.__configuration["autoloadLast"] and self.__configuration["pathLastPatch"] != "" and self.__configuration["pathLastRom"] != None:
+            if self.__configuration["autoloadLast"] and self.__configuration["pathLastRom"] != "":
                 try:
                     romData = rom.NintendoDSRom.fromFile(self.__configuration["pathLastRom"])
-                    self.__filesystem = FusedFileInterface(romData, self.__configuration["pathLastPatch"], False)
+                    if not(self.__configuration["useVfs"]):
+                        self.__setFilesystem(WriteableRomFileInterface(romData))
+                    elif self.__configuration["pathLastPatch"] != "":
+                        self.__setFilesystem(WriteableFusedFileInterface(romData, self.__configuration["pathLastPatch"], False))
                 except:
-                    forceStartup = True
-
-            if not(self.__configuration["autoloadLast"] and self.__configuration["pathLastPatch"] != "" and self.__configuration["pathLastRom"] != None) or forceStartup:
+                    pass
+            
+            if self.__filesystem == None:
                 with DialogStartup(None, self.__configuration, self.__setFilesystem) as startup:
                     if startup.ShowModal() == ID_CANCEL:
                         self.__filesystem = None
@@ -112,7 +117,7 @@ class App(App):
             self.frame.Show()
             self.SetTopWindow(self.frame)
 
-    def __setFilesystem(self, fs : FusedFileInterface):
+    def __setFilesystem(self, fs : WriteableFilesystemCompatibilityLayer):
         self.__filesystem = fs
     
     def OnExit(self):
@@ -122,7 +127,7 @@ class App(App):
 debug = App()
 debug.MainLoop()
 
-#debugState = Layton2GameState(LANGUAGES.English, FusedFileInterface(rom.NintendoDSRom.fromFile("rom2.nds"), r"patch", False))
+#debugState = Layton2GameState(LANGUAGES.English, WriteableFusedFileInterface(rom.NintendoDSRom.fromFile("rom2.nds"), r"patch", False))
 #testDialog = DialogPickerBgx(None, debugState, debugState.getFileAccessor(), "/data_lt2/bg")
 #testDialog.ShowModal()
 #testDialog.Destroy()
@@ -136,16 +141,12 @@ debug.MainLoop()
 pygame.quit()
 cleanTempFolder()
 
-# TODO - failure loading logo (oops) and broken border on title
 # TODO - String validation
 # TODO - Slashes not recognised
 # TODO - Try/except to prevent loading bad data
-# TODO - New patch format that combines nazo data and nazo list entry
 # TODO - how are slots drawn? by character order or slot order?
-# TODO - event descriptions (unused db)
 # TODO - cut puzzles are bad lol
 # TODO - State not being cleared between puzzles (58, 59)
-
 
 # FS Plans
 # ani

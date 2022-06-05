@@ -1,6 +1,9 @@
+from typing import Optional
+from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
+
 class GuiCommon():
     def __init__(self):
-        self.fusedFi = None
+        self.fileAccessor : Optional[WriteableFilesystemCompatibilityLayer] = None
         self.bankInstructions = None
     
     def getAbstractionLevel(self):

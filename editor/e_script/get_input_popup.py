@@ -66,9 +66,9 @@ class VerifiedDialog():
                 return None
 
 class BackgroundDialog():
-    def __init__(self, parent, state, fusedFi):
+    def __init__(self, parent, state, filesystem):
         self._root = "/data_lt2/bg"
-        self._dialog = DialogPickerBgx(parent, state, fusedFi, self._root)
+        self._dialog = DialogPickerBgx(parent, state, filesystem, self._root)
     
     def do(self, defaultValue : str) -> Optional[str]:
         self._dialog.setDefaultRelativePath(defaultValue)
@@ -77,13 +77,13 @@ class BackgroundDialog():
             return (self._dialog.GetPath()[len(self._root) + 1:][:-4]) + ".bgx"
         return None
 
-def getDialogForType(parent, state, fusedFi, operandType : OperandType) -> Optional[VerifiedDialog]:
+def getDialogForType(parent, state, filesystem, operandType : OperandType) -> Optional[VerifiedDialog]:
     compatDict = {OperandType.StandardS32           : VerifiedDialog(TextEntryDialog(parent, "Enter a number"), numCheckFunction()),
                   OperandType.StandardString        : VerifiedDialog(TextEntryDialog(parent, "Enter a string"), strCheckFunction()),
                   OperandType.StandardF32           : VerifiedDialog(TextEntryDialog(parent, "Enter a decimal"), floatCheckFunction()),
                   OperandType.StandardU16           : VerifiedDialog(TextEntryDialog(parent, "Enter a short"), numCheckFunction()),
                   
-                  OperandType.StringBackground      : BackgroundDialog(parent, state, fusedFi),
+                  OperandType.StringBackground      : BackgroundDialog(parent, state, filesystem),
                   
                   OperandType.ColorComponent8       : VerifiedDialog(TextEntryDialog(parent, "Enter an 8-bit color component"), rangeIntCheckFunction(0,255)),
                   OperandType.ColorComponent8       : VerifiedDialog(TextEntryDialog(parent, "Enter a 5-bit color component"), rangeIntCheckFunction(0,31)),

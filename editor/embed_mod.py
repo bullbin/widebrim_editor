@@ -45,10 +45,11 @@ from editor.nopush_editor import Editor
 from widebrim.engine.state.enum_mode import GAMEMODES
 from widebrim.engine_ext.state_game import ScreenCollectionGameModeSpawner
 
-from wx import Timer, EVT_TIMER, EVT_PAINT, EVT_CLOSE, Bitmap, ClientDC, PaintDC, Icon, CallAfter, aui
+from wx import Timer, EVT_TIMER, EVT_PAINT, EVT_CLOSE, Bitmap, ClientDC, PaintDC, Icon, CallAfter, aui, FileDialog, MessageDialog, FD_SAVE, FD_OVERWRITE_PROMPT, ID_CANCEL, YES_NO, CANCEL, ID_YES
 from wx import Image as WxImageNonConflict
 from widebrim.engine.state.manager import Layton2GameState
-from widebrim.filesystem.compatibility import FusedFileInterface
+from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
+from widebrim.filesystem.compatibility import WriteableFusedFileInterface
 
 from editor.e_puzzle import FramePuzzleEditor
 from editor.e_script import FrameScriptEditor
@@ -61,19 +62,23 @@ from time import sleep, perf_counter
 from traceback import print_exc
 
 class EditorWindow(Editor):
-    def __init__(self, fusedFi : FusedFileInterface, callbackReturnOnExit : Callable, parent):
+    def __init__(self, filesystem : WriteableFilesystemCompatibilityLayer, callbackReturnOnExit : Callable, parent):
         super().__init__(parent)
         self.__callbackAfterExit = callbackReturnOnExit
         self.__widebrimTimer = Timer(self)
         self.__widebrimAnchor = self.panelWidebrimInjection
         self.__widebrimRenderSurface = Surface((RESOLUTION_NINTENDO_DS[0], RESOLUTION_NINTENDO_DS[1] * 2), 0 , 32)
 
-        language = fusedFi.getLanguage()
+        language = filesystem.getLanguage()
         if language == None:
             language = LANGUAGES.Japanese
+        
+        if not(isinstance(filesystem, WriteableFusedFileInterface)):
+            self.submenuFileCompile.SetItemLabel("Save ROM...")
+            self.submenuEditorOptimiseFs.Enable(False)
 
-        self._fusedFi = fusedFi
-        self._widebrimState = Layton2GameState(language, fusedFi)
+        self._filesystem = filesystem
+        self._widebrimState = Layton2GameState(language, filesystem)
         self.__widebrimRenderLayers : Optional[ScreenCollectionGameModeSpawner] = None
         self.__widebrimSpeedMultipler = 1
 
@@ -86,7 +91,7 @@ class EditorWindow(Editor):
         # TODO - Loading instruction definitions should refresh editor
         self.__instructionDescriptions = ScriptVerificationBank()
         # TODO - Not wanted, but faster for testing...
-        self.__instructionDescriptions = BaselineVerificationBank(self._fusedFi)
+        self.__instructionDescriptions = BaselineVerificationBank(self._filesystem)
         self.__instructionDescriptions.populateBankFromRom()
         self.__instructionDescriptions.applyDefaultInstructionHeuristics()
         self.__instructionDescriptions.applyExtendedOperandTypingHeuristics()
@@ -97,15 +102,15 @@ class EditorWindow(Editor):
         self.Bind(EVT_CLOSE, self.__doOnClose)
         self.spawnHandler(GAMEMODES.Reset)
 
-        self.auiTabs.AddPage(FrameOverview(self.auiTabs, self._fusedFi, self._widebrimState, self.__instructionDescriptions), "Overview", select=False)
+        self.auiTabs.AddPage(FrameOverview(self.auiTabs, self._filesystem, self._widebrimState, self.__instructionDescriptions), "Overview", select=False)
         self.framesExtended.Check()
         self._setWidebrimFramerate(1000)
         self.__refreshRomProperties()
 
     def __refreshRomProperties(self):
-        self.romTextCode.SetValue(self._fusedFi.getRom().idCode.decode('ascii'))
-        self.romTextName.SetValue(getNameStringFromRom(self._fusedFi.getRom(), self._fusedFi.getLanguage()))
-        bannerImage = getBannerImageFromRom(self._fusedFi.getRom())
+        self.romTextCode.SetValue(self._filesystem.getRom().idCode.decode('ascii'))
+        self.romTextName.SetValue(getNameStringFromRom(self._filesystem.getRom(), self._filesystem.getLanguage()))
+        bannerImage = getBannerImageFromRom(self._filesystem.getRom())
         bitmapBanner = Bitmap.FromBuffer(bannerImage.size[0], bannerImage.size[1], bannerImage.convert("RGB").tobytes("raw", "RGB"))
         self.previewIcon.SetBitmap(bitmapBanner)
         self.SetIcon(Icon(bitmapBanner))
@@ -131,16 +136,57 @@ class EditorWindow(Editor):
         
         return super().forceSyncOnButtonClick(event)
 
-    def __ensureProgressSaved(self):
-        pass
+    def __doRomSave(self) -> bool:
+        """Saves the working ROM. Only works if running from a ROM-based file accessor.
+
+        Returns:
+            bool: True if ROM was saved.
+        """
+        if not(isinstance(self._filesystem, WriteableFusedFileInterface)):
+            # TODO - Replace original (should be fine as long as its in memory)
+            with FileDialog(self, "Save Patched ROM", wildcard="Nintendo DS ROM Files (.nds)|*.nds",
+                            style=FD_SAVE | FD_OVERWRITE_PROMPT) as dlg:
+                if dlg.ShowModal() == ID_CANCEL:
+                    return False
+                
+                filepath = dlg.GetPath()
+                try:
+                    self._filesystem.getRom().saveToFile(filepath)
+                    self._filesystem.writeableFs.resetModifiedFlag()
+                except:
+                    pass
+                # TODO 0 Probably not good but usability is better this way
+                return True
+        return False
+
+    def submenuFileCompileOnMenuSelection(self, event):
+        if not(isinstance(self._filesystem, WriteableFusedFileInterface)):
+            self.__doRomSave()
+        else:
+            pass
+        return super().submenuFileCompileOnMenuSelection(event)
 
     def __doOnClose(self, event):
-        # Stop the timer to prevent widebrim being updated
-        self.__widebrimTimer.Stop()
-        # Allow thread to terminate on its own
-        while self.__widebrimIsBusy:
-            sleep(0.5)
-        event.Skip()
+        def terminateWidebrim():
+            # Stop the timer to prevent widebrim being updated
+            self.__widebrimTimer.Stop()
+            # Allow thread to terminate on its own
+            while self.__widebrimIsBusy:
+                sleep(0.5)
+
+        if self._filesystem.writeableFs.hasFilesystemBeenModified():
+            dlg = MessageDialog(self, "You have unsaved changes to the open ROM. Do you want to save before exiting?", "Unsaved Changes", YES_NO | CANCEL)
+            val = dlg.ShowModal()
+            if val == ID_YES:
+                if not (self.__doRomSave()):
+                    val = ID_CANCEL
+
+            if val != ID_CANCEL:
+                terminateWidebrim()
+                event.Skip()
+        else:
+            terminateWidebrim()
+            event.Skip()
 
     def _setWidebrimFramerate(self, fps):
         if 0 < fps <= 1000:
@@ -270,6 +316,20 @@ class EditorWindow(Editor):
         return super().menuPrefOverviewEnableEvtInfOnMenuSelection(event)
 
     def submenuFileReturnToStartupOnMenuSelection(self, event):
+        # Don't spawn another dialog (gets weird)
+        if self._filesystem.writeableFs.hasFilesystemBeenModified():
+            dlg = MessageDialog(self, "You have unsaved changes to the open ROM. Do you want to save before exiting?", "Unsaved Changes", YES_NO | CANCEL)
+            val = dlg.ShowModal()
+            if val == ID_YES:
+                if not (self.__doRomSave()):
+                    val = ID_CANCEL
+
+            if val == ID_CANCEL:
+                return super().submenuFileReturnToStartupOnMenuSelection(event)
+            else:
+                # Ditch changes
+                self._filesystem.writeableFs.resetModifiedFlag()
+
         CallAfter(self.__callbackAfterExit)
         return super().submenuFileReturnToStartupOnMenuSelection(event)
 
@@ -277,11 +337,10 @@ class EditorWindow(Editor):
         return super().menuDefinitionLoadOnMenuSelection(event)
     
     def menuDefinitionSaveOnMenuSelection(self, event):
-        print("save")
         return super().menuDefinitionLoad(event)
     
     def menuDefinitionGenerateOnMenuSelection(self, event):
-        self.__instructionDescriptions = BaselineVerificationBank(self._fusedFi)
+        self.__instructionDescriptions = BaselineVerificationBank(self._filesystem)
         self.__instructionDescriptions.populateBankFromRom()
         self.__instructionDescriptions.applyDefaultInstructionHeuristics()
         self.__instructionDescriptions.applyExtendedOperandTypingHeuristics()
