@@ -1,6 +1,6 @@
 try:
     import ctypes
-    ctypes.windll.shcore.SetProcessDpiAwareness(0)
+    ctypes.windll.shcore.SetProcessDpiAwareness(1)
 except ImportError:
     pass
 
@@ -73,7 +73,7 @@ def loadSettingsJson() -> Dict[str, Union[bool, str]]:
     # Does not account for ranges, but not a problem (yet)
     return settings
 
-class App(App):
+class WidebrimEditor(App):
     def OnInit(self):
         self.__configuration = loadSettingsJson()
         self.__filesystem : Optional[WriteableFilesystemCompatibilityLayer] = None
@@ -124,7 +124,7 @@ class App(App):
         saveSettingsJson(self.__configuration)
         return super().OnExit()
 
-debug = App()
+debug = WidebrimEditor()
 debug.MainLoop()
 
 #debugState = Layton2GameState(LANGUAGES.English, WriteableFusedFileInterface(rom.NintendoDSRom.fromFile("rom2.nds"), r"patch", False))

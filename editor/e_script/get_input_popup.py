@@ -1,4 +1,5 @@
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
+from editor.d_operandMultichoice import DialogMultipleChoice
 from editor.d_pickerBgx import DialogPickerBgx
 from editor.gui.command_annotator.bank import OperandCompatibility, OperandType
 from wx import TextEntryDialog, ID_OK
@@ -44,6 +45,13 @@ def rangeFloatCheckFunction(minimum : float, maximum : float) -> Callable[[str],
         return (minimum <= x <= maximum, x)
     return output
 
+def multipleChoiceFunction(choices : List[str]) -> Callable[[str], Tuple[bool, Any]]:
+    def output(x : str) -> bool:
+        if len(choices) > 0:
+            return (x in choices, choices[0])
+        return (x in choices, "")
+    return output
+
 class VerifiedDialog():
     def __init__(self, dialog : TextEntryDialog, funcCheckInput : Callable[[Any], bool], errorOnBadInputMessage : str = "Bad text entry!"):
         self._dialog = dialog
@@ -77,20 +85,74 @@ class BackgroundDialog():
             return (self._dialog.GetPath()[len(self._root) + 1:][:-4]) + ".bgx"
         return None
 
+class MultipleChoiceDialog():
+    def __init__(self, parent, state, filesystem, choices : Dict[str, str], title = None):
+        self._dialog = DialogMultipleChoice(parent, choices, title)
+    
+    def do(self, defaultValue : str) -> Optional[str]:
+        self._dialog.SetSelection(defaultValue)
+        value = self._dialog.ShowModal()
+        if value == ID_OK:
+            return self._dialog.GetSelection()
+        return None
+
+class GameModeDialog(MultipleChoiceDialog):
+    def __init__(self, parent, state, filesystem):
+        choices  = {"drama event"   :"""Gamemode to play another event.
+                                        \nWhen this gamemode is started, the game will switch to the event corresponding to the stored event index.
+                                        \nTo switch events, you must use the 'Set next event ID' command to change the stored ID, otherwise the engine will loop the running event. """,
+                    "room"          :"""Gamemode that handles room exploration.
+                                        \nNote that the room handler is allowed to switch to the drama event gamemode in certain circumstances, so this gamemode is not guaranteed.
+                                        \nTo switch rooms, you must use the 'Set next launched room' command. If you want to continue in the current room state, this is not needed.""",
+                    "puzzle"        :"""""",
+                    "movie"         :"""""",
+                    "narration"     :"""""",
+                    "menu"          :"""""",
+                    "staff"         :"""""",
+                    "name"          :"""""",
+                    "challenge"     :"""""",
+                    "sub herb"      :"""""",
+                    "sub camera"    :"""""",
+                    "sub ham"       :"""""",
+                    "passcode"      :"""""",
+                    "diary"         :"""""",
+                    "nazoba"        :""""""}
+        super().__init__(parent, state, filesystem, choices, "Change Selected Gamemode")
+    
+    def do(self, defaultValue: str) -> Optional[str]:
+        return super().do(defaultValue.lower())
+
+class ScreenModeDialog(MultipleChoiceDialog):
+    def __init__(self, parent, state, filesystem):
+        choices  = {"0" :"""Map to BG0. Refer to GBAtek for more information about this mode.""",
+                    "1" :"""Map to BG1. Refer to GBAtek for more information about this mode.""",
+                    "2" :"""Map to BG2. Refer to GBAtek for more information about this mode.""",
+                    "3" :"""Recommended. Map to BG3, which supports extended colors needed for normal image display."""}
+        super().__init__(parent, state, filesystem, choices, "Change Image Mapping")
+    
+    def do(self, defaultValue: str) -> Optional[int]:
+        value = super().do(defaultValue)
+        if value != None and value.isdigit():
+            return int(value)
+        return None
+
 def getDialogForType(parent, state, filesystem, operandType : OperandType) -> Optional[VerifiedDialog]:
-    compatDict = {OperandType.StandardS32           : VerifiedDialog(TextEntryDialog(parent, "Enter a number"), rangeIntCheckFunction(-(2 ** 31), (2 ** 31) - 1)),
-                  OperandType.StandardString        : VerifiedDialog(TextEntryDialog(parent, "Enter a string"), strCheckFunction()),
-                  OperandType.StandardF32           : VerifiedDialog(TextEntryDialog(parent, "Enter a decimal"), floatCheckFunction()),
-                  OperandType.StandardU16           : VerifiedDialog(TextEntryDialog(parent, "Enter a short"), rangeIntCheckFunction(0, (2 ** 16) - 1)),
+    compatDict = {OperandType.StandardS32               : VerifiedDialog(TextEntryDialog(parent, "Enter a number"), rangeIntCheckFunction(-(2 ** 31), (2 ** 31) - 1)),
+                  OperandType.StandardString            : VerifiedDialog(TextEntryDialog(parent, "Enter a string"), strCheckFunction()),
+                  OperandType.StandardF32               : VerifiedDialog(TextEntryDialog(parent, "Enter a decimal"), floatCheckFunction()),
+                  OperandType.StandardU16               : VerifiedDialog(TextEntryDialog(parent, "Enter a short"), rangeIntCheckFunction(0, (2 ** 16) - 1)),
                   
-                  OperandType.StringBackground      : BackgroundDialog(parent, state, filesystem),
+                  OperandType.StringGamemode            : GameModeDialog(parent, state, filesystem),
+                  OperandType.StringBackground          : BackgroundDialog(parent, state, filesystem),
                   
-                  OperandType.ColorComponent8       : VerifiedDialog(TextEntryDialog(parent, "Enter an 8-bit color component"), rangeIntCheckFunction(0,255)),
-                  OperandType.ColorComponent8       : VerifiedDialog(TextEntryDialog(parent, "Enter a 5-bit color component"), rangeIntCheckFunction(0,31)),
+                  OperandType.ColorComponent8           : VerifiedDialog(TextEntryDialog(parent, "Enter an 8-bit color component"), rangeIntCheckFunction(0,255)),
+                  OperandType.ColorComponent5           : VerifiedDialog(TextEntryDialog(parent, "Enter a 5-bit color component"), rangeIntCheckFunction(0,31)),
                   
-                  OperandType.IndexCharacterSlot    : VerifiedDialog(TextEntryDialog(parent, "Enter a character position slot ID"), rangeIntCheckFunction(0,7)),
-                  OperandType.ModeBackground                : VerifiedDialog(TextEntryDialog(parent, "Enter a NDS BG mode"), rangeIntCheckFunction(0,3)),
-                  OperandType.IndexEventDataCharacter       : VerifiedDialog(TextEntryDialog(parent, "Enter a character index"), rangeIntCheckFunction(0,7))}
+                  OperandType.Volume                    : VerifiedDialog(TextEntryDialog(parent, "Enter a new value for volume"), rangeFloatCheckFunction(0, 1)),
+
+                  OperandType.IndexCharacterSlot        : VerifiedDialog(TextEntryDialog(parent, "Enter a character position slot ID"), rangeIntCheckFunction(0,7)),
+                  OperandType.ModeBackground            : ScreenModeDialog(parent, state, filesystem),
+                  OperandType.IndexEventDataCharacter   : VerifiedDialog(TextEntryDialog(parent, "Enter a character index"), rangeIntCheckFunction(0,7))}
     
     if operandType in compatDict:
         return compatDict[operandType]

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Tuple
 
 from widebrim.engine.file import ReadOnlyFileInterface
-from widebrim.madhatter.hat_io.asset import LaytonPack
+from widebrim.madhatter.hat_io.asset import File, LaytonPack
 from widebrim.madhatter.hat_io.asset_script import GdScript, Instruction
 from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
 from widebrim.madhatter.common import logVerbose
@@ -131,6 +131,13 @@ class BaselineVerificationBank(ScriptVerificationBank):
             self.__parseScript(script, "logo.gds", forceContext=[Context.Base])
     
     def applyExtendedOperandTypingHeuristics(self):
+        """Unsafe but recommended. Relies on an unmodified scripting engine, but will add extended typing definitions through known information.
+        Original operand types can be restored by using their compatible base type.
+
+        This must be ran after the default heuristics to prevent extended types being overwritten.
+        """
+
+        # TODO - Check for extended types to allow this gets applied after, or apply default before
 
         instruction = None
 
@@ -196,6 +203,13 @@ class BaselineVerificationBank(ScriptVerificationBank):
         switchByOpcode(OPCODES_LT2.EventSelect, [OperandType.Integer1, OperandType.CountStoryPuzzle, OperandType.InternalEventId])
         switchByOpcode(OPCODES_LT2.DoNazobaListScreen, [OperandType.PuzzleGroupId])
         switchByOpcode(OPCODES_LT2.DrawChapter, [OperandType.IndexChapter])
+        switchByOpcode(OPCODES_LT2.PlayBGM, [OperandType.InternalSoundId, OperandType.Volume, OperandType.TimeFrameCount])
+        switchByOpcode(OPCODES_LT2.PlayBGM2, [OperandType.InternalSoundId, OperandType.Volume, OperandType.TimeDefinitionEntry])
+        switchByOpcode(OPCODES_LT2.FadeInBGM, [OperandType.Volume, OperandType.TimeFrameCount])
+        switchByOpcode(OPCODES_LT2.FadeInBGM2, [OperandType.Volume, OperandType.TimeDefinitionEntry])
+        switchByOpcode(OPCODES_LT2.FadeOutBGM, [OperandType.Volume, OperandType.TimeFrameCount])
+        switchByOpcode(OPCODES_LT2.FadeOutBGM2, [OperandType.Volume, OperandType.TimeDefinitionEntry])
+        switchByOpcode(OPCODES_LT2.StopStream, [OperandType.TimeFrameCount])
 
     def applyDefaultInstructionHeuristics(self):
         """Unsafe but recommended. Relies on an unmodified scripting engine, but will cleanup definitions from prior methods by employing known good heuristics.

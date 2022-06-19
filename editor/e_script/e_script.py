@@ -169,6 +169,23 @@ class FrameScriptEditor(editorScript):
     def __getAbstractionLevel(self):
         return 1
 
+    # TODO - Respect abstraction level
+    def getOperandTreeValue(self, instruction : Instruction, idxOperand : int) -> str:
+        definition = self.__bankInstructions.getInstructionByOpcode(int.from_bytes(instruction.opcode, byteorder='little'))
+        operand = instruction.operands[idxOperand]
+        if definition != None:
+            if (operandDef := definition.getOperand(idxOperand)) != None:
+                return str(operandDef.operandType) + ": " + str(operand.value)
+        try:
+            return str(FrameScriptEditor.CONVERSION_OPERAND_TO_COMPATIBILITY[operand.type]) + ": " + str(operand.value)
+        except KeyError:
+            if operand.type == 0xc:
+                return "Breakpoint - end execution after this instruction"
+            return "Unknown: " + str(operand.value)
+
+    def getOperandDescription(self, instruction : Instruction, idxOperand):
+        pass
+
     def __getPopupForOperandType(self, instruction : Instruction, idxOperand : int, treeItem : TreeItemId) -> None:
 
         operand = instruction.operands[idxOperand]
@@ -192,13 +209,12 @@ class FrameScriptEditor(editorScript):
             else:
                 print("Missing instruction definition")
         
-        # TODO - Need to pass file accessor (gross)
         dialog = getDialogForType(self, self.__state, self.__state.getFileAccessor(), baseType)
         if dialog != None:
             newVal = dialog.do(str(baseValue))
             if newVal != None:
                 operand.value = newVal
-                self.treeScript.SetItemText(treeItem, str(newVal))
+                self.treeScript.SetItemText(treeItem, self.getOperandTreeValue(instruction, idxOperand))
                 
     def treeScriptOnTreeItemActivated(self, event : TreeEvent):
         isInstruction, instructionDetails = self.__decodeTreeItem(event.GetItem())
@@ -371,8 +387,8 @@ class FrameScriptEditor(editorScript):
         for indexInstruction in range(script.getInstructionCount()):
             instruction = script.getInstruction(indexInstruction)
             commandRoot = self.treeScript.AppendItem(parent=rootId, text=getInstructionName(instruction.opcode), data=instruction.opcode)
-            for operand in instruction.operands:
-                self.treeScript.AppendItem(parent=commandRoot, text=getOperandName(instruction.opcode, operand), data=operand)
+            for indexOperand in range(len(instruction.operands)):
+                self.treeScript.AppendItem(parent=commandRoot, text=self.getOperandTreeValue(instruction, indexOperand), data=instruction.operands[indexOperand])
 
     def __getNewInstruction(self) -> Optional[Instruction]:
 
@@ -444,8 +460,8 @@ class FrameScriptEditor(editorScript):
             # TODO - why does this add before...?
             self.__eventScript.insertInstruction(idxInstruction + 1, command)
 
-        for operand in command.operands:
-            self.treeScript.AppendItem(parent=operandRoot, text=getOperandName(command.opcode, operand), data=operand)
+        for indexOperand, operand in enumerate(command.operands):
+            self.treeScript.AppendItem(parent=operandRoot, text=self.getOperandTreeValue(command, indexOperand), data=operand)
         return operandRoot
 
     def __insertAbove(self, command : Instruction, reference : TreeItemId) -> TreeItemId:
@@ -472,8 +488,8 @@ class FrameScriptEditor(editorScript):
             # TODO - Insert below...
             self.__eventScript.insertInstruction(idxInstruction, command)
 
-        for operand in command.operands:
-            self.treeScript.AppendItem(parent=operandRoot, text=getOperandName(command.opcode, operand), data=operand)
+        for indexOperand, operand in enumerate(command.operands):
+            self.treeScript.AppendItem(parent=operandRoot, text=self.getOperandTreeValue(command, indexOperand), data=operand)
         return operandRoot
 
     def buttonInsertBelowOnButtonClick(self, event):
