@@ -1,11 +1,18 @@
-from widebrim.engine.const import EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_EV_INF2, PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_PACK_EVENT_SCR
+from tkinter import N
+from widebrim.engine.const import EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_EV_INF2, PATH_DB_RC_ROOT, PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
 from widebrim.engine_ext.utils import substituteLanguageString
 
-from typing import List, Tuple, Type
+from typing import List, Optional, Tuple, Type
 from widebrim.engine.state.manager import Layton2GameState
 from widebrim.madhatter.common import log
-from widebrim.madhatter.hat_io.asset_dlz.ev_inf2 import EventInfoList
+from widebrim.madhatter.hat_io.asset import LaytonPack
+from widebrim.madhatter.hat_io.asset_dat.event import EventData
+from widebrim.madhatter.hat_io.asset_dlz.ev_inf2 import DlzEntryEvInf2, EventInfoList
+
+from widebrim.engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C
+from widebrim.madhatter.hat_io.asset_dlz.ev_lch import DlzEntryEventDescriptorBankNds, EventDescriptorBankNds
+from widebrim.madhatter.hat_io.asset_script import GdScript
 
 class EventExecutionGroup():
     def __init__(self, group : List[int]):
@@ -207,3 +214,183 @@ def getEvents(filesystem : WriteableFilesystemCompatibilityLayer, laytonState : 
     classifyByEventDatabase()
 
     return ((eventsTracked, eventsUntracked), eventGroups)
+
+def __createEventFromList(filesystem : WriteableFilesystemCompatibilityLayer, idEvents : List[int]):
+    
+    def getEventPaths(id) -> Tuple[Tuple[str,str], str]:
+        packId = id // 1000
+        
+        subId = id % 1000
+        if packId != 24:
+            pathPack = PATH_EVENT_SCRIPT
+        else:
+            if subId < 300:
+                pathPack = PATH_EVENT_SCRIPT_A
+            elif subId < 600:
+                pathPack = PATH_EVENT_SCRIPT_B
+            else:
+                pathPack = PATH_EVENT_SCRIPT_C
+        
+        pathPack = pathPack % packId
+        nameId = PATH_PACK_EVENT_SCR % (packId, subId)
+        nameDat = PATH_PACK_EVENT_DAT % (packId, subId)
+        return ((nameId, nameDat), pathPack)
+    
+    idEvents = list(idEvents)
+    idEvents.sort()
+
+    packOpenPath = None
+    packEvent : Optional[LaytonPack] = None
+    for id in idEvents:
+        filenames, pathPack = getEventPaths(id)
+        nameId, nameDat = filenames
+
+        if pathPack != packOpenPath:
+            if packOpenPath != None:
+                packEvent : LaytonPack
+                packEvent.files.sort(key=lambda x: x.name)
+                packEvent.save()
+                packEvent.compress()
+                filesystem.writeableFs.replaceFile(packOpenPath, packEvent.data)
+            
+            packEvent = filesystem.getPack(pathPack)
+            packOpenPath = pathPack
+        
+        # TODO - madhatter currently zeroes out music section. Not breaking but it should be copied from database (convention)
+        # TODO - rewrite laytonPack, too much unabstracted access...
+        fileEvent = GdScript()
+        fileEventData = EventData()
+        fileEvent.save()
+        fileEventData.save()
+        fileEvent.name = nameId
+        fileEventData.name = nameDat
+        packEvent.files.append(fileEvent)
+        packEvent.files.append(fileEventData)
+    
+    if packOpenPath != None:
+        packEvent : LaytonPack
+        packEvent.files.sort(key=lambda x: x.name)
+        packEvent.save()
+        packEvent.compress()
+        filesystem.writeableFs.replaceFile(packOpenPath, packEvent.data)
+
+def __createEventDatabaseEntries(filesystem : WriteableFilesystemCompatibilityLayer, state : Layton2GameState, idEvents : List[int], names : List[str] = [], addOptional : bool = False):
+    evLch = EventDescriptorBankNds()
+    evInf = EventInfoList()
+
+    if (data := filesystem.getData(substituteLanguageString(state, PATH_DB_RC_ROOT % ("%s/ev_lch.dlz")))) != None:
+        evLch.load(data)
+    if (data := filesystem.getData(substituteLanguageString(state, PATH_DB_EV_INF2))) != None:
+        evInf.load(data)
+    
+    # TODO - Sort
+    for indexEvent, id in enumerate(idEvents):
+        entry = evInf.searchForEntry(id)
+        if entry == None:
+            newEntry = DlzEntryEvInf2(id, 0, id, None, None, None)
+            evInf.addEntry(newEntry)
+        else:
+            entry.dataPuzzle = None
+            entry.indexEventViewedFlag = None
+            entry.indexStoryFlag = None
+            entry.idEvent = id
+            entry.dataSoundSet = id
+            entry.typeEvent = 0
+        
+        entry = evLch.searchForEntry(id)
+        if indexEvent < len(names):
+            nameString = names[indexEvent]
+        else:
+            nameString = "New widebrim Event"
+
+        if entry == None:
+            newEntry = DlzEntryEventDescriptorBankNds(id, nameString)
+            evLch.addEntry(newEntry)
+        else:
+            entry.description = nameString
+
+    evInf.save()
+    evInf.compress()
+    filesystem.writeableFs.replaceFile(substituteLanguageString(state, PATH_DB_EV_INF2), evInf.data)
+
+    evLch.save()
+    evLch.compress()
+    filesystem.writeableFs.replaceFile(substituteLanguageString(state, PATH_DB_RC_ROOT % ("%s/ev_lch.dlz")), evLch.data)
+
+    # TODO - this is not good, avoid using files from widebrim's state outside of the preview engine!
+    state.unloadEventInfoDb()
+
+def createBlankEvent(filesystem : WriteableFilesystemCompatibilityLayer, state : Layton2GameState, idEvent : int) -> int:
+    """Creates a template event alongside data. This adds entries for the string and event databases, alongside empty event data and an empty event script.
+    
+    Note: This will overwrite any event existing with that ID.
+
+    Args:
+        filesystem (WriteableFilesystemCompatibilityLayer): _description_
+        state (Layton2GameState): _description_
+        idEvent (int): _description_
+
+    Returns:
+        int: _description_
+    """
+
+    __createEventFromList(filesystem, [idEvent])
+    __createEventDatabaseEntries(filesystem, state, [idEvent])
+    return idEvent
+
+# TODO - Maybe just use puzzle entry
+def createBlankPuzzleEventChain(filesystem : WriteableFilesystemCompatibilityLayer, state : Layton2GameState, baseIdEvent : int, internalPuzzleId : int, externalPuzzleId : int) -> PuzzleExecutionGroup:
+    idEvents = [baseIdEvent, baseIdEvent + 1, baseIdEvent + 2, baseIdEvent + 3, baseIdEvent + 4]
+    nameEvents = ["(S)No.%3i" % externalPuzzleId, "(R)No.%3i" % externalPuzzleId, "(A)No.%3i" % externalPuzzleId, "(C)No.%3i" % externalPuzzleId, "(F)No.%3i" % externalPuzzleId]
+    
+    # TODO - Hold these open
+    evInf = EventInfoList()
+    if (data := filesystem.getData(substituteLanguageString(state, PATH_DB_EV_INF2))) != None:
+        evInf.load(data)
+
+    __createEventFromList(filesystem, idEvents)
+    __createEventDatabaseEntries(filesystem, state, idEvents, nameEvents)
+
+    for id in idEvents:
+        entryInf = evInf.searchForEntry(id)
+        if (id - baseIdEvent) < 2:
+            entryInf.dataPuzzle = internalPuzzleId
+    
+    # TODO - Entry events need to do switch gamemode and launch puzzle commands
+    return PuzzleExecutionGroup(internalPuzzleId, idEvents[0], idEvents[1], idEvents[2], idEvents[3], idEvents[4])
+
+def createBlankTeaEventChain(filesystem : WriteableFilesystemCompatibilityLayer, state : Layton2GameState, baseIdEvent : int):
+    pass
+
+def createConditionalRevisit(filesystem : WriteableFilesystemCompatibilityLayer, state : Layton2GameState, baseIdEvent : int, flagRevisit : int) -> EventConditionAwaitingViewedExecutionGroup:
+    idEvents = [baseIdEvent, baseIdEvent + 1]
+    nameEvents = ["widebrim Conditional", "widebrim Conditional 2"]
+    __createEventFromList(filesystem, idEvents)
+    __createEventDatabaseEntries(filesystem, state, idEvents, names=nameEvents)
+
+    evInf = EventInfoList()
+    if (data := filesystem.getData(substituteLanguageString(state, PATH_DB_EV_INF2))) != None:
+        evInf.load(data)
+
+    # TODO - i hope i didn't use any widebrim state accessors here...
+    baseEvInf = evInf.searchForEntry(baseIdEvent)
+    baseEvInf.typeEvent = 2
+    baseEvInf.indexEventViewedFlag = flagRevisit
+    return EventConditionAwaitingViewedExecutionGroup(flagRevisit, baseIdEvent, baseIdEvent + 1)
+
+def createConditionalRevisitAndPuzzle(filesystem : WriteableFilesystemCompatibilityLayer, state : Layton2GameState, baseIdEvent : int, flagRevisit : int, limit : int) -> EventConditionPuzzleExecutionGroup:
+    idEvents = [baseIdEvent, baseIdEvent + 1, baseIdEvent + 2]
+    nameEvents = ["widebrim Conditional", "widebrim Conditional Retry", "widebrim Conditional Achieved"]
+    __createEventFromList(filesystem, idEvents)
+    __createEventDatabaseEntries(filesystem, state, idEvents, names=nameEvents)
+
+    evInf = EventInfoList()
+    if (data := filesystem.getData(substituteLanguageString(state, PATH_DB_EV_INF2))) != None:
+        evInf.load(data)
+
+    # TODO - i hope i didn't use any widebrim state accessors here...
+    baseEvInf = evInf.searchForEntry(baseIdEvent)
+    baseEvInf.typeEvent = 5
+    baseEvInf.indexEventViewedFlag = flagRevisit
+    baseEvInf.dataPuzzle = limit
+    return EventConditionPuzzleExecutionGroup(limit, flagRevisit, idEvents[0], idEvents[1], idEvents[2])

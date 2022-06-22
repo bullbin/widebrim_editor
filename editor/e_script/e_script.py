@@ -86,7 +86,7 @@ class FrameScriptEditor(editorScript):
         self.__idEvent = idEvent
         self.__idMain = self.__idEvent // 1000
         self.__idSub = self.__idEvent % 1000
-        # self.__state.dbAutoEvent
+
         self.__mapActiveCharacterIndexToRealIndex = {}
         self.__activeCharacterImage : Optional[AnimatedImageObject] = None
         self.__setContext(Context.DramaEvent)
@@ -219,16 +219,13 @@ class FrameScriptEditor(editorScript):
     def treeScriptOnTreeItemActivated(self, event : TreeEvent):
         isInstruction, instructionDetails = self.__decodeTreeItem(event.GetItem())
         if isInstruction:
-            print("Instruction", instructionDetails[0])
             return super().treeScriptOnTreeItemActivated(event)
         else:
-            print("Instruction", instructionDetails[0], "Operand", instructionDetails[1])
             self.__getPopupForOperandType(self.__eventScript.getInstruction(instructionDetails[0]), instructionDetails[1], event.GetItem())
             event.Skip()
 
     def syncChanges(self):
         # TODO - Compile with file builders
-        print("attempt sync operation...")
         packEvent = self._filesystem.getPack(self.getEventScriptPath())
 
         # TODO - Virtual scripting
@@ -254,7 +251,7 @@ class FrameScriptEditor(editorScript):
         self.__eventData = None
         self.__eventScript = None
         if entry == None:
-            return
+            logSevere("Missing event info!")
         
         if self.__context == Context.DramaEvent:
             
@@ -275,6 +272,7 @@ class FrameScriptEditor(editorScript):
                     self.listAllCharacters.SetSelection(0)
                     self.__updateCharacterSelection()
             
+            print(self.getEventScriptPath(), PATH_PACK_EVENT_SCR % (self.__idMain, self.__idSub))
             if (data := self._filesystem.getPackedData(self.getEventScriptPath(), PATH_PACK_EVENT_SCR % (self.__idMain, self.__idSub))) != None:
                 eventScript = GdScript()
                 eventScript.load(data)

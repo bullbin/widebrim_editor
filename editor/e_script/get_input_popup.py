@@ -2,7 +2,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from editor.d_operandMultichoice import DialogMultipleChoice
 from editor.d_pickerBgx import DialogPickerBgx
 from editor.gui.command_annotator.bank import OperandCompatibility, OperandType
-from wx import TextEntryDialog, ID_OK
+from wx import TextEntryDialog, ID_OK, MessageDialog, ICON_WARNING, OK, CENTER
 
 def strCheckFunction() -> Callable[[str], Tuple[bool, Any]]:
     def output(x : str) -> bool:
@@ -68,8 +68,7 @@ class VerifiedDialog():
                 if wasAccepted:
                     return outputVal
                 else:
-                    # TODO - Error
-                    pass
+                    MessageDialog(self._dialog.GetParent(), self._msgBadEntry, "Value not Accepted", style=ICON_WARNING|OK|CENTER).ShowModal()
             else:
                 return None
 
@@ -105,8 +104,12 @@ class GameModeDialog(MultipleChoiceDialog):
                                         \nNote that the room handler is allowed to switch to the drama event gamemode in certain circumstances, so this gamemode is not guaranteed.
                                         \nTo switch rooms, you must use the 'Set next launched room' command. If you want to continue in the current room state, this is not needed.""",
                     "puzzle"        :"""""",
-                    "movie"         :"""""",
-                    "narration"     :"""""",
+                    "movie"         :"""Gamemode that performs movie playback.
+                                        \nTo use this gamemode, you must use the 'Set next played movie ID' to tell the game which movie to play.
+                                        \nThis mode requires that the gamemode submode be set to tell the game how to continue after playback has ended. This should be 'drama event', as all other modes will loop.""",
+                    "narration"     :"""Gamemode that performs the letter reading sequences.
+                                        \nNote that this gamemode uses the next event ID to decide which sequence to play. Therefore, it requires that it be called with events 10010, 10030, 13190 or 17190. Only 4 sequences are supported.
+                                        \nThis mode requires that the gamemode submode be set to tell the game how to continue after the narration sequence has ended. Since it uses the next event ID, the next gamemode submode should be 'drama event'.""",
                     "menu"          :"""""",
                     "staff"         :"""""",
                     "name"          :"""""",

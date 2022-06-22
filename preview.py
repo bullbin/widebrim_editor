@@ -1,6 +1,6 @@
 try:
     import ctypes
-    ctypes.windll.shcore.SetProcessDpiAwareness(1)
+    ctypes.windll.shcore.SetProcessDpiAwareness(0)
 except ImportError:
     pass
 
@@ -19,11 +19,6 @@ from wx import App, ID_OK, ID_CANCEL
 from editor.embed_mod import EditorWindow
 from editor.d_firstrun import DialogFirstRunWarning
 from editor.d_startup import DialogStartup
-
-#from editor.d_imp_back import DialogueImportBackground
-#from editor.d_pickerBgx import DialogPickerBgx
-#from widebrim.engine.const import LANGUAGES
-#from widebrim.engine.state.manager.state import Layton2GameState
 
 from widebrim.filesystem.compatibility import WriteableFusedFileInterface
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
