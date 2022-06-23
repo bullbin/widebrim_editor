@@ -191,13 +191,19 @@ class Layton2GameState():
     def getTimeDefinitionEntry(self, idTime):
         return self._dbTimeDef.searchForEntry(idTime)
 
+    def loadEventInfoDb(self):
+        self._dbEventInfo = EventInfoList()
+        self._dbEventInfo.load(self.__fileInterface.getData(PATH_DB_EV_INF2 % self.language.value))
+
+    def unloadEventInfoDb(self):
+        self._dbEventInfo = None
+
     def getEventInfoEntry(self, idEvent) -> Optional[DlzEntryEvInf2]:
         if self._dbEventInfo == None:
             # TODO : Load event info
             print("Bad: Event Info should have been loaded sooner!")
-            self._dbEventInfo = EventInfoList()
-            self._dbEventInfo.load(self.__fileInterface.getData(PATH_DB_EV_INF2 % self.language.value))
-        
+            self.loadEventInfoDb()
+
         return self._dbEventInfo.searchForEntry(idEvent)
     
     def setEventId(self, idEvent):

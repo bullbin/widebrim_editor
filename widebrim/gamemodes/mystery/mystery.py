@@ -241,7 +241,7 @@ class MysteryPlayer(ScreenLayerNonBlocking):
     def __doSolvedAnim(self):
         # TODO - Stamp anim is a little odd in real game, code indicates some sprite indexing. Do a better job implementing it :)
         indexMystery = self.__storedMysteryIndex - 10
-        animSolved = getBottomScreenAnimFromPath(self.__laytonStatelaytonState, PATH_ANIM_STAMP)
+        animSolved = getBottomScreenAnimFromPath(self.__laytonState, PATH_ANIM_STAMP)
 
         def update(self : MysteryPlayer, gameClockDelta):
             faderTiming.update(gameClockDelta)
