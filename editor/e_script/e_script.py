@@ -272,7 +272,6 @@ class FrameScriptEditor(editorScript):
                     self.listAllCharacters.SetSelection(0)
                     self.__updateCharacterSelection()
             
-            print(self.getEventScriptPath(), PATH_PACK_EVENT_SCR % (self.__idMain, self.__idSub))
             if (data := self._filesystem.getPackedData(self.getEventScriptPath(), PATH_PACK_EVENT_SCR % (self.__idMain, self.__idSub))) != None:
                 eventScript = GdScript()
                 eventScript.load(data)

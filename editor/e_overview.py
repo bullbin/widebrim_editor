@@ -1,5 +1,5 @@
 from typing import Dict, List, Optional, Tuple
-from editor.asset_management.event import EventConditionAwaitingViewedExecutionGroup, EventConditionPuzzleExecutionGroup, PuzzleExecutionGroup, TeaExecutionGroup, createBlankEvent
+from editor.asset_management.event import EventConditionAwaitingViewedExecutionGroup, EventConditionPuzzleExecutionGroup, PuzzleExecutionGroup, TeaExecutionGroup, createBlankEvent, createBlankPuzzleEventChain, createConditionalRevisit, createConditionalRevisitAndPuzzleLimit, getFreeEventViewedFlags
 from editor.asset_management.puzzle import PuzzleEntry, getPuzzles
 from editor.d_operandMultichoice import DialogMultipleChoice
 from editor.e_script import FrameScriptEditor
@@ -90,7 +90,7 @@ class FrameOverview(pageOverview):
 
         super().__init__(parent, id, pos, size, style, name)
         self._characters = []
-        self._eventsLoose = []
+        self._eventsLoose = ([], [])
         self._eventsGrouped = []
         self._puzzles : List[List[PuzzleEntry]] = [[],[],[]]
         self._idToPuzzleEntry : Dict[int, PuzzleEntry] = {}
@@ -340,7 +340,11 @@ class FrameOverview(pageOverview):
                             self.treeOverview.AppendItem(branchRoot, str(group) + getEventComment(group), data=group, image=self.__idImageEvent)
                     
                     elif type(entry) == PuzzleExecutionGroup:
-                        condPuzzle[entry.idInternalPuzzle] = entry
+                        # There can be duplicate events - see A Work of Art
+                        if entry.idInternalPuzzle in condPuzzle:
+                            condPuzzle[entry.idInternalPuzzle].append(entry)
+                        else:
+                            condPuzzle[entry.idInternalPuzzle] = [entry]
                     
                     else:
                         print("Unknown :: " + str(entry))
@@ -348,33 +352,46 @@ class FrameOverview(pageOverview):
             idPuzzles = list(condPuzzle.keys())
             idPuzzles.sort()
 
-            for key in idPuzzles:
-                entry = condPuzzle[key]
-                # TODO - Can reuse puzzle data
+            def addPuzzleEntryToBranch(head, entry):
+                self.treeOverview.AppendItem(head, "On initial execution" + getEventComment(entry.idBase), data=entry.idBase, image=self.__idImageEvent)
+                addIfDataNotNone(entry.idRetry, head, "On future executions while puzzle is unsolved" + getEventComment(entry.idRetry), image=self.__idImageEvent)
+                addIfDataNotNone(entry.idSkip, head, "On execution if puzzle is skipped" + getEventComment(entry.idSkip), image=self.__idImageEvent)
+                addIfDataNotNone(entry.idSolve, head, "On execution if puzzle is solved" + getEventComment(entry.idSolve), image=self.__idImageEvent)
+                addIfDataNotNone(entry.idReturnAfterSolve, head, "On future executions while puzzle is solved" + getEventComment(entry.idReturnAfterSolve), image=self.__idImageEvent)
 
+            def isPuzzleRemovable(entry):
                 info = self._state.getEventInfoEntry(entry.idBase)
                 isRemovable = False
                 if info != None and info.typeEvent == 4:
                     isRemovable = True
+                return isRemovable
+
+            for key in idPuzzles:
+                entry = condPuzzle[key][0]
 
                 if (nzLstEntry := self._state.getNazoListEntry(entry.idInternalPuzzle)) != None:
                     puzzleEntryName = "%03d - %s" % (nzLstEntry.idExternal, nzLstEntry.name)
                 else:
                     puzzleEntryName = "i%03d" % entry.idInternalPuzzle
-                
-                if isRemovable:
-                    puzzleEntryName = "Removable " + puzzleEntryName
-                    branchRoot = self.treeOverview.AppendItem(puzzleItem, puzzleEntryName, data=entry, image=self.__idRemovable)
+
+                entryGroup = condPuzzle[key]
+                if len(entryGroup) == 1:
+                    if isPuzzleRemovable(entry):
+                        branchRoot = self.treeOverview.AppendItem(puzzleItem, "Removable " + puzzleEntryName, data=entry, image=self.__idRemovable)
+                    else:
+                        branchRoot = self.treeOverview.AppendItem(puzzleItem, puzzleEntryName, data=entry, image=self.__idImagePuzzle)
+                    self.treeOverview.AppendItem(branchRoot, "Edit puzzle data...", data=entry.idInternalPuzzle, image=self.__idImagePuzzle)
+                    addPuzzleEntryToBranch(branchRoot, entry)
                 else:
-                    branchRoot = self.treeOverview.AppendItem(puzzleItem, puzzleEntryName, data=entry, image=self.__idImagePuzzle)
-
-                self.treeOverview.AppendItem(branchRoot, "Edit puzzle data...", data=entry.idInternalPuzzle, image=self.__idImagePuzzle)
-
-                self.treeOverview.AppendItem(branchRoot, "On initial execution" + getEventComment(entry.idBase), data=entry.idBase, image=self.__idImageEvent)
-                addIfDataNotNone(entry.idRetry, branchRoot, "On future executions while puzzle is unsolved" + getEventComment(entry.idRetry), image=self.__idImageEvent)
-                addIfDataNotNone(entry.idSkip, branchRoot, "On execution if puzzle is skipped" + getEventComment(entry.idSkip), image=self.__idImageEvent)
-                addIfDataNotNone(entry.idSolve, branchRoot, "On execution if puzzle is solved" + getEventComment(entry.idSolve), image=self.__idImageEvent)
-                addIfDataNotNone(entry.idReturnAfterSolve, branchRoot, "On future executions while puzzle is solved" + getEventComment(entry.idReturnAfterSolve), image=self.__idImageEvent)
+                    # TODO - Fix naming, unclear since they're the same under this paradigm
+                    puzzleRoot = self.treeOverview.AppendItem(puzzleItem, puzzleEntryName, data=entry, image=self.__idImagePuzzle)
+                    self.treeOverview.AppendItem(puzzleRoot, "Edit puzzle data...", data=entry.idInternalPuzzle, image=self.__idImagePuzzle)
+                    for entry in entryGroup:
+                        if isPuzzleRemovable(entry):
+                            branchRoot = self.treeOverview.AppendItem(puzzleRoot, "Removable " + str(entry.idBase), data=entry, image=self.__idImageEvent)
+                        else:
+                            branchRoot = self.treeOverview.AppendItem(puzzleRoot, str(entry.idBase), data=entry, image=self.__idImageEvent)
+                        addPuzzleEntryToBranch(branchRoot, entry)
 
         def generatePuzzleBranch():
             puzzleItem = self.treeOverview.AppendItem(rootItem, "Puzzles", image=self.__idImagePuzzle)
@@ -444,6 +461,35 @@ class FrameOverview(pageOverview):
             return True
         else:
             return not(eventId in idRange)
+
+    def __getPuzzleSelection(self, filterUnused=False) -> List[PuzzleEntry]:
+        if len(self._puzzles[0]) == 0:
+            self.__loadPuzzleCache()
+        if len(self._puzzles[0]) == 0:
+            return []
+
+        # TODO - Not foolproof, since not all puzzles are captured by this technique
+        idsUsed : List[int] = []
+        for group in self._eventsGrouped:
+            if type(group) == PuzzleExecutionGroup:
+                group : PuzzleExecutionGroup
+                if group.idInternalPuzzle in idsUsed:
+                    logSevere("Duplicate puzzle mapping to internal ", group.idInternalPuzzle)
+                else:
+                    idsUsed.append(group.idInternalPuzzle)
+        idsUsed.sort()
+
+        # TODO - self._idToPuzzleEntry
+        availableEntries = list(self._puzzles[0])
+
+        if filterUnused:
+            for id in idsUsed:
+                for entry in availableEntries:
+                    if entry.idInternal == id:
+                        availableEntries.remove(entry)
+                        break
+        
+        return availableEntries
 
     def __getNextFreeEventId(self, packMin = 10, packMax = 20, gap = 5, estimatePackLimit = True, excludeId = []) -> Optional[int]:
         idRange : Dict[str, List[int]]= {}
@@ -556,7 +602,8 @@ class FrameOverview(pageOverview):
             result = dlg.ShowModal()
             if result != wx.ID_OK:
                 break
-
+            
+            # Automatic from pack
             if choicesKeys.index(dlg.GetSelection()) <= (packMax - packMin):
                 packId = packMin + choicesKeys.index(dlg.GetSelection())
                 idEvent = self.__getNextFreeEventId(packId, packId)
@@ -566,6 +613,8 @@ class FrameOverview(pageOverview):
                 else:
                     # TODO - Error message from wx
                     pass
+                
+            # Automatic from any
             elif dlg.GetSelection() == choicesKeys[-2]:
                 idEvent = self.__getNextFreeEventId(packMin, packMax)
                 if idEvent != None:
@@ -574,6 +623,8 @@ class FrameOverview(pageOverview):
                 else:
                     # TODO - Error message from wx
                     pass
+            
+            # Manual
             else:
                 defaultValue = packMin * 1000
                 while True:
@@ -624,11 +675,16 @@ class FrameOverview(pageOverview):
                     idEvent = self.__doEventIdDialog(10, 19)
                     if idEvent != None:
                         # TODO - Use return to reduce recalculation of everything
-                        createBlankEvent(self._filesystem, self._state, idEvent)
+                        self._eventsLoose[0].append(createBlankEvent(self._filesystem, self._state, idEvent))
                         self._refresh()
 
                 elif idxSelection == 1:
                     
+                    availableFlagsViewed = getFreeEventViewedFlags(self._filesystem, self._state)
+                    if len(availableFlagsViewed) == 0:
+                        # TODO - wx error for ran out of flags!
+                        return super().btnCreateNewOnButtonClick(event)
+
                     choices = {"Branch on event being revisited":"""This condition creates two events: an event for first playback and an event for revisited playbacks.
                                                                     \nThis only affects event playback, so it is up to event designers whether they make major changes to the game state in the revisited event. This is (generally) atypical.""",
                                "Branch on meeting puzzle limit":"""This condition creates three events: an event for first playback, an event for revisited playbacks and an event when the amount of required solved puzzles has been met. If the puzzle limit was not met, the game will play back the revisiting event. As such, design the revisiting event with this fact in mind.
@@ -641,10 +697,37 @@ class FrameOverview(pageOverview):
                         idEvent = self.__doEventIdDialog(10, 19)
                         if idEvent != None:
                             if choicesKeys.index(dlg.GetSelection()) == 0:
-                                pass
+                                self._eventsGrouped.append(createConditionalRevisit(self._filesystem, self._state, idEvent, availableFlagsViewed[0]))
+                            else:
+                                puzzleCountDlg = VerifiedDialog(wx.TextEntryDialog(self, "Set Puzzle Count"), rangeIntCheckFunction(1, 255), "The limit must sit between 1 and 255 puzzles!")
+                                status = puzzleCountDlg.do("1")
+                                if status == None:
+                                    # TODO - go back? this whole method is bad
+                                    return super().btnCreateNewOnButtonClick(event)
+                                else:
+                                    self._eventsGrouped.append(createConditionalRevisitAndPuzzleLimit(self._filesystem, self._state, idEvent, availableFlagsViewed[0], int(status)))
+                            self._refresh()
 
                 elif idxSelection == 2:
                     idEvent = self.__doEventIdDialog(20, 26)
+                    entries = self.__getPuzzleSelection()
+
+                    choices = {}
+                    choicesToEntry : Dict[str, PuzzleEntry] = {}
+
+                    for entry in entries:
+                        name = "%03d - %s" % (entry.idExternal, entry.name)
+                        choices[name] = "Attach this event to " + entry.name
+                        choicesToEntry[name] = entry
+                    
+                    dlg = DialogMultipleChoice(self, choices, "Select Puzzle for Attachment")
+                    if dlg.ShowModal() != wx.ID_OK:
+                        return super().btnCreateNewOnButtonClick(event)
+                    
+                    entry = choicesToEntry[dlg.GetSelection()]
+                    self._eventsGrouped.append(createBlankPuzzleEventChain(self._filesystem, self._state, idEvent, entry.idInternal, entry.idExternal))
+                    self._refresh()
+
                 else:
                     idEvent = self.__doEventIdDialog(30,30)
         return super().btnCreateNewOnButtonClick(event)

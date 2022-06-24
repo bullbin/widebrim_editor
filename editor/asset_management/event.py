@@ -3,9 +3,9 @@ from widebrim.engine.const import EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PAT
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
 from widebrim.engine_ext.utils import substituteLanguageString
 
-from typing import List, Optional, Tuple, Type
+from typing import Dict, List, Optional, Tuple, Type
 from widebrim.engine.state.manager import Layton2GameState
-from widebrim.madhatter.common import log
+from widebrim.madhatter.common import log, logSevere
 from widebrim.madhatter.hat_io.asset import LaytonPack
 from widebrim.madhatter.hat_io.asset_dat.event import EventData
 from widebrim.madhatter.hat_io.asset_dlz.ev_inf2 import DlzEntryEvInf2, EventInfoList
@@ -180,6 +180,8 @@ def getEvents(filesystem : WriteableFilesystemCompatibilityLayer, laytonState : 
 
                     # Type 4 - Puzzle that disappears after solved
 
+                    # Type 3 - Unknown...
+
                     # If already viewed...
                     if entry.typeEvent == 2 or entry.typeEvent == 5:
                         if entry.idEvent + 1 in eventsUntracked:
@@ -343,18 +345,22 @@ def createBlankPuzzleEventChain(filesystem : WriteableFilesystemCompatibilityLay
     idEvents = [baseIdEvent, baseIdEvent + 1, baseIdEvent + 2, baseIdEvent + 3, baseIdEvent + 4]
     nameEvents = ["(S)No.%3i" % externalPuzzleId, "(R)No.%3i" % externalPuzzleId, "(A)No.%3i" % externalPuzzleId, "(C)No.%3i" % externalPuzzleId, "(F)No.%3i" % externalPuzzleId]
     
+    __createEventFromList(filesystem, idEvents)
+    __createEventDatabaseEntries(filesystem, state, idEvents, nameEvents)
+
     # TODO - Hold these open
     evInf = EventInfoList()
     if (data := filesystem.getData(substituteLanguageString(state, PATH_DB_EV_INF2))) != None:
         evInf.load(data)
 
-    __createEventFromList(filesystem, idEvents)
-    __createEventDatabaseEntries(filesystem, state, idEvents, nameEvents)
-
     for id in idEvents:
         entryInf = evInf.searchForEntry(id)
         if (id - baseIdEvent) < 2:
             entryInf.dataPuzzle = internalPuzzleId
+    
+    evInf.save()
+    evInf.compress()
+    filesystem.writeableFs.replaceFile(substituteLanguageString(state, PATH_DB_EV_INF2), evInf.data)
     
     # TODO - Entry events need to do switch gamemode and launch puzzle commands
     return PuzzleExecutionGroup(internalPuzzleId, idEvents[0], idEvents[1], idEvents[2], idEvents[3], idEvents[4])
@@ -376,9 +382,14 @@ def createConditionalRevisit(filesystem : WriteableFilesystemCompatibilityLayer,
     baseEvInf = evInf.searchForEntry(baseIdEvent)
     baseEvInf.typeEvent = 2
     baseEvInf.indexEventViewedFlag = flagRevisit
+
+    evInf.save()
+    evInf.compress()
+    filesystem.writeableFs.replaceFile(substituteLanguageString(state, PATH_DB_EV_INF2), evInf.data)
+
     return EventConditionAwaitingViewedExecutionGroup(flagRevisit, baseIdEvent, baseIdEvent + 1)
 
-def createConditionalRevisitAndPuzzle(filesystem : WriteableFilesystemCompatibilityLayer, state : Layton2GameState, baseIdEvent : int, flagRevisit : int, limit : int) -> EventConditionPuzzleExecutionGroup:
+def createConditionalRevisitAndPuzzleLimit(filesystem : WriteableFilesystemCompatibilityLayer, state : Layton2GameState, baseIdEvent : int, flagRevisit : int, limit : int) -> EventConditionPuzzleExecutionGroup:
     idEvents = [baseIdEvent, baseIdEvent + 1, baseIdEvent + 2]
     nameEvents = ["widebrim Conditional", "widebrim Conditional Retry", "widebrim Conditional Achieved"]
     __createEventFromList(filesystem, idEvents)
@@ -393,4 +404,47 @@ def createConditionalRevisitAndPuzzle(filesystem : WriteableFilesystemCompatibil
     baseEvInf.typeEvent = 5
     baseEvInf.indexEventViewedFlag = flagRevisit
     baseEvInf.dataPuzzle = limit
+
+    evInf.save()
+    evInf.compress()
+    filesystem.writeableFs.replaceFile(substituteLanguageString(state, PATH_DB_EV_INF2), evInf.data)
+
     return EventConditionPuzzleExecutionGroup(limit, flagRevisit, idEvents[0], idEvents[1], idEvents[2])
+
+def getUsedEventViewedFlags(filesystem : WriteableFilesystemCompatibilityLayer, state : Layton2GameState) -> Dict[int, int]:
+    evInf = EventInfoList()
+    if (data := filesystem.getData(substituteLanguageString(state, PATH_DB_EV_INF2))) != None:
+        evInf.load(data)
+    
+    output = {}
+
+    for indexEntry in range(evInf.getCountEntries()):
+        entry = evInf.getEntry(indexEntry)
+        if entry.indexEventViewedFlag != None:
+            output[entry.idEvent] = entry.indexEventViewedFlag
+    
+    return output
+
+def getFreeEventViewedFlags(filesystem : WriteableFilesystemCompatibilityLayer, state : Layton2GameState) -> List[int]:
+    """Returns a list of available flags for the EventViewed store in the save. These results are generated using event decoding heuristics so are susceptible to 'unexpected' behaviour.
+
+    Args:
+        filesystem (WriteableFilesystemCompatibilityLayer): Filesystem for event information decoding.
+        state (Layton2GameState): State used for language fetching.
+
+    Returns:
+        List[int]: List of available EventViewed flags.
+    """
+    usedFlags = getUsedEventViewedFlags(filesystem, state)
+
+    flags = []
+    for x in range(1024):
+        flags.append(x)
+    
+    for usedIndex in usedFlags.values():
+        try:
+            flags.remove(usedIndex)
+        except ValueError:
+            logSevere("Event shares EventViewed", usedIndex)
+
+    return flags
