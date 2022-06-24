@@ -1,20 +1,21 @@
 from typing import Dict, List, Optional, Tuple
-from editor.asset_management.event import EventConditionAwaitingViewedExecutionGroup, EventConditionPuzzleExecutionGroup, PuzzleExecutionGroup, TeaExecutionGroup, createBlankEvent, createBlankPuzzleEventChain, createConditionalRevisit, createConditionalRevisitAndPuzzleLimit, getFreeEventViewedFlags
+from editor.asset_management.event import EventConditionAwaitingViewedExecutionGroup, EventConditionPuzzleExecutionGroup, PuzzleExecutionGroup, TeaExecutionGroup
 from editor.asset_management.puzzle import PuzzleEntry, getPuzzles
-from editor.d_operandMultichoice import DialogMultipleChoice
 from editor.e_script import FrameScriptEditor
 from editor.e_puzzle import FramePuzzleEditor
-from editor.e_script.get_input_popup import VerifiedDialog, rangeIntCheckFunction
 from editor.gui.command_annotator.bank import ScriptVerificationBank
 from editor.asset_management.room import getPlaceGroups
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
 from widebrim.madhatter.common import logSevere
-from .nopush_editor import pageOverview
+from widebrim.madhatter.hat_io.asset_dlz.ev_inf2 import EventInfoList
+from widebrim.madhatter.hat_io.asset_placeflag import PlaceFlag
+from widebrim.madhatter.hat_io.asset_storyflag import StoryFlag
+from ..nopush_editor import pageOverview
 from widebrim.engine.state.manager import Layton2GameState
 from editor.asset_management import getCharacters, getEvents
 import wx
 
-from widebrim.engine.const import PATH_ANI, PATH_DB_RC_ROOT
+from widebrim.engine.const import PATH_ANI, PATH_DB_EV_INF2, PATH_DB_PLACEFLAG, PATH_DB_RC_ROOT, PATH_DB_STORYFLAG, PATH_PROGRESSION_DB
 from widebrim.engine_ext.utils import substituteLanguageString
 from widebrim.madhatter.hat_io.asset_image import AnimatedImage, getTransparentLaytonPaletted
 from widebrim.madhatter.hat_io.asset_dlz.ev_lch import EventDescriptorBankNds
@@ -23,11 +24,11 @@ from PIL import Image
 
 # TODO - Check if pages already open
 
-class FrameOverview(pageOverview):
+class FrameOverviewTreeGen (pageOverview):
 
     SIZE_ICONS = (16,16)
 
-    def __init__(self, parent, filesystem : WriteableFilesystemCompatibilityLayer, state : Layton2GameState, instructionBank : ScriptVerificationBank, id=wx.ID_ANY, pos=wx.DefaultPosition, size=wx.Size(640, 640), style=wx.TAB_TRAVERSAL, name=wx.EmptyString):
+    def __init__(self, parent, filesystem : WriteableFilesystemCompatibilityLayer, state : Layton2GameState, instructionBank : ScriptVerificationBank):
 
         self._bankInstructions = instructionBank
         self._filesystem = filesystem
@@ -88,7 +89,7 @@ class FrameOverview(pageOverview):
             self.__idSpecial = getImageAndSetVariable("tobj/icon.arc", size, forceImageIndex=2)
             self.__idTea = getImageAndSetVariable("subgame/tea/tea_icon.arc", size, forceImageIndex=2)
 
-        super().__init__(parent, id, pos, size, style, name)
+        super().__init__(parent)
         self._characters = []
         self._eventsLoose = ([], [])
         self._eventsGrouped = []
@@ -96,7 +97,7 @@ class FrameOverview(pageOverview):
         self._idToPuzzleEntry : Dict[int, PuzzleEntry] = {}
         # TODO - Puzzles?
 
-        self.__icons = wx.ImageList(FrameOverview.SIZE_ICONS[0], FrameOverview.SIZE_ICONS[1])
+        self.__icons = wx.ImageList(FrameOverviewTreeGen.SIZE_ICONS[0], FrameOverviewTreeGen.SIZE_ICONS[1])
         self.__idImageEvent         = -1
         self.__idImagePuzzle        = -1
         self.__idImageConditional   = -1
@@ -106,7 +107,7 @@ class FrameOverview(pageOverview):
         self.__idSpecial            = -1
         self.__idTea                = -1
         self.__useIcons = False
-        prepareIcons(FrameOverview.SIZE_ICONS)
+        prepareIcons(FrameOverviewTreeGen.SIZE_ICONS)
         
         self._state = state
         self._treeItemEvent = None
@@ -123,12 +124,12 @@ class FrameOverview(pageOverview):
             self._refresh()
             self._loaded = True
     
-    def __loadPuzzleCache(self):
+    def _loadPuzzleCache(self):
         self._puzzles = getPuzzles(self._state)
         for entry in self._puzzles[0] + self._puzzles[1] + self._puzzles[2]:
             self._idToPuzzleEntry[entry.idInternal] = entry
 
-    def __isItemWithinPathToItem(self, itemSearchEnd : wx.TreeItemId, itemSearch) -> bool:
+    def _isItemWithinPathToItem(self, itemSearchEnd : wx.TreeItemId, itemSearch) -> bool:
         if itemSearchEnd == itemSearch:
             return True
         elif itemSearchEnd == self.treeOverview.GetRootItem():
@@ -206,9 +207,9 @@ class FrameOverview(pageOverview):
 
         item = event.GetItem()
 
-        if self._treeItemEvent != None and self.__isItemWithinPathToItem(item, self._treeItemEvent):
+        if self._treeItemEvent != None and self._isItemWithinPathToItem(item, self._treeItemEvent):
             handleEventItem(item)
-        elif self._treeItemPuzzle != None and self.__isItemWithinPathToItem(item, self._treeItemPuzzle):
+        elif self._treeItemPuzzle != None and self._isItemWithinPathToItem(item, self._treeItemPuzzle):
             handlePuzzleItem(item)
         else:
             print("Unrecognised!")
@@ -399,7 +400,7 @@ class FrameOverview(pageOverview):
             wifiItem = self.treeOverview.AppendItem(puzzleItem, "WiFi", image=self.__idImageWifi)
             specialItem = self.treeOverview.AppendItem(puzzleItem, "Special", image=self.__idSpecial)
 
-            self.__loadPuzzleCache()
+            self._loadPuzzleCache()
             self._treeItemPuzzle = puzzleItem
 
             def fillPuzzleBranch(root, entryList : List[PuzzleEntry]):
@@ -429,314 +430,131 @@ class FrameOverview(pageOverview):
             for group in placeGroups:
                 self.treeOverview.AppendItem(self._treeItemPlace, "Room " + str(group.indexPlace), data=group)
 
+        def generateStoryflagBranch():
+            
+            def getStoryflagToEventMap() -> Dict[int, int]:
+                evInf = EventInfoList()
+                if (data := self._filesystem.getData(substituteLanguageString(self._state, PATH_DB_EV_INF2))) != None:
+                    evInf.load(data)
+                
+                output = {}
+
+                for indexEvInf in range(evInf.getCountEntries()):
+                    entry = evInf.getEntry(indexEvInf)
+                    if entry.indexStoryFlag != None:
+                        if entry.indexStoryFlag not in output:
+                            output[entry.indexStoryFlag] = [entry.idEvent]
+                        else:
+                            output[entry.indexStoryFlag].append(entry.idEvent)
+                
+                return output
+
+            storyFlag = StoryFlag()
+
+            if (data := self._filesystem.getPackedData(PATH_PROGRESSION_DB, PATH_DB_STORYFLAG)):
+                storyFlag.load(data)
+            
+            branchRoot = self.treeOverview.AppendItem(rootItem, "Chapter Progression")
+            flagRoot = self.treeOverview.AppendItem(branchRoot, "Chapter 0 (erroneous)")
+
+            mapStoryflagToEvent = getStoryflagToEventMap()
+
+            for group in storyFlag.flagGroups:
+
+                if group.getChapter() == 0:
+                    isEmpty = True
+                    for indexFlag in range(8):
+                        # TODO - Do we terminate early? Think so but needs checking
+                        if group.getFlag(indexFlag).type != 0:
+                            isEmpty = False
+                    if isEmpty:
+                        continue
+
+                flagRoot = self.treeOverview.AppendItem(branchRoot, "Chapter " + str(group.getChapter()))
+                for indexFlag in range(8):
+                    flag = group.getFlag(indexFlag)
+                    if flag != None:
+
+                        # TODO - There are intentional false cases, e.g. chapter 760 which refers to an impossible puzzle
+                        #        This stops the game from accidentally rolling over to chapter 0
+
+                        # Check puzzle completion
+                        if flag.type == 2:
+                            nzLstEntry = self._state.getNazoListEntry(flag.param)
+                            if nzLstEntry != None:
+                                self.treeOverview.AppendItem(flagRoot, 'Solve "%03i - %s"' % (nzLstEntry.idExternal, nzLstEntry.name))
+                            else:
+                                self.treeOverview.AppendItem(flagRoot, "Progression blocker - illegal puzzle")
+                        
+                        # Check storyflag set
+                        # TODO - Method to generate event friendly names
+                        elif flag.type == 1:
+                            if flag.param in mapStoryflagToEvent:
+                                if len(mapStoryflagToEvent[flag.param]) == 1:
+                                    self.treeOverview.AppendItem(flagRoot, "Play event " + str(mapStoryflagToEvent[flag.param][0]))
+                                else:
+                                    desc = ""
+                                    for indexEventId, eventId in enumerate(mapStoryflagToEvent[flag.param]):
+                                        if indexEventId == 0:
+                                            desc = str(eventId)
+                                        elif indexEventId != len(mapStoryflagToEvent[flag.param]) - 1:
+                                            desc = desc + ", " + str(eventId)
+                                        else:
+                                            desc = " or " + str(eventId)
+                                    self.treeOverview.AppendItem(flagRoot, "Play events " + desc)
+                            else:
+                                self.treeOverview.AppendItem(flagRoot, "Story flag " + str(flag.param) + " set")
+
+        def generateRoomProgressionBranch():
+            # TODO - Merge into place branch
+
+            branchRoot = self.treeOverview.AppendItem(rootItem, "Room Progression")
+
+            placeFlag = PlaceFlag()
+            if (data := self._filesystem.getPackedData(PATH_PROGRESSION_DB, PATH_DB_PLACEFLAG)):
+                placeFlag.load(data)
+
+            def generateBranchForRoomIndex(indexRoom):
+                roomRoot = self.treeOverview.AppendItem(branchRoot, "Room " + str(indexRoom))
+                subroomRoot = self.treeOverview.AppendItem(roomRoot, "Subroom 0: Fallback")
+
+                entry = placeFlag.entries[indexRoom]
+                for proposedSubRoom in range(1,16):
+                    chapterEntry = entry.getEntry(proposedSubRoom)
+                    chapterMin = chapterEntry.chapterStart
+                    chapterMax = chapterEntry.chapterEnd
+
+                    if chapterMin == 0 or chapterMax == 0:
+                        break
+
+                    subroomRoot = self.treeOverview.AppendItem(roomRoot, "Subroom " + str(proposedSubRoom) + ": Chapter " + str(chapterMin) + " to " + str(chapterMax))
+                    
+                    counterEntry = entry.getCounterEntry(proposedSubRoom)
+                    if counterEntry.indexEventCounter != 0:
+                        if counterEntry.decodeMode == 0:
+                            # Value same as val at index
+                            self.treeOverview.AppendItem(subroomRoot, "Event variable group " + str(counterEntry.indexEventCounter) + " equals " + str(counterEntry.unk1))
+                        elif counterEntry.decodeMode == 1:
+                            # Value different than val at index
+                            self.treeOverview.AppendItem(subroomRoot, "Event variable group " + str(counterEntry.indexEventCounter) + " doesn't equal " + str(counterEntry.unk1))
+                        elif counterEntry.decodeMode == 2:
+                            # Value less than val at index
+                            self.treeOverview.AppendItem(subroomRoot, "Event variable group " + str(counterEntry.indexEventCounter) + " greater than or equal to " + str(counterEntry.unk1))
+                        else:
+                            self.treeOverview.AppendItem(subroomRoot, "Misconfigured counter condition")
+            
+            # All rooms must have a placeflag and subroom entries
+            # By default however, empty values are zeroed so it doesn't matter
+            placeGroups = getPlaceGroups(self._filesystem)
+            generateBranchForRoomIndex(0)
+            for group in placeGroups:
+                generateBranchForRoomIndex(group.indexPlace)
+
         generateEventBranch()
         generatePuzzleBranch()
         generateCharacterBranch()
         generatePlaceBranch()
+        generateStoryflagBranch()
+        generateRoomProgressionBranch()
 
         # Generate branch for mysteries, journal, anton's diary
-    
-    def __isEventIdSafe(self, eventId : int, useGap = True, gap = 5):
-
-        idRange = []
-
-        def addToRange(listId : List[int]):
-            for id in listId:
-                if id != None:
-                    if id not in idRange:
-                        idRange.append(id)
-
-        for group in self._eventsGrouped:
-            idGroup = group.group
-            addToRange(idGroup)
-
-        for loose in self._eventsLoose:
-            addToRange(loose)
-        
-        if useGap:
-            baseIndex = (eventId // gap) * gap
-            for x in range(gap):
-                if (baseIndex + x) in idRange:
-                    return False
-            return True
-        else:
-            return not(eventId in idRange)
-
-    def __getPuzzleSelection(self, filterUnused=False) -> List[PuzzleEntry]:
-        if len(self._puzzles[0]) == 0:
-            self.__loadPuzzleCache()
-        if len(self._puzzles[0]) == 0:
-            return []
-
-        # TODO - Not foolproof, since not all puzzles are captured by this technique
-        idsUsed : List[int] = []
-        for group in self._eventsGrouped:
-            if type(group) == PuzzleExecutionGroup:
-                group : PuzzleExecutionGroup
-                if group.idInternalPuzzle in idsUsed:
-                    logSevere("Duplicate puzzle mapping to internal ", group.idInternalPuzzle)
-                else:
-                    idsUsed.append(group.idInternalPuzzle)
-        idsUsed.sort()
-
-        # TODO - self._idToPuzzleEntry
-        availableEntries = list(self._puzzles[0])
-
-        if filterUnused:
-            for id in idsUsed:
-                for entry in availableEntries:
-                    if entry.idInternal == id:
-                        availableEntries.remove(entry)
-                        break
-        
-        return availableEntries
-
-    def __getNextFreeEventId(self, packMin = 10, packMax = 20, gap = 5, estimatePackLimit = True, excludeId = []) -> Optional[int]:
-        idRange : Dict[str, List[int]]= {}
-
-        def getNextFreeEvent() -> Optional[int]:
-            genKeys = []
-            for idxPack in range((packMax - packMin) + 1):
-                idxPack = packMin + idxPack
-                if idxPack == 24:
-                    genKeys.append("24a")
-                    genKeys.append("24b")
-                    genKeys.append("24c")
-                else:
-                    genKeys.append(str(idxPack))
-
-            for key in genKeys:
-                minBase = 000
-                maxBase = 1000
-
-                if not(key[-1].isdigit()):
-                    if key[-1] == "a":
-                        maxBase = 300
-                    elif key[-1] == "b":
-                        minBase = 300
-                        maxBase = 600
-                    else:
-                        minBase = 600
-                    packKey = int(key[:-1])
-                else:
-                    packKey = int(key)
-
-                # For 24, override gap to be 10 (convention)
-                if packKey == 24:
-                    workingGap = max(gap, 10)
-                else:
-                    workingGap = gap
-
-                if key in idRange:
-                    if estimatePackLimit:
-                        if len(idRange[key]) < 60:
-                            for baseIndex in range(minBase, maxBase, workingGap):
-                                newId = (packKey * 1000) + baseIndex
-                                if newId not in idRange[key] and newId not in excludeId:
-                                    return newId
-                        else:
-                            continue
-                    else:
-                        for baseIndex in range(minBase, maxBase, workingGap):
-                            newId = (packKey * 1000) + baseIndex
-                            if newId not in idRange[key]and newId not in excludeId:
-                                return newId
-                else:
-                    return (packKey * 1000) + minBase
-            
-            return None
-
-        def getBaseIndex(idEvent : int):
-            # Observation: Event chains use maximally 5 events, so the game often separates events by 5.
-            # Not guaranteed, but for autodetection purposes it's fine
-            return (idEvent // gap) * gap
-
-        def addToRange(listId : List[int]):
-            for id in listId:
-                if id != None:
-                    packId = id // 1000
-                    subId = id % 1000
-                    
-                    packKey = str(packId)
-
-                    if packId == 24:
-                        if subId < 300:
-                            packKey = "24a"
-                        elif subId < 600:
-                            packKey = "24b"
-                        else:
-                            packKey = "24c"
-
-                    if packMin <= packId <= packMax:
-                        baseIndex = getBaseIndex(id)
-
-                        if packKey not in idRange:
-                            idRange[packKey] = [baseIndex]
-                        else:
-                            if baseIndex not in idRange[packKey]:
-                                idRange[packKey].append(baseIndex)
-
-        for group in self._eventsGrouped:
-            idGroup = group.group
-            addToRange(idGroup)
-
-        for loose in self._eventsLoose:
-            addToRange(loose)
-
-        return getNextFreeEvent()
-
-    def __doEventIdDialog(self, packMin, packMax) -> Optional[int]:
-        choices = {}
-
-        for x in range(packMin, packMax + 1):
-            choices["Automatic, Pack " + str(x)] = "Chooses the first available event ID in pack " + str(x) + "."
-        choices["Automatic, first available pack"] = "Choices the first available event ID from any pack."
-        choices["Manual ID"] = """Any ID that sits within the permitted packs will be allowed. Event IDs are 5-digit numbers, with the first 2 digits being the pack ID and the last 3 being the sub ID.
-                                  \nThe pack ID must sit in range """ + str(packMin) + "-" + str(packMax) + ", while the sub ID can be any number.\nTypically, the sub ID should end in 0 or 5."
-
-        choicesKeys = list(choices.keys())
-        idOutput = None
-
-        while True:
-            dlg = DialogMultipleChoice(self, choices, "Select an Event ID")
-            result = dlg.ShowModal()
-            if result != wx.ID_OK:
-                break
-            
-            # Automatic from pack
-            if choicesKeys.index(dlg.GetSelection()) <= (packMax - packMin):
-                packId = packMin + choicesKeys.index(dlg.GetSelection())
-                idEvent = self.__getNextFreeEventId(packId, packId)
-                if idEvent != None:
-                    idOutput = idEvent
-                    break
-                else:
-                    # TODO - Error message from wx
-                    pass
-                
-            # Automatic from any
-            elif dlg.GetSelection() == choicesKeys[-2]:
-                idEvent = self.__getNextFreeEventId(packMin, packMax)
-                if idEvent != None:
-                    idOutput = idEvent
-                    break
-                else:
-                    # TODO - Error message from wx
-                    pass
-            
-            # Manual
-            else:
-                defaultValue = packMin * 1000
-                while True:
-                    manualDlgId = VerifiedDialog(wx.TextEntryDialog(self, "Enter the Event ID"), rangeIntCheckFunction(packMin * 1000, (packMax * 1000) + 999), "The entered value must sit within the range!")
-                    idEvent = manualDlgId.do(str(defaultValue))
-                    if idEvent == None:
-                        break
-                    else:
-                        idEvent = int(idEvent)
-                        if self.__isEventIdSafe(idEvent):
-                            idOutput = idEvent
-                            break
-                        else:
-                            # TODO - Error message from wx
-                            pass
-                
-                if idOutput != None:
-                    break
-        
-        return idOutput
-
-    def btnDeleteOnButtonClick(self, event):
-        itemFocused = self.treeOverview.GetFocusedItem()
-        print(self.treeOverview.GetItemText(itemFocused))
-        return super().btnDeleteOnButtonClick(event)
-    
-    def btnCreateNewOnButtonClick(self, event):
-        itemFocused = self.treeOverview.GetFocusedItem()
-        if self.__isItemWithinPathToItem(self.treeOverview.GetFocusedItem(), self._treeItemEvent):
-            # TODO - Find branch (standard branch, puzzle branch, tea branch, etc)
-            #        Could skip a popup, maybe...
-
-            # Steps:
-            # - If the user just wants to create a standard event (e.g., one ran during interaction, one ran when exploring), ask for an ID
-            # - If the user wants to create a puzzle event, ask for the puzzle then generate a branch with first available ID
-            # - If the user wants to create a tea event, ask for the tea then generate a branch with first available ID
-
-            choices = {"Standard Sequence":"Creates a new single event sequence. This sequence will never branch and will always play the same way.",
-                       "Conditional Sequence":"Creates a new event chain that will use branching to change which sequence is played.",
-                       "Puzzle Sequence":"Creates a conditional sequence tied to a puzzle. This sequence will branch depending on whether the attached puzzle was solved or skipped, for example.",
-                       "Tea Sequence":"Creates a conditional sequence tied to a tea encounter. This sequence will branch depending on the outcome of the tea minigame."}
-            choicesKeys = list(choices.keys())
-
-            dlg = DialogMultipleChoice(self, choices, "Select New Event Type")
-            if dlg.ShowModal() == wx.ID_OK:
-                idxSelection = choicesKeys.index(dlg.GetSelection())
-                if idxSelection == 0:
-                    idEvent = self.__doEventIdDialog(10, 19)
-                    if idEvent != None:
-                        # TODO - Use return to reduce recalculation of everything
-                        self._eventsLoose[0].append(createBlankEvent(self._filesystem, self._state, idEvent))
-                        self._refresh()
-
-                elif idxSelection == 1:
-                    
-                    availableFlagsViewed = getFreeEventViewedFlags(self._filesystem, self._state)
-                    if len(availableFlagsViewed) == 0:
-                        # TODO - wx error for ran out of flags!
-                        return super().btnCreateNewOnButtonClick(event)
-
-                    choices = {"Branch on event being revisited":"""This condition creates two events: an event for first playback and an event for revisited playbacks.
-                                                                    \nThis only affects event playback, so it is up to event designers whether they make major changes to the game state in the revisited event. This is (generally) atypical.""",
-                               "Branch on meeting puzzle limit":"""This condition creates three events: an event for first playback, an event for revisited playbacks and an event when the amount of required solved puzzles has been met. If the puzzle limit was not met, the game will play back the revisiting event. As such, design the revisiting event with this fact in mind.
-                                                                   \nNote that this condition only affects event playback, not how the rooms are presented. All gameplay outside of the event will be unaffected unless modified by the puzzle limit met event.
-                                                                   \nThe event played when puzzle limit is met should change the state of the game, such that some milestone is met (and this event cannot be revisited)."""}
-                    choicesKeys = list(choices.keys())
-
-                    dlg = DialogMultipleChoice(self, choices, "Select Conditional Type")
-                    if dlg.ShowModal() == wx.ID_OK:
-                        idEvent = self.__doEventIdDialog(10, 19)
-                        if idEvent != None:
-                            if choicesKeys.index(dlg.GetSelection()) == 0:
-                                self._eventsGrouped.append(createConditionalRevisit(self._filesystem, self._state, idEvent, availableFlagsViewed[0]))
-                            else:
-                                puzzleCountDlg = VerifiedDialog(wx.TextEntryDialog(self, "Set Puzzle Count"), rangeIntCheckFunction(1, 255), "The limit must sit between 1 and 255 puzzles!")
-                                status = puzzleCountDlg.do("1")
-                                if status == None:
-                                    # TODO - go back? this whole method is bad
-                                    return super().btnCreateNewOnButtonClick(event)
-                                else:
-                                    self._eventsGrouped.append(createConditionalRevisitAndPuzzleLimit(self._filesystem, self._state, idEvent, availableFlagsViewed[0], int(status)))
-                            self._refresh()
-
-                elif idxSelection == 2:
-                    idEvent = self.__doEventIdDialog(20, 26)
-                    entries = self.__getPuzzleSelection()
-
-                    choices = {}
-                    choicesToEntry : Dict[str, PuzzleEntry] = {}
-
-                    for entry in entries:
-                        name = "%03d - %s" % (entry.idExternal, entry.name)
-                        choices[name] = "Attach this event to " + entry.name
-                        choicesToEntry[name] = entry
-                    
-                    dlg = DialogMultipleChoice(self, choices, "Select Puzzle for Attachment")
-                    if dlg.ShowModal() != wx.ID_OK:
-                        return super().btnCreateNewOnButtonClick(event)
-                    
-                    entry = choicesToEntry[dlg.GetSelection()]
-                    self._eventsGrouped.append(createBlankPuzzleEventChain(self._filesystem, self._state, idEvent, entry.idInternal, entry.idExternal))
-                    self._refresh()
-
-                else:
-                    idEvent = self.__doEventIdDialog(30,30)
-        return super().btnCreateNewOnButtonClick(event)
-    
-    def btnDuplicateOnButtonClick(self, event):
-        return super().btnDuplicateOnButtonClick(event)
-    
-    def btnEditConditionOnButtonClick(self, event):
-        return super().btnEditConditionOnButtonClick(event)
-    
-    def btnGetRefOnButtonClick(self, event):
-        return super().btnGetRefOnButtonClick(event)

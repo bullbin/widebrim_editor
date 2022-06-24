@@ -343,7 +343,7 @@ def createBlankEvent(filesystem : WriteableFilesystemCompatibilityLayer, state :
 # TODO - Maybe just use puzzle entry
 def createBlankPuzzleEventChain(filesystem : WriteableFilesystemCompatibilityLayer, state : Layton2GameState, baseIdEvent : int, internalPuzzleId : int, externalPuzzleId : int) -> PuzzleExecutionGroup:
     idEvents = [baseIdEvent, baseIdEvent + 1, baseIdEvent + 2, baseIdEvent + 3, baseIdEvent + 4]
-    nameEvents = ["(S)No.%3i" % externalPuzzleId, "(R)No.%3i" % externalPuzzleId, "(A)No.%3i" % externalPuzzleId, "(C)No.%3i" % externalPuzzleId, "(F)No.%3i" % externalPuzzleId]
+    nameEvents = ["(S)No.%03i" % externalPuzzleId, "(R)No.%03i" % externalPuzzleId, "(A)No.%03i" % externalPuzzleId, "(C)No.%03i" % externalPuzzleId, "(F)No.%03i" % externalPuzzleId]
     
     __createEventFromList(filesystem, idEvents)
     __createEventDatabaseEntries(filesystem, state, idEvents, nameEvents)
