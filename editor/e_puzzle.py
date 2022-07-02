@@ -329,6 +329,8 @@ class FramePuzzleEditor(editorPuzzle):
         
         packNazo = self._filesystem.getPack(substituteLanguageString(self.__state, pathNazo))
         self.__nazoData.save()
+
+        # TODO - Bugfix - this is old code
         packNazo.writeData(PATH_PACK_NAZO % self.__idInternal, self.__nazoData.data)
 
     def __updatePicaratValues(self, clampIndex : int):

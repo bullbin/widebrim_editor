@@ -3,8 +3,9 @@ from editor.asset_management.event import EventConditionAwaitingViewedExecutionG
 from editor.asset_management.puzzle import PuzzleEntry, getPuzzles
 from editor.e_script import FrameScriptEditor
 from editor.e_puzzle import FramePuzzleEditor
+from editor.e_room import FramePlaceEditor
 from editor.gui.command_annotator.bank import ScriptVerificationBank
-from editor.asset_management.room import getPlaceGroups
+from editor.asset_management.room import PlaceGroup, getPlaceGroups
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
 from widebrim.madhatter.common import logSevere
 from widebrim.madhatter.hat_io.asset_dlz.ev_inf2 import EventInfoList
@@ -205,12 +206,18 @@ class FrameOverviewTreeGen (pageOverview):
             else:
                 self.GetParent().AddPage(FramePuzzleEditor(self.GetParent(), self._filesystem, idInternal, self._state), self.treeOverview.GetItemText(item))
 
+        def handlePlaceItem(item):
+            groupPlace : PlaceGroup = self.treeOverview.GetItemData(item)
+            self.GetParent().AddPage(FramePlaceEditor(self.GetParent(), self._filesystem, self._state, groupPlace), self.treeOverview.GetItemText(item))
+
         item = event.GetItem()
 
         if self._treeItemEvent != None and self._isItemWithinPathToItem(item, self._treeItemEvent):
             handleEventItem(item)
         elif self._treeItemPuzzle != None and self._isItemWithinPathToItem(item, self._treeItemPuzzle):
             handlePuzzleItem(item)
+        elif self._treeItemPlace != None and self._isItemWithinPathToItem(item, self._treeItemPlace):
+            handlePlaceItem(item)
         else:
             print("Unrecognised!")
         
