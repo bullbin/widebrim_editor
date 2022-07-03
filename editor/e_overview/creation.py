@@ -511,57 +511,14 @@ class FrameOverviewTreeGen (pageOverview):
                                     self.treeOverview.AppendItem(flagRoot, "Play events " + desc)
                             else:
                                 self.treeOverview.AppendItem(flagRoot, "Story flag " + str(flag.param) + " set")
-
-        def generateRoomProgressionBranch():
-            # TODO - Merge into place branch
-
-            branchRoot = self.treeOverview.AppendItem(rootItem, "Room Progression")
-
-            placeFlag = PlaceFlag()
-            if (data := self._filesystem.getPackedData(PATH_PROGRESSION_DB, PATH_DB_PLACEFLAG)):
-                placeFlag.load(data)
-
-            def generateBranchForRoomIndex(indexRoom):
-                roomRoot = self.treeOverview.AppendItem(branchRoot, "Room " + str(indexRoom))
-                subroomRoot = self.treeOverview.AppendItem(roomRoot, "Subroom 0: Fallback")
-
-                entry = placeFlag.entries[indexRoom]
-                for proposedSubRoom in range(1,16):
-                    chapterEntry = entry.getEntry(proposedSubRoom)
-                    chapterMin = chapterEntry.chapterStart
-                    chapterMax = chapterEntry.chapterEnd
-
-                    if chapterMin == 0 or chapterMax == 0:
-                        break
-
-                    subroomRoot = self.treeOverview.AppendItem(roomRoot, "Subroom " + str(proposedSubRoom) + ": Chapter " + str(chapterMin) + " to " + str(chapterMax))
-                    
-                    counterEntry = entry.getCounterEntry(proposedSubRoom)
-                    if counterEntry.indexEventCounter != 0:
-                        if counterEntry.decodeMode == 0:
-                            # Value same as val at index
-                            self.treeOverview.AppendItem(subroomRoot, "Event variable group " + str(counterEntry.indexEventCounter) + " equals " + str(counterEntry.unk1))
-                        elif counterEntry.decodeMode == 1:
-                            # Value different than val at index
-                            self.treeOverview.AppendItem(subroomRoot, "Event variable group " + str(counterEntry.indexEventCounter) + " doesn't equal " + str(counterEntry.unk1))
-                        elif counterEntry.decodeMode == 2:
-                            # Value less than val at index
-                            self.treeOverview.AppendItem(subroomRoot, "Event variable group " + str(counterEntry.indexEventCounter) + " greater than or equal to " + str(counterEntry.unk1))
-                        else:
-                            self.treeOverview.AppendItem(subroomRoot, "Misconfigured counter condition")
-            
-            # All rooms must have a placeflag and subroom entries
-            # By default however, empty values are zeroed so it doesn't matter
-            placeGroups = getPlaceGroups(self._filesystem)
-            generateBranchForRoomIndex(0)
-            for group in placeGroups:
-                generateBranchForRoomIndex(group.indexPlace)
+        
+        # TODO - Add way to access progression marker for room 0 (empty by default!)
+        # TODO - Display progression markers per-room
 
         generateEventBranch()
         generatePuzzleBranch()
         generateCharacterBranch()
         generatePlaceBranch()
         generateStoryflagBranch()
-        generateRoomProgressionBranch()
 
         # Generate branch for mysteries, journal, anton's diary
