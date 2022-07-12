@@ -1,9 +1,7 @@
-from tkinter import N
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from editor.asset_management.plz_txt.jiten import createNextNewRoomTitleId, getFreeRoomJitenNameTagId, getUsedRoomNameTags
 from editor.asset_management.room import PlaceGroup, getPackPathForPlaceIndex
 from editor.d_operandMultichoice import DialogMultipleChoice
-from editor.e_room.utils import getShortenedString
 from editor.e_script.get_input_popup import VerifiedDialog
 from .treeGroups import TreeGroupBackgroundAnimation, TreeGroupEventSpawner, TreeGroupExit, TreeGroupHintCoin, TreeGroupTObj, TreeObjectPlaceData
 from editor.nopush_editor import editorRoom
@@ -18,6 +16,8 @@ from pygame.image import tostring
 
 from widebrim.madhatter.hat_io.asset_dat.place import PlaceData, PlaceDataNds
 from widebrim.madhatter.hat_io.asset_placeflag import PlaceFlag
+
+# TODO - AutoEvent
 
 class FramePlaceEditor(editorRoom):
 
@@ -83,6 +83,10 @@ class FramePlaceEditor(editorRoom):
         return super().treeStateProgressionOnTreeSelChanged(event)
 
     def treeParamOnTreeSelChanged(self, event):
+        # HACK - Method called when tree is broken. Workaround, see https://github.com/wxWidgets/Phoenix/issues/1500
+        if not(self.treeParam):
+            return super().treeParamOnTreeSelChanged(event)
+        
         item = self.treeParam.GetFocusedItem()
         print(self.treeParam.GetItemText(item), "->", self.treeParam.GetItemData(item))
 
@@ -135,7 +139,7 @@ class FramePlaceEditor(editorRoom):
             for name in names:
                 if len(uniqueNames[name]) == 1:
                     choices[name] = name
-                    choicesToKeys[name] = uniqueNames[name]
+                    choicesToKeys[name] = uniqueNames[name][0]
                 else:
                     for indexKey, key in enumerate(uniqueNames[name]):
                         newName = "[Copy %i] %s" % (indexKey, name)
@@ -157,6 +161,17 @@ class FramePlaceEditor(editorRoom):
                 if newName != None:
                     return createNextNewRoomTitleId(self._state, newName)
 
+        def getBackgroundDevoidOfControl(treeGroup) -> Surface:
+            pathBgMain = PATH_PLACE_BG % self._getActiveState().bgMainId
+            background = getImageFromPath(self._state, pathBgMain)
+            if background == None:
+                background = self.__invalidSurface
+
+            for spawner in self._treeItemsBgAni + self._treeItemsEventSpawner + self._treeItemsExits + self._treeItemsTObj + self._treeItemsHintCoin:
+                if spawner != treeGroup:
+                    spawner.renderSelectionLine(background)
+            return background
+
         item = self.treeParam.GetSelection()
         if item == self._treeItemName:
             newId = modifyName()
@@ -166,12 +181,20 @@ class FramePlaceEditor(editorRoom):
         for obj in self._treeItemsTObj + self._treeItemsEventSpawner + self._treeItemsHintCoin + self._treeItemsBgAni + self._treeItemsExits:
             obj : TreeObjectPlaceData
             if obj.isItemSelected(item):
-                print("Modified: %s" % str(obj.modifyItem(self._state, item, self, Surface((256,192)))))
+                result = obj.modifyItem(self._state, self.treeParam, item, self, getBackgroundDevoidOfControl(obj))
+                print("Modified: %s" % self.treeParam.GetItemText(item))
+                if result.backgroundRefresh:
+                    self._generateBackgrounds()
+
                 return super().treeParamOnTreeItemActivated(event)
         print("Cannot edit!")
         return super().treeParamOnTreeItemActivated(event)
 
     def _getActiveState(self) -> Optional[PlaceDataNds]:
+        # HACK - Method called when tree is broken. Workaround, see https://github.com/wxWidgets/Phoenix/issues/1500
+        if not(self.treeStateProgression):
+            return self.__lastValidSuggestion
+
         selection = self.treeStateProgression.GetSelection()
         if selection in self._treeToPlaceData:
             self.__lastValidSuggestion = selection

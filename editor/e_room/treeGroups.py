@@ -1,15 +1,21 @@
 from __future__ import annotations
 from typing import Dict, Optional
+from editor.d_operandMultichoice import DialogMultipleChoice
 from editor.e_room.modifiers import modifyBoundary, modifyEventSelection, modifySpritePath
 from editor.e_room.utils import getShortenedString
 from widebrim.engine.const import PATH_EXT_EVENT
 from widebrim.engine.state.manager.state import Layton2GameState
 from widebrim.gamemodes.room.const import PATH_ANIM_BGANI, PATH_FILE_HINTCOIN, PATH_FILE_TOBJ, PATH_PACK_TOBJ
 from widebrim.madhatter.hat_io.asset_dat.place import BgAni, EventEntry, Exit, TObjEntry, HintCoin
-from wx import TreeCtrl, TreeItemId
+from wx import TreeCtrl, TreeItemId, ID_OK
 from pygame import Surface, Rect
 from pygame.draw import rect as drawRectangle
 from pygame.draw import circle as drawCircle
+
+class RefreshInformation():
+    def __init__(self, fullTreeRefresh = False, backgroundRefresh = False):
+        self.fullTreeRefresh = fullTreeRefresh
+        self.backgroundRefresh = backgroundRefresh
 
 class TreeObjectPlaceData():
 
@@ -25,7 +31,7 @@ class TreeObjectPlaceData():
 
     def isValid(self) -> bool:
         return False
-    
+
     def renderSelectionLine(self, surface : Surface):
         """Render this group as a selection boundary on a surface.
 
@@ -74,8 +80,8 @@ class TreeObjectPlaceData():
         """
         return False
     
-    def modifyItem(self, state : Layton2GameState, selectedId : TreeItemId, parent, previewImage : Surface) -> bool:
-        return False
+    def modifyItem(self, state : Layton2GameState, treeCtrl : TreeCtrl, selectedId : TreeItemId, parent, previewImage : Surface) -> RefreshInformation:
+        return RefreshInformation()
     
     @staticmethod
     def fromPlaceData(data) -> TreeObjectPlaceData:
@@ -104,6 +110,39 @@ class TreeGroupTObj(TreeObjectPlaceData):
         if self.__tObj.idTObj != -1:
             return state.getFileAccessor().getPackedString(PATH_PACK_TOBJ % state.language.value, PATH_FILE_TOBJ % self.__tObj.idTObj)
         return state.getFileAccessor().getPackedString(PATH_PACK_TOBJ % state.language.value, PATH_FILE_HINTCOIN)
+
+    def modifyItem(self, state: Layton2GameState, treeCtrl : TreeCtrl, selectedId: TreeItemId, parent, previewImage: Surface) -> RefreshInformation:
+        if self._treeRoot != None:
+            if selectedId == self.itemChar:
+                choices = {"Layton":"Layton will appear in the text window for this comment.", "Luke":"Luke will appear in the text window for this comment."}
+                dlg = DialogMultipleChoice(parent, choices, "Change Comment Character")
+                try:
+                    dlg.SetSelection({0:"Layton", 1:"Luke"}[self.__tObj.idChar])
+                except KeyError:
+                    pass
+                mode = dlg.ShowModal()
+                if mode == ID_OK:
+                    if dlg.GetSelection() == "Layton":
+                        self.__tObj.idChar = 0
+                    else:
+                        self.__tObj.idChar = 1
+                    treeCtrl.SetItemText(selectedId, "Speaker: %s" % dlg.GetSelection())
+                    treeCtrl.SetItemData(selectedId, self.__tObj.idChar)
+                return RefreshInformation()
+            elif selectedId == self.itemComment:
+                # TODO
+                return super().modifyItem(state, treeCtrl, selectedId, parent, previewImage)
+            else:
+                boundaryX = self.__tObj.bounding.x
+                boundaryY = self.__tObj.bounding.y
+                width = self.__tObj.bounding.width
+                height = self.__tObj.bounding.height
+
+                modifyBoundary(parent, state, previewImage, self.__tObj.bounding, color=TreeGroupTObj.COLOR_LINE)
+                changed = boundaryX != self.__tObj.bounding.x or boundaryY != self.__tObj.bounding.y or width != self.__tObj.bounding.width or height != self.__tObj.bounding.height
+                return RefreshInformation(backgroundRefresh=changed)
+
+        return super().modifyItem(state, treeCtrl, selectedId, parent, previewImage)
 
     def createTreeItems(self, state : Layton2GameState, treeCtrl : TreeCtrl, branchRoot : TreeItemId, index : Optional[int] = None):
         self._createRootItem(treeCtrl, branchRoot, "Comment", index)
@@ -152,9 +191,9 @@ class TreeGroupEventSpawner(TreeObjectPlaceData):
             return selectedId == self.itemBounding or selectedId == self.itemImage or selectedId == self.itemIdEvent
         return False
 
-    def modifyItem(self, state: Layton2GameState, selectedId: TreeItemId, parent, previewImage : Surface) -> bool:
+    def modifyItem(self, state: Layton2GameState, treeCtrl : TreeCtrl, selectedId: TreeItemId, parent, previewImage : Surface) -> RefreshInformation:
         if not(self.isItemSelected(selectedId)):
-            return super().modifyItem(state, selectedId, parent, previewImage)
+            return super().modifyItem(state, treeCtrl, selectedId, parent, previewImage)
         
         if selectedId == self.itemBounding:
             # TODO - Offer way to infer from sprite boundary, either move sprite position or change boundary (should merge at some point with sprite in preview)
@@ -163,18 +202,19 @@ class TreeGroupEventSpawner(TreeObjectPlaceData):
             width = self.__eventEntry.bounding.width
             height = self.__eventEntry.bounding.height
 
-            modifyBoundary(parent, state, previewImage, self.__eventEntry.bounding)
+            modifyBoundary(parent, state, previewImage, self.__eventEntry.bounding, color=TreeGroupEventSpawner.COLOR_LINE)
+            changed = boundaryX != self.__eventEntry.bounding.x or boundaryY != self.__eventEntry.bounding.y or width != self.__eventEntry.bounding.width or height != self.__eventEntry.bounding.height
+            return RefreshInformation(backgroundRefresh=changed)
 
-            return boundaryX != self.__eventEntry.bounding.x or boundaryY != self.__eventEntry.bounding.y or width != self.__eventEntry.bounding.width or height != self.__eventEntry.bounding.height
         elif selectedId == self.itemImage:
             idImage = self.__eventEntry.idImage
             modifySpritePath(parent, state, previewImage, PATH_EXT_EVENT % self.__eventEntry.idImage)
-            # TODO - Correct return, rewrite item
+            return RefreshInformation(backgroundRefresh=False)
+            # TODO - Correct return, change background
         else:
             idEvent = self.__eventEntry.idEvent
             self.__eventEntry.idEvent = modifyEventSelection(parent, state, self.__eventEntry.idEvent)
-            return idEvent != self.__eventEntry.idEvent
-        return False
+            return super().modifyItem(state, treeCtrl, selectedId, parent, previewImage)
 
     def renderSelectionLine(self, surface: Surface):
         drawRectangle(surface, TreeGroupEventSpawner.COLOR_LINE, Rect(self.__eventEntry.bounding.x, self.__eventEntry.bounding.y, self.__eventEntry.bounding.width, self.__eventEntry.bounding.height), width=3)
@@ -215,6 +255,21 @@ class TreeGroupHintCoin(TreeObjectPlaceData):
     def renderSelectionLine(self, surface: Surface):
         drawRectangle(surface, TreeGroupHintCoin.COLOR_LINE, Rect(self.__hintEntry.bounding.x, self.__hintEntry.bounding.y, self.__hintEntry.bounding.width, self.__hintEntry.bounding.height), width=3)
 
+    def isItemSelected(self, selectedId: TreeItemId) -> bool:
+        if self._treeRoot != None:
+            return selectedId == self.itemBounding
+        return False
+
+    def modifyItem(self, state: Layton2GameState, treeCtrl : TreeCtrl, selectedId: TreeItemId, parent, previewImage: Surface) -> RefreshInformation:
+        boundaryX = self.__hintEntry.bounding.x
+        boundaryY = self.__hintEntry.bounding.y
+        width = self.__hintEntry.bounding.width
+        height = self.__hintEntry.bounding.height
+
+        modifyBoundary(parent, state, previewImage, self.__hintEntry.bounding, color=TreeGroupHintCoin.COLOR_LINE)
+        changed = boundaryX != self.__hintEntry.bounding.x or boundaryY != self.__hintEntry.bounding.y or width != self.__hintEntry.bounding.width or height != self.__hintEntry.bounding.height
+        return RefreshInformation(backgroundRefresh=changed)
+
     @staticmethod
     def fromPlaceData(data : HintCoin) -> TreeGroupHintCoin:
         output = TreeGroupHintCoin()
@@ -230,7 +285,7 @@ class TreeGroupBackgroundAnimation(TreeObjectPlaceData):
         self.__bgAniEntry   : BgAni = BgAni()
         self.itemPos        : Optional[TreeItemId] = None
         self.itemBgPath     : Optional[TreeItemId] = None
-    
+
     def createTreeItems(self, state : Layton2GameState, treeCtrl : TreeCtrl, branchRoot : TreeItemId, index : Optional[int] = None):
         self._createRootItem(treeCtrl, branchRoot, "Background Animation", index)
         self.itemBgPath = treeCtrl.AppendItem(self._treeRoot, "Image: %s" % (PATH_ANIM_BGANI % self.__bgAniEntry.name), data=self.__bgAniEntry.name)
@@ -257,7 +312,7 @@ class TreeGroupExit(TreeObjectPlaceData):
                                                     3:"Arrow, right",
                                                     4:"Arrow, forwards",
                                                     6:"Arrow, backwards-left",
-                                                    7:"Arrow, backwards-right",}
+                                                    7:"Arrow, backwards-right"}
 
     MAP_TYPE_TO_OPTIONS : Dict[int, str] = {0:"Room, move mode only",
                                             1:"Room, tap anytime",
@@ -279,6 +334,91 @@ class TreeGroupExit(TreeObjectPlaceData):
         self.itemArrowImage         : Optional[TreeItemId] = None
         self.itemExitType           : Optional[TreeItemId] = None
         self.itemExitTermination    : Optional[TreeItemId] = None
+
+    def isItemSelected(self, selectedId: TreeItemId) -> bool:
+        if self._treeRoot != None:
+            return selectedId in [self.itemBounding, self.itemSound, self.itemPosTransition, self.itemArrowImage, self.itemExitType, self.itemExitTermination]
+        return super().isItemSelected(selectedId)
+
+    def modifyItem(self, state: Layton2GameState, treeCtrl: TreeCtrl, selectedId: TreeItemId, parent, previewImage: Surface) -> RefreshInformation:
+
+        def doMultipleChoiceDialogFromKeyBank(bankComments : Dict[int, str], bankChoices : Dict[int, str], title : str, currentChoice : int, treeStr : str):
+            choicesToKey = {}
+            choices = {}
+            for key in bankComments:
+                if key in bankChoices:
+                    choices[bankChoices[key]] = bankComments[key]
+                    choicesToKey[bankChoices[key]] = key
+            
+            dlg = DialogMultipleChoice(parent, choices, title)
+            try:
+                dlg.SetSelection(bankChoices[currentChoice])
+            except KeyError:
+                pass
+            if dlg.ShowModal() == ID_OK:
+                newId = choicesToKey[dlg.GetSelection()]
+                treeCtrl.SetItemText(selectedId, treeStr % bankChoices[newId])
+                treeCtrl.SetItemData(selectedId, newId)
+                return True
+            return False
+
+        if self.isItemSelected(selectedId):
+            if selectedId == self.itemBounding:
+                boundaryX = self.__placeExit.bounding.x
+                boundaryY = self.__placeExit.bounding.y
+                width = self.__placeExit.bounding.width
+                height = self.__placeExit.bounding.height
+
+                modifyBoundary(parent, state, previewImage, self.__placeExit.bounding, color=TreeGroupExit.COLOR_LINE)
+                changed = boundaryX != self.__placeExit.bounding.x or boundaryY != self.__placeExit.bounding.y or width != self.__placeExit.bounding.width or height != self.__placeExit.bounding.height
+                return RefreshInformation(backgroundRefresh=changed)
+            
+            elif selectedId == self.itemArrowImage:
+                mapExitIdToComments = {0:"A hand pointing towards the bottom-left will show when in move mode.",
+                                       5:"A yellow ground arrow pointing upwards will show when in move mode.",
+                                       2:"A yellow ground arrow pointing downwards will show when in move mode.",
+                                       1:"A yellow ground arrow pointing left will show when in move mode.",
+                                       3:"A yellow ground arrow pointing right will show when in move mode.",
+                                       4:"A yellow ground arrow pointing forwards will show when in move mode.",
+                                       6:"A yellow ground arrow pointing backwards-left will show when in move mode.",
+                                       7:"A yellow ground arrow pointing backwards-right will show when in move mode."}
+                
+                changed = doMultipleChoiceDialogFromKeyBank(mapExitIdToComments, TreeGroupExit.MAP_ID_TO_IMAGE_DESCRIPTION, "Change Exit Image",
+                                                            self.__placeExit.idImage, "Exit Image: %s")
+                return RefreshInformation()
+            
+            elif selectedId == self.itemSound:
+                mapNoiseToComments : Dict[int, str] = {2:"No noise will be made. This is ignored if using this exit spawns an event.",
+                                                       0:"Default footsteps walking sound. This is ignored if using this exit spawns an event.",
+                                                       1:"Wooden door creaking noise. This is ignored if using this exit spawns an event.",
+                                                       3:"Wooden door creaking noise (duplicate). This is ignored if using this exit spawns an event.",
+                                                       4:"Loud metallic sliding door noise. This is ignored if using this exit spawns an event."}
+                changed = doMultipleChoiceDialogFromKeyBank(mapNoiseToComments, TreeGroupExit.MAP_NOISE_DESCRIPTION, "Change Sound",
+                                                            self.__placeExit.idSound, "Sound: %s")
+                return RefreshInformation()
+            
+            elif selectedId == self.itemExitTermination:
+                while True:
+                    choices = {"Room":"Using this exit will move Layton and Luke into another room.",
+                               "Event":"Using this exit will cause an event to playback."}
+                    dlg = DialogMultipleChoice(parent, choices, "Change Exit Destination")
+                    if self.__placeExit.canSpawnEvent():
+                        dlg.SetSelection("Event")
+                    else:
+                        dlg.SetSelection("Room")
+                    
+                    if dlg.ShowModal() == ID_OK:
+                        # TODO - Event and room trees, also handling wrong type
+                        pass
+                    return RefreshInformation()
+            
+            elif selectedId == self.itemExitType:
+                pass
+
+            elif selectedId == self.itemPosTransition:
+                pass
+                        
+        return super().modifyItem(state, treeCtrl, selectedId, parent, previewImage)
 
     def createTreeItems(self, state : Layton2GameState, treeCtrl : TreeCtrl, branchRoot : TreeItemId, index : Optional[int] = None):
 

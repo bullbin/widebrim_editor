@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 from editor.asset_management.event import EventConditionAwaitingViewedExecutionGroup, EventConditionPuzzleExecutionGroup, PuzzleExecutionGroup, TeaExecutionGroup
 from editor.asset_management.puzzle import PuzzleEntry, getPuzzles
 from editor.e_script import FrameScriptEditor
@@ -7,21 +7,18 @@ from editor.e_room import FramePlaceEditor
 from editor.gui.command_annotator.bank import ScriptVerificationBank
 from editor.asset_management.room import PlaceGroup, getPlaceGroups
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
-from widebrim.madhatter.common import logSevere
 from widebrim.madhatter.hat_io.asset_dlz.ev_inf2 import EventInfoList
-from widebrim.madhatter.hat_io.asset_placeflag import PlaceFlag
 from widebrim.madhatter.hat_io.asset_storyflag import StoryFlag
 from ..nopush_editor import pageOverview
 from widebrim.engine.state.manager import Layton2GameState
 from editor.asset_management import getCharacters, getEvents
 import wx
 
-from widebrim.engine.const import PATH_ANI, PATH_DB_EV_INF2, PATH_DB_PLACEFLAG, PATH_DB_RC_ROOT, PATH_DB_STORYFLAG, PATH_PROGRESSION_DB
+from widebrim.engine.const import PATH_DB_EV_INF2, PATH_DB_RC_ROOT, PATH_DB_STORYFLAG, PATH_PROGRESSION_DB
 from widebrim.engine_ext.utils import substituteLanguageString
-from widebrim.madhatter.hat_io.asset_image import AnimatedImage, getTransparentLaytonPaletted
 from widebrim.madhatter.hat_io.asset_dlz.ev_lch import EventDescriptorBankNds
-from PIL.Image import Image as ImageType
-from PIL import Image
+
+from editor.icons.getIconFromRom import getImageAndSetVariable
 
 # TODO - Check if pages already open
 
@@ -30,67 +27,11 @@ class FrameOverviewTreeGen (pageOverview):
     SIZE_ICONS = (16,16)
 
     def __init__(self, parent, filesystem : WriteableFilesystemCompatibilityLayer, state : Layton2GameState, instructionBank : ScriptVerificationBank):
-
+        super().__init__(parent)
         self._bankInstructions = instructionBank
         self._filesystem = filesystem
+        self._state = state
 
-        # TODO - Maybe make class variable. Should only load once though
-        def prepareIcons(size : Tuple[int,int]):
-
-            def getFrameOfImage(aniPath : str, frameIndex=0) -> Optional[ImageType]:
-                if (data := self._filesystem.getData(PATH_ANI % aniPath)) != None:
-                    if len(aniPath) > 3:
-                        if aniPath[-3:] == "arc":
-                            image = AnimatedImage.fromBytesArc(data)
-                        else:
-                            image = AnimatedImage.fromBytesArj(data)
-
-                        if image != None and len(image.frames) > frameIndex and frameIndex >= 0:
-                            image = image.frames[frameIndex].getComposedFrame()
-                            if image.mode != "RGBA":
-                                image = getTransparentLaytonPaletted(image)
-                                if image.width != image.height:
-                                    dim = max(image.width, image.height)
-                                    output = Image.new("RGBA", (dim,dim))
-                                    marginLeft = (dim - image.width) // 2
-                                    marginUp = (dim - image.height) // 2
-                                    output.paste(image, (marginLeft, marginUp))
-                                    image = output
-                            return image
-                return None
-            
-            def pillowToWx(image : ImageType, resize : Optional[Tuple[int,int]] = None) -> wx.Bitmap:
-                if resize != None:
-                    image = image.resize(size)
-                
-                output = wx.Bitmap.FromBufferRGBA(image.width, image.height, image.tobytes())
-                return output
-            
-            def getThumbnailImage(aniPath : str, resize=(16,16), forceImageIndex=0) -> Optional[wx.Bitmap]:
-                image = getFrameOfImage(aniPath, frameIndex=forceImageIndex)
-                if image != None:
-                    image = pillowToWx(image, resize=resize)
-                    return image
-                return None
-            
-            def getImageAndSetVariable(aniPath : str, resize=(16,16), forceImageIndex=0) -> int:
-                image = getThumbnailImage(aniPath, resize, forceImageIndex)
-                if image != None:
-                    self.__icons.Add(image)
-                    self.__useIcons = True
-                    return self.__icons.GetImageCount() - 1
-                return -1
-
-            self.__idImagePuzzle = getImageAndSetVariable("event/nazo_icon.arc", size)
-            self.__idImageEvent = getImageAndSetVariable("subgame/photo/check_icon.arc", size)
-            self.__idImageConditional = getImageAndSetVariable("event/diary_icon.arc", size)
-            self.__idImageBad = getImageAndSetVariable("map/icon_buttons.arc", size)
-            self.__idImageWifi = getImageAndSetVariable("menu/wifi/wifi_ant.arj", size, forceImageIndex=3)
-            self.__idRemovable = getImageAndSetVariable("nazo/onoff/q49_x.arc", size)
-            self.__idSpecial = getImageAndSetVariable("tobj/icon.arc", size, forceImageIndex=2)
-            self.__idTea = getImageAndSetVariable("subgame/tea/tea_icon.arc", size, forceImageIndex=2)
-
-        super().__init__(parent)
         self._characters = []
         self._eventsLoose = ([], [])
         self._eventsGrouped = []
@@ -98,26 +39,30 @@ class FrameOverviewTreeGen (pageOverview):
         self._idToPuzzleEntry : Dict[int, PuzzleEntry] = {}
         # TODO - Puzzles?
 
-        self.__icons = wx.ImageList(FrameOverviewTreeGen.SIZE_ICONS[0], FrameOverviewTreeGen.SIZE_ICONS[1])
-        self.__idImageEvent         = -1
-        self.__idImagePuzzle        = -1
-        self.__idImageConditional   = -1
-        self.__idImageBad           = -1
-        self.__idImageWifi          = -1
-        self.__idRemovable          = -1
-        self.__idSpecial            = -1
-        self.__idTea                = -1
         self.__useIcons = False
-        prepareIcons(FrameOverviewTreeGen.SIZE_ICONS)
+        self.__icons = wx.ImageList(FrameOverviewTreeGen.SIZE_ICONS[0], FrameOverviewTreeGen.SIZE_ICONS[1])
+
+        def useIconsIfFound(pathImage : str, forceImageIndex : int = 0):
+            output = getImageAndSetVariable(self._filesystem, pathImage, self.__icons, forceImageIndex=forceImageIndex, resize=FrameOverviewTreeGen.SIZE_ICONS)
+            if output != -1:
+                self.__useIcons = True
+            return output
         
-        self._state = state
+        self.__idImagePuzzle        = useIconsIfFound("event/nazo_icon.arc")
+        self.__idImageEvent         = useIconsIfFound("subgame/photo/check_icon.arc")
+        self.__idImageConditional   = useIconsIfFound("event/diary_icon.arc")
+        self.__idImageBad           = useIconsIfFound("map/icon_buttons.arc")
+        self.__idImageWifi          = useIconsIfFound("menu/wifi/wifi_ant.arj", forceImageIndex=3)
+        self.__idRemovable          = useIconsIfFound("nazo/onoff/q49_x.arc")
+        self.__idSpecial            = useIconsIfFound("tobj/icon.arc", forceImageIndex=2)
+        self.__idTea                = useIconsIfFound("subgame/tea/tea_icon.arc", forceImageIndex=2)
+        
         self._treeItemEvent = None
         self._treeItemPuzzle = None
         self._treeItemCharacter = None
         self._treeItemPlace = None
+        
         self._loaded = False
-        self._areCommentsLoaded = False
-
         self.GetParent().SetDoubleBuffered(True)
     
     def ensureLoaded(self):
@@ -225,26 +170,15 @@ class FrameOverviewTreeGen (pageOverview):
             
         return super().treeOverviewOnTreeItemActivated(event)
 
-    def setCommentStatus(self, status : bool):
-        if status != self._areCommentsLoaded:
-            self._areCommentsLoaded = status
-            self._refresh()
-    
-    def triggerReloadEventComment(self, eventId : int):
-        # TODO - Filter branch by event, might need map to do this easily
-        self._refresh()
-
     def _refresh(self):
         # TODO - Don't want to reload this every time!
         self._characters = getCharacters(self._state)
         self._eventsLoose, self._eventsGrouped = getEvents(self._filesystem, self._state)
 
+        # TODO - Compile this database when needed. Ideally should not be loaded here...
         evLch = EventDescriptorBankNds()
-        if self._areCommentsLoaded:
-            # TODO - Compile this database when needed. Ideally should not be loaded here...
-            evLch = EventDescriptorBankNds()
-            if (data := self._filesystem.getData(substituteLanguageString(self._state, PATH_DB_RC_ROOT % ("%s/ev_lch.dlz")))) != None:
-                evLch.load(data)
+        if (data := self._filesystem.getData(substituteLanguageString(self._state, PATH_DB_RC_ROOT % ("%s/ev_lch.dlz")))) != None:
+            evLch.load(data)
 
         self.treeOverview.DeleteAllItems()
 
@@ -254,9 +188,8 @@ class FrameOverviewTreeGen (pageOverview):
         rootItem = self.treeOverview.AddRoot("You shouldn't see this!")
 
         def getEventComment(eventId, prefix = " - "):
-            if self._areCommentsLoaded:
-                if (commentEntry := evLch.searchForEntry(eventId)) != None:
-                    return prefix + commentEntry.description
+            if (commentEntry := evLch.searchForEntry(eventId)) != None:
+                return prefix + commentEntry.description
             return ""
 
         def addIfDataNotNone(data, root, nameTag, nameTagIfNotPresent = None, image=-1):
