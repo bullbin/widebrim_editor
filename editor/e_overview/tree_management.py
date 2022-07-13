@@ -25,11 +25,12 @@ class FrameOverview(FrameOverviewTreeGen):
                     if id not in idRange:
                         idRange.append(id)
 
-        for group in self._eventsGrouped:
+        for group in self._eventManager.getBranchedEventGroups():
             idGroup = group.group
             addToRange(idGroup)
 
-        for loose in self._eventsLoose:
+        for loose in [self._eventManager.getTrackedEvents(), self._eventManager.getUntrackedEvents()]:
+            print("LOOSE EVENT", loose)
             addToRange(loose)
         
         if useGap:
@@ -49,7 +50,7 @@ class FrameOverview(FrameOverviewTreeGen):
 
         # TODO - Not foolproof, since not all puzzles are captured by this technique
         idsUsed : List[int] = []
-        for group in self._eventsGrouped:
+        for group in self._eventManager.getBranchedEventGroups():
             if type(group) == PuzzleExecutionGroup:
                 group : PuzzleExecutionGroup
                 if group.idInternalPuzzle in idsUsed:
@@ -155,11 +156,12 @@ class FrameOverview(FrameOverviewTreeGen):
                             if baseIndex not in idRange[packKey]:
                                 idRange[packKey].append(baseIndex)
 
-        for group in self._eventsGrouped:
+        for group in self._eventManager.getBranchedEventGroups():
             idGroup = group.group
             addToRange(idGroup)
 
-        for loose in self._eventsLoose:
+        for loose in [self._eventManager.getTrackedEvents(), self._eventManager.getUntrackedEvents()]:
+            print(loose)
             addToRange(loose)
 
         return getNextFreeEvent()
@@ -252,9 +254,7 @@ class FrameOverview(FrameOverviewTreeGen):
                 if idxSelection == 0:
                     idEvent = self.__doEventIdDialog(10, 19)
                     if idEvent != None:
-                        # TODO - Use return to reduce recalculation of everything
-                        self._eventsLoose[0].append(createBlankEvent(self._filesystem, self._state, idEvent))
-                        self._refresh()
+                        self._eventManager.addLooseEvent(createBlankEvent(self._filesystem, self._state, idEvent))
 
                 elif idxSelection == 1:
                     
@@ -275,7 +275,7 @@ class FrameOverview(FrameOverviewTreeGen):
                         idEvent = self.__doEventIdDialog(10, 19)
                         if idEvent != None:
                             if choicesKeys.index(dlg.GetSelection()) == 0:
-                                self._eventsGrouped.append(createConditionalRevisit(self._filesystem, self._state, idEvent, availableFlagsViewed[0]))
+                                self._eventManager.addEventGroup(createConditionalRevisit(self._filesystem, self._state, idEvent, availableFlagsViewed[0]))
                             else:
                                 puzzleCountDlg = VerifiedDialog(wx.TextEntryDialog(self, "Set Puzzle Count"), rangeIntCheckFunction(1, 255), "The limit must sit between 1 and 255 puzzles!")
                                 status = puzzleCountDlg.do("1")
@@ -283,11 +283,13 @@ class FrameOverview(FrameOverviewTreeGen):
                                     # TODO - go back? this whole method is bad
                                     return super().btnCreateNewOnButtonClick(event)
                                 else:
-                                    self._eventsGrouped.append(createConditionalRevisitAndPuzzleLimit(self._filesystem, self._state, idEvent, availableFlagsViewed[0], int(status)))
-                            self._refresh()
+                                    self._eventManager.addEventGroup(createConditionalRevisitAndPuzzleLimit(self._filesystem, self._state, idEvent, availableFlagsViewed[0], int(status)))
 
                 elif idxSelection == 2:
                     idEvent = self.__doEventIdDialog(20, 26)
+                    if idEvent == None:
+                        return super().btnCreateNewOnButtonClick(event)
+                        
                     entries = self.__getPuzzleSelection()
 
                     choices = {}
@@ -303,11 +305,10 @@ class FrameOverview(FrameOverviewTreeGen):
                         return super().btnCreateNewOnButtonClick(event)
                     
                     entry = choicesToEntry[dlg.GetSelection()]
-                    self._eventsGrouped.append(createBlankPuzzleEventChain(self._filesystem, self._state, idEvent, entry.idInternal, entry.idExternal))
-                    self._refresh()
-
+                    self._eventManager.addEventGroup(createBlankPuzzleEventChain(self._filesystem, self._state, idEvent, entry.idInternal, entry.idExternal))
                 else:
                     idEvent = self.__doEventIdDialog(30,30)
+
         return super().btnCreateNewOnButtonClick(event)
     
     def btnDuplicateOnButtonClick(self, event):

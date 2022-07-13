@@ -2,7 +2,7 @@ from typing import Tuple
 from .nopush_editor import PickerChangeBoundary
 from pygame import Surface
 from pygame.image import tostring
-from wx import Bitmap, Pen, Brush, PENSTYLE_SOLID, BRUSHSTYLE_TRANSPARENT, IMAGE_QUALITY_NEAREST, BufferedPaintDC, Point, Rect, Image, Colour, ID_CANCEL, ID_OK
+from wx import Bitmap, Pen, Brush, PENSTYLE_SOLID, BRUSHSTYLE_TRANSPARENT, IMAGE_QUALITY_NEAREST, BufferedPaintDC, Point, Rect, Image, Colour, ID_CANCEL, ID_OK, CallLater
 from widebrim.madhatter.hat_io.asset_dat.place import BoundingBox
 
 def _scaleBitmap(bitmap : Bitmap):
@@ -26,9 +26,18 @@ class DialogChangeBoundary(PickerChangeBoundary):
         self.__drawing = False
         self.__bitmap = bitmap
 
+        self.__inputAllowed = False
+        # HACK - Without something to stop immediate event cue the last mouse movement is inputted into wx...
+        self.__inputDisableCaller = CallLater(1000, self.__enableInput)
+        
         self.btnReset.Disable()
         self.__originalBounding = boundary
         self.__loadBoundary(boundary)
+
+        self.__inputDisableCaller.Start()
+
+    def __enableInput(self):
+        self.__inputAllowed = True
 
     def __toBoundary(self) -> BoundingBox:
         smallActive = _scalePointDown(self.__coordActive)
@@ -54,24 +63,27 @@ class DialogChangeBoundary(PickerChangeBoundary):
         return super().panelBitmapOnPaint(event)
     
     def panelBitmapOnLeftDown(self, event):
-        self.__coordPin = event.GetPosition()
-        self.__coordActive = self.__coordPin
-        self.__drawing = True
+        if self.__inputAllowed:
+            self.__coordPin = event.GetPosition()
+            self.__coordActive = self.__coordPin
+            self.__drawing = True
         return super().panelBitmapOnLeftDown(event)
 
     def panelBitmapOnLeftUp(self, event):
-        if not(self.btnReset.IsEnabled()):
-            self.btnReset.Enable()
+        if self.__inputAllowed:
+            if not(self.btnReset.IsEnabled()):
+                self.btnReset.Enable()
 
-        self.__coordActive = event.GetPosition()
-        self.__drawing = False
-        self.panelBitmap.Refresh(eraseBackground=False)
+            self.__coordActive = event.GetPosition()
+            self.__drawing = False
+            self.panelBitmap.Refresh(eraseBackground=False)
         return super().panelBitmapOnLeftUp(event)
 
     def panelBitmapOnMotion(self, event):
-        if self.__drawing:
-            self.__coordActive = event.GetPosition()
-            self.panelBitmap.Refresh(eraseBackground=False)
+        if self.__inputAllowed:
+            if self.__drawing:
+                self.__coordActive = event.GetPosition()
+                self.panelBitmap.Refresh(eraseBackground=False)
         return super().panelBitmapOnMotion(event)
     
     def btnResetOnButtonClick(self, event):

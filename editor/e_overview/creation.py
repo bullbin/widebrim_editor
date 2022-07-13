@@ -1,6 +1,7 @@
 from typing import Dict, List
 from editor.asset_management.event import EventConditionAwaitingViewedExecutionGroup, EventConditionPuzzleExecutionGroup, PuzzleExecutionGroup, TeaExecutionGroup
 from editor.asset_management.puzzle import PuzzleEntry, getPuzzles
+from editor.branch_management.branch_event import EventBranchManager
 from editor.e_script import FrameScriptEditor
 from editor.e_puzzle import FramePuzzleEditor
 from editor.e_room import FramePlaceEditor
@@ -35,6 +36,8 @@ class FrameOverviewTreeGen (pageOverview):
         self._characters = []
         self._eventsLoose = ([], [])
         self._eventsGrouped = []
+        self._eventManager = EventBranchManager(state, self.treeOverview)
+
         self._puzzles : List[List[PuzzleEntry]] = [[],[],[]]
         self._idToPuzzleEntry : Dict[int, PuzzleEntry] = {}
         # TODO - Puzzles?
@@ -93,52 +96,6 @@ class FrameOverviewTreeGen (pageOverview):
         # TODO - Can probably get bitmap from icons
         self.GetParent().Freeze()
 
-        def handleEventItem(item):
-            eventId = self.treeOverview.GetItemData(item)
-
-            if type(eventId) != int:
-                print("Cannot launch", eventId)
-                return
-            
-            treeParent = self.treeOverview.GetItemParent(item)
-
-            if eventId < 10000:
-                # HACK - This is a puzzle instead!
-                if self.__useIcons:
-                    self.GetParent().AddPage(FramePuzzleEditor(self.GetParent(), self._filesystem, eventId, self._state), self.treeOverview.GetItemText(treeParent), bitmap=self.__icons.GetBitmap(self.__idImagePuzzle))
-                else:
-                    self.GetParent().AddPage(FramePuzzleEditor(self.GetParent(), self._filesystem, eventId, self._state), self.treeOverview.GetItemText(treeParent))
-                return
-
-            name = str(eventId)
-            if (entry := self.treeOverview.GetItemData(treeParent)) != None:
-                print("Branch detected!")
-                if type(entry) == EventConditionAwaitingViewedExecutionGroup:
-                    dictName = {entry.idBase :  str(entry.idBase) + " (Initial)", entry.idViewed : str(entry.idBase) + " (Viewed)"}
-                    name = dictName[eventId]
-                elif type(entry) == EventConditionPuzzleExecutionGroup:
-                    dictName = {entry.idBase :  str(entry.idBase) + " (Initial)", entry.idViewed : str(entry.idBase) + " (Viewed)", entry.idSuccessful : str(entry.idBase) + " (Met Limit)"}
-                    name = dictName[eventId]
-                elif type(entry) == PuzzleExecutionGroup:
-                    # TODO - Should probably just group this :(
-                    if entry.idInternalPuzzle in self._idToPuzzleEntry:
-                        puzzleDetails = self._idToPuzzleEntry[entry.idInternalPuzzle]
-                        name = "Puzzle " + str(puzzleDetails.idExternal)
-                    else:
-                        name = "Puzzle i" + str(entry.idInternalPuzzle)
-                    dictName = {entry.idBase :  name + " (Initial)", entry.idRetry : name + " (Retry)", entry.idSkip : name + " (Skip)", entry.idSolve : name + " (Solved)", entry.idReturnAfterSolve : name + " (Already Solved)"}
-                    name = dictName[eventId]
-                else:
-                    print("Unrecognised branch type" , str(entry))
-
-            # TODO - Want to click here, but wx seems to have a problem with strange page change events
-            #        (this is immediately overridden, plus multiple page changes are being registered...)
-            # TODO - GetItemText...?
-            if self.__useIcons:
-                self.GetParent().AddPage(FrameScriptEditor(self.GetParent(), self._filesystem, self._bankInstructions, eventId, self._state), name, bitmap=self.__icons.GetBitmap(self.__idImageEvent))
-            else:
-                self.GetParent().AddPage(FrameScriptEditor(self.GetParent(), self._filesystem, self._bankInstructions, eventId, self._state), name)
-
         def handlePuzzleItem(item):
             idInternal = self.treeOverview.GetItemData(item)
             if type(idInternal) != int:
@@ -157,8 +114,14 @@ class FrameOverviewTreeGen (pageOverview):
 
         item = event.GetItem()
 
-        if self._treeItemEvent != None and self._isItemWithinPathToItem(item, self._treeItemEvent):
-            handleEventItem(item)
+        if self._isItemWithinPathToItem(item, self._treeItemEvent):
+            response = self._eventManager.getCorrespondingActivatedItem(item)
+            if not(response.isNothing):
+                if response.isEvent:
+                    self.GetParent().AddPage(FrameScriptEditor(self.GetParent(), self._filesystem, self._bankInstructions, response.data, self._state), self.treeOverview.GetItemText(item), bitmap=self.__icons.GetBitmap(self.__idImageEvent))
+                elif response.isPuzzle:
+                    self.GetParent().AddPage(FramePuzzleEditor(self.GetParent(), self._filesystem, response.data, self._state), "Puzzle i%3d" % response.data, bitmap=self.__icons.GetBitmap(self.__idImagePuzzle))
+        
         elif self._treeItemPuzzle != None and self._isItemWithinPathToItem(item, self._treeItemPuzzle):
             handlePuzzleItem(item)
         elif self._treeItemPlace != None and self._isItemWithinPathToItem(item, self._treeItemPlace):
@@ -173,7 +136,6 @@ class FrameOverviewTreeGen (pageOverview):
     def _refresh(self):
         # TODO - Don't want to reload this every time!
         self._characters = getCharacters(self._state)
-        self._eventsLoose, self._eventsGrouped = getEvents(self._filesystem, self._state)
 
         # TODO - Compile this database when needed. Ideally should not be loaded here...
         evLch = EventDescriptorBankNds()
@@ -334,6 +296,10 @@ class FrameOverviewTreeGen (pageOverview):
                             branchRoot = self.treeOverview.AppendItem(puzzleRoot, str(entry.idBase), data=entry, image=self.__idImageEvent)
                         addPuzzleEntryToBranch(branchRoot, entry)
 
+        def newEventBranchGenerator():
+            self._treeItemEvent = self.treeOverview.AppendItem(rootItem, "Events", image=self.__idImageEvent)
+            self._eventManager.createTreeBranches(self._treeItemEvent, getEvents(self._state.getFileAccessor(), self._state))
+
         def generatePuzzleBranch():
             puzzleItem = self.treeOverview.AppendItem(rootItem, "Puzzles", image=self.__idImagePuzzle)
             normalItem = self.treeOverview.AppendItem(puzzleItem, "Standard", image=self.__idImagePuzzle)
@@ -448,7 +414,8 @@ class FrameOverviewTreeGen (pageOverview):
         # TODO - Add way to access progression marker for room 0 (empty by default!)
         # TODO - Display progression markers per-room
 
-        generateEventBranch()
+        newEventBranchGenerator()
+        # generateEventBranch()
         generatePuzzleBranch()
         generateCharacterBranch()
         generatePlaceBranch()
