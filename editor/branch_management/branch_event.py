@@ -10,6 +10,8 @@ from widebrim.madhatter.hat_io.asset_dlz.ev_inf2 import EventInfoList
 from widebrim.madhatter.hat_io.asset_dlz.ev_lch import EventDescriptorBank, EventDescriptorBankNds
 from editor.asset_management.event import EventConditionAwaitingViewedExecutionGroup, EventConditionPuzzleExecutionGroup, EventExecutionGroup, PuzzleExecutionGroup, TeaExecutionGroup
 
+# TODO - Improve removable support
+
 def _getCommentForEvent(eventId : int, eventDescriptor : Type[EventDescriptorBank]) -> str:
     if (entry := eventDescriptor.searchForEntry(eventId)) != None:
         return entry.description
@@ -43,7 +45,7 @@ class ActivatedItem():
         self.isNothing : bool = not(self.isEvent or self.isPuzzle)
 
 class EventBranchManager():
-    def __init__(self, state : Layton2GameState, treeCtrl : TreeCtrl):
+    def __init__(self, state : Layton2GameState, treeCtrl : TreeCtrl, hideEditControls=False):
         self.__state = state
         self.__treeCtrl = treeCtrl
         self.__eventBranches = []
@@ -59,6 +61,8 @@ class EventBranchManager():
         self.__mapEventIdToTreeItem : Dict[int, TreeItemId] = {}
         self.__mapGroupToTreeItem   : Dict[Type[EventExecutionGroup], TreeItemId] = {}
         self.__mapPuzzleIdToGroup : Dict[int, List[PuzzleExecutionGroup]] = {}
+
+        self.__disableEditControls = hideEditControls
     
     def __isItemWithinPathToItem(self, itemDestination : TreeItemId, itemParent : TreeItemId) -> bool:
         if self.__branchRoot == None:
@@ -251,7 +255,8 @@ class EventBranchManager():
 
             def spawnPuzzleItems(rootItem : TreeItemId, group : PuzzleExecutionGroup):
                 # HACK - Not great, but puzzle ID is always below event ID...
-                self.__addIntoTreeAtCorrectId(group.idInternalPuzzle, "Edit puzzle data...", rootItem, data=group.idInternalPuzzle)
+                if not(self.__disableEditControls):
+                    self.__addIntoTreeAtCorrectId(group.idInternalPuzzle, "Edit puzzle data...", rootItem, data=group.idInternalPuzzle)
                 for id in group.group:
                     if id != None:
                         self.__addIntoTreeAtCorrectId(id, "Event %i" % id, rootItem, data=id)

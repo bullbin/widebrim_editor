@@ -1,12 +1,16 @@
 from typing import Tuple
 from pygame import Surface
 from editor.d_pickerBoundary import DialogChangeBoundaryPygame
+from editor.d_pickerEvent import DialogEvent
 from widebrim.engine.state.manager.state import Layton2GameState
 from widebrim.madhatter.hat_io.asset_dat.place import BoundingBox
 from wx import ID_OK
 
 def modifyEventSelection(parent, state : Layton2GameState, idEvent : int) -> int:
     print("Modify called on", idEvent)
+    dlg = DialogEvent(parent, state)
+    if dlg.ShowModal() == ID_OK:
+        pass
     return idEvent
 
 def modifySpritePosition(parent, state : Layton2GameState, background : Surface, sprite : Surface, originalPos : Tuple[int,int]) -> Tuple[int,int]:

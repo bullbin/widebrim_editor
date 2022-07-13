@@ -3,6 +3,7 @@ from editor.asset_management.plz_txt.jiten import createNextNewRoomTitleId, getF
 from editor.asset_management.room import PlaceGroup, getPackPathForPlaceIndex
 from editor.d_operandMultichoice import DialogMultipleChoice
 from editor.e_script.get_input_popup import VerifiedDialog
+from widebrim.madhatter.hat_io.asset import File
 from .treeGroups import TreeGroupBackgroundAnimation, TreeGroupEventSpawner, TreeGroupExit, TreeGroupHintCoin, TreeGroupTObj, TreeObjectPlaceData
 from editor.nopush_editor import editorRoom
 from widebrim.engine.const import PATH_DB_PLACEFLAG, PATH_EXT_EVENT, PATH_PACK_PLACE_NAME, PATH_PLACE_BG, PATH_PLACE_MAP, PATH_PROGRESSION_DB, PATH_TEXT_PLACE_NAME, RESOLUTION_NINTENDO_DS
@@ -16,6 +17,8 @@ from pygame.image import tostring
 
 from widebrim.madhatter.hat_io.asset_dat.place import PlaceData, PlaceDataNds
 from widebrim.madhatter.hat_io.asset_placeflag import PlaceFlag
+
+from re import search
 
 # TODO - AutoEvent
 
@@ -174,8 +177,12 @@ class FramePlaceEditor(editorRoom):
 
         item = self.treeParam.GetSelection()
         if item == self._treeItemName:
+            # TODO - Select name
             newId = modifyName()
-            print(newId)
+            # TODO - Change all
+            self.treeParam.SetItemData(item, newId)
+            self.treeParam.SetItemText(item, "Name: %s" % self._filesystem.getPackedString(substituteLanguageString(self._state, PATH_PACK_PLACE_NAME), PATH_TEXT_PLACE_NAME % newId))
+            self._getActiveState().idNamePlace = newId
             return super().treeParamOnTreeItemActivated(event)
 
         for obj in self._treeItemsTObj + self._treeItemsEventSpawner + self._treeItemsHintCoin + self._treeItemsBgAni + self._treeItemsExits:
@@ -189,6 +196,44 @@ class FramePlaceEditor(editorRoom):
                 return super().treeParamOnTreeItemActivated(event)
         print("Cannot edit!")
         return super().treeParamOnTreeItemActivated(event)
+
+    def syncChanges(self):
+        pathPack = getPackPathForPlaceIndex(self._groupPlace.indexPlace)
+        pack = self._filesystem.getPack(pathPack)
+
+        datPlace = PATH_PACK_PLACE.replace("%i", "([0-9]*)")
+
+        contents : Dict[int, Dict[int, File]] = {}
+        for file in pack.files:
+            
+            if (result := search(datPlace, file.name)) != None:
+                indexPlace = int(result.group(1))
+                indexSubPlace = int(result.group(2))
+                
+                if indexPlace != self._groupPlace.indexPlace:
+                    if indexPlace not in contents:
+                        contents[indexPlace] = {}
+                    
+                    contents[indexPlace][indexSubPlace] = file
+
+        contents[self._groupPlace.indexPlace] = {}
+        for indexSubPlace, fileData in enumerate(self._dataPlace):
+            fileData.save()
+            contents[self._groupPlace.indexPlace][indexSubPlace] = File(name=PATH_PACK_PLACE % (self._groupPlace.indexPlace, indexSubPlace), data=fileData.data)
+
+        pack.files = []
+        indicesPlaces = list(contents.keys())
+        indicesPlaces.sort()
+        for indexPlace in indicesPlaces:
+            indicesSubPlaces = list(contents[indexPlace].keys())
+            indicesSubPlaces.sort()
+            for indexSubPlace in indicesSubPlaces:
+                pack.files.append(contents[indexPlace][indexSubPlace])
+
+        pack.save()
+        pack.compress()
+        self._filesystem.writeableFs.replaceFile(pathPack, pack.data)
+        print("Synced and sorted room pack!")
 
     def _getActiveState(self) -> Optional[PlaceDataNds]:
         # HACK - Method called when tree is broken. Workaround, see https://github.com/wxWidgets/Phoenix/issues/1500

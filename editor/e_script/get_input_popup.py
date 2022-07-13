@@ -1,6 +1,7 @@
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from editor.d_operandMultichoice import DialogMultipleChoice
 from editor.d_pickerBgx import DialogPickerBgx
+from editor.d_pickerEvent import DialogEvent
 from editor.gui.command_annotator.bank import OperandCompatibility, OperandType
 from wx import TextEntryDialog, ID_OK, MessageDialog, ICON_WARNING, OK, CENTER
 
@@ -139,12 +140,25 @@ class ScreenModeDialog(MultipleChoiceDialog):
             return int(value)
         return None
 
+class EventIdDialog():
+    def __init__(self, parent, state):
+        # TODO - Pass default selection
+        self.__dlg = DialogEvent(parent, state)
+    
+    def do(self, defaultValue : str) -> Optional[int]:
+        confirmed = self.__dlg.ShowModal()
+        if confirmed != ID_OK:
+            return int(defaultValue)
+        return self.__dlg.GetSelection()
+
 def getDialogForType(parent, state, filesystem, operandType : OperandType) -> Optional[VerifiedDialog]:
     compatDict = {OperandType.StandardS32               : VerifiedDialog(TextEntryDialog(parent, "Enter a number"), rangeIntCheckFunction(-(2 ** 31), (2 ** 31) - 1)),
                   OperandType.StandardString            : VerifiedDialog(TextEntryDialog(parent, "Enter a string"), strCheckFunction()),
                   OperandType.StandardF32               : VerifiedDialog(TextEntryDialog(parent, "Enter a decimal"), floatCheckFunction()),
                   OperandType.StandardU16               : VerifiedDialog(TextEntryDialog(parent, "Enter a short"), rangeIntCheckFunction(0, (2 ** 16) - 1)),
                   
+                  OperandType.InternalEventId           : EventIdDialog(parent, state),
+
                   OperandType.StringGamemode            : GameModeDialog(parent, state, filesystem),
                   OperandType.StringBackground          : BackgroundDialog(parent, state, filesystem),
                   
