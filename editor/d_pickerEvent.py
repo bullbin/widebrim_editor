@@ -1,6 +1,6 @@
 from typing import Optional
 from editor.asset_management.event import getEvents
-from editor.branch_management.branch_event import EventBranchManager
+from editor.branch_management import EventBranchManager
 from widebrim.engine.state.manager.state import Layton2GameState
 from .nopush_editor import PickerEvent
 from wx import MessageDialog, YES_NO, ID_YES, ID_OK, ID_CANCEL, TreeItemId
@@ -51,18 +51,18 @@ class DialogEvent(PickerEvent):
         elif response.isEvent:
             
             if self.checkConditionalWarning.IsChecked():
-                if self._isEventSafe(response.data):
-                    self._switchPreview(response.data)
+                if self._isEventSafe(response.getEventId()):
+                    self._switchPreview(response.getEventId())
                 else:
                     dlg = MessageDialog(self, """Jumping to this event may cause unintended playback problems. Are you sure you want to select this event?\n\nBecause this event relies on conditional behaviour, playing back this event may cause unintended problems. It is recommended to choose the topmost event for a conditional branch instead.""",
                     caption="Event not Recommended", style=YES_NO).ShowModal()
                     if dlg == ID_YES:
-                        self._switchPreview(response.data)
+                        self._switchPreview(response.getEventId())
                     else:
                         if self._lastGoodItem != None:
                             self.treeEvent.SelectItem(self._lastGoodItem)
             else:
-                self._switchPreview(response.data)
+                self._switchPreview(response.getEventId())
         return super().treeEventOnTreeSelChanged(event)
     
     def btnConfirmSelectedOnButtonClick(self, event):

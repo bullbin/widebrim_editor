@@ -1,13 +1,15 @@
 from typing import Dict, List
 from editor.asset_management.event import EventConditionAwaitingViewedExecutionGroup, EventConditionPuzzleExecutionGroup, PuzzleExecutionGroup, TeaExecutionGroup
 from editor.asset_management.puzzle import PuzzleEntry, getPuzzles
-from editor.branch_management.branch_event import EventBranchManager
+from editor.branch_management import EventBranchManager
+from editor.branch_management.branch_event.branch_event import EventBranchIcons
 from editor.e_script import FrameScriptEditor
 from editor.e_puzzle import FramePuzzleEditor
 from editor.e_room import FramePlaceEditor
 from editor.gui.command_annotator.bank import ScriptVerificationBank
 from editor.asset_management.room import PlaceGroup, getPlaceGroups
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
+from widebrim.madhatter.common import logSevere
 from widebrim.madhatter.hat_io.asset_dlz.ev_inf2 import EventInfoList
 from widebrim.madhatter.hat_io.asset_storyflag import StoryFlag
 from ..nopush_editor import pageOverview
@@ -36,7 +38,7 @@ class FrameOverviewTreeGen (pageOverview):
         self._characters = []
         self._eventsLoose = ([], [])
         self._eventsGrouped = []
-        self._eventManager = EventBranchManager(state, self.treeOverview)
+        
 
         self._puzzles : List[List[PuzzleEntry]] = [[],[],[]]
         self._idToPuzzleEntry : Dict[int, PuzzleEntry] = {}
@@ -60,6 +62,10 @@ class FrameOverviewTreeGen (pageOverview):
         self.__idSpecial            = useIconsIfFound("tobj/icon.arc", forceImageIndex=2)
         self.__idTea                = useIconsIfFound("subgame/tea/tea_icon.arc", forceImageIndex=2)
         
+        iconPack = EventBranchIcons(idImagePuzzle = self.__idImagePuzzle, idImageEvent = self.__idImageEvent, idImageConditional = self.__idImageConditional,
+                                    idImageBad = self.__idImageBad, idImageRemovable = self.__idRemovable, idImageTea = self.__idTea)
+        self._eventManager = EventBranchManager(state, self.treeOverview, iconPack=iconPack)
+
         self._treeItemEvent = None
         self._treeItemPuzzle = None
         self._treeItemCharacter = None
@@ -118,9 +124,13 @@ class FrameOverviewTreeGen (pageOverview):
             response = self._eventManager.getCorrespondingActivatedItem(item)
             if not(response.isNothing):
                 if response.isEvent:
-                    self.GetParent().AddPage(FrameScriptEditor(self.GetParent(), self._filesystem, self._bankInstructions, response.data, self._state), self.treeOverview.GetItemText(item), bitmap=self.__icons.GetBitmap(self.__idImageEvent))
+                    self.GetParent().AddPage(FrameScriptEditor(self.GetParent(), self._filesystem, self._bankInstructions, response.getEventId(), self._state), response.getTabName(), bitmap=self.__icons.GetBitmap(self.__idImageEvent))
                 elif response.isPuzzle:
-                    self.GetParent().AddPage(FramePuzzleEditor(self.GetParent(), self._filesystem, response.data, self._state), "Puzzle i%3d" % response.data, bitmap=self.__icons.GetBitmap(self.__idImagePuzzle))
+                    if not(response.isPuzzleInternalOnly()):
+                        # TODO - Prevent user from spawning this until they have added a nazo list entry (should actually get nazo data...)
+                        logSevere("Crucial puzzle data missing!")
+                    else:
+                        self.GetParent().AddPage(FramePuzzleEditor(self.GetParent(), self._filesystem, response.getInternalPuzzleId(), self._state), response.getTabName(), bitmap=self.__icons.GetBitmap(self.__idImagePuzzle))
         
         elif self._treeItemPuzzle != None and self._isItemWithinPathToItem(item, self._treeItemPuzzle):
             handlePuzzleItem(item)
@@ -149,154 +159,7 @@ class FrameOverviewTreeGen (pageOverview):
         
         rootItem = self.treeOverview.AddRoot("You shouldn't see this!")
 
-        def getEventComment(eventId, prefix = " - "):
-            if (commentEntry := evLch.searchForEntry(eventId)) != None:
-                return prefix + commentEntry.description
-            return ""
-
-        def addIfDataNotNone(data, root, nameTag, nameTagIfNotPresent = None, image=-1):
-            if data == None:
-                if nameTagIfNotPresent != None:
-                    self.treeOverview.AppendItem(root, nameTagIfNotPresent, data=data, image=image)
-            else:
-                self.treeOverview.AppendItem(root, nameTag, data=data, image=image)
-
         def generateEventBranch():
-            eventItem = self.treeOverview.AppendItem(rootItem, "Events", image=self.__idImageEvent)
-            standardItem = self.treeOverview.AppendItem(eventItem, "Standard", image=self.__idImageEvent)
-            puzzleItem = self.treeOverview.AppendItem(eventItem, "Puzzles", image=self.__idImagePuzzle)
-            teaItem = self.treeOverview.AppendItem(eventItem, "Tea Minigame", image=self.__idTea)
-            badItem = self.treeOverview.AppendItem(eventItem, "Misconfigured", image=self.__idImageBad)
-
-            self._treeItemEvent = eventItem
-
-            databaseIn, databaseMissing = self._eventsLoose
-            
-            order = {}
-            for idEvent in databaseIn + databaseMissing:
-                order[idEvent] = idEvent
-            for group in self._eventsGrouped:
-                ids = []
-                for id in group.group:
-                    if id != None:
-                        ids.append(id)
-                if len(ids) > 0:
-                    baseId = min(ids)
-                    order[baseId] = group
-                else:
-                    print("No data for group " + str(group))
-
-            keys = list(order.keys())
-            keys.sort()
-
-            condPuzzle = {}
-
-            for key in keys:
-                entry = order[key]
-
-                if key not in databaseMissing:
-                    info = self._state.getEventInfoEntry(key)
-                    if info == None:
-                        print("Fail", key)
-                else:
-                    info = None
-
-                if type(entry) == int:
-                    # Just add event to list
-                    name = str(entry)
-                    imageId = self.__idImageEvent
-
-                    if entry in databaseIn:
-                        # TODO - 4 shouldn't be possible here...
-                        if info.typeEvent == 1 or info.typeEvent == 4:
-                            name = "Removable " + name
-                            imageId = self.__idRemovable
-
-                    # TODO - Remove, just for testing to not clutter space
-                    # TODO - constant
-                    if entry >= 20000:
-                        self.treeOverview.AppendItem(badItem, name + getEventComment(entry), data=entry, image=imageId)
-                    else:
-                        self.treeOverview.AppendItem(standardItem, name + getEventComment(entry), data=entry, image=imageId)
-                else:
-                    if type(entry) == EventConditionAwaitingViewedExecutionGroup:
-                        branchRoot = self.treeOverview.AppendItem(standardItem, "Conditional on " + str(key) + getEventComment(key), data=entry, image=self.__idImageConditional)
-                        self.treeOverview.AppendItem(branchRoot, "On initial execution" + getEventComment(entry.idBase), data=entry.idBase, image=self.__idImageEvent)
-                        self.treeOverview.AppendItem(branchRoot, "On future executions" + getEventComment(entry.idViewed), data=entry.idViewed, image=self.__idImageEvent)
-
-                    elif type(entry) == EventConditionPuzzleExecutionGroup:
-                        branchRoot = self.treeOverview.AppendItem(standardItem, "Conditional on " + str(key) + getEventComment(key), data=entry, image=self.__idImageConditional)
-                        self.treeOverview.AppendItem(branchRoot, "On initial execution" + getEventComment(entry.idBase), data=entry.idBase, image=self.__idImageEvent)
-                        if entry.idViewed != None:
-                            self.treeOverview.AppendItem(branchRoot, "On future executions unless limit met" + getEventComment(entry.idViewed), data=entry.idViewed, image=self.__idImageEvent)
-                        else:
-                            self.treeOverview.AppendItem(branchRoot, "(untracked)", data=entry.idViewed, image=self.__idImageEvent)
-
-                        if entry.idSuccessful != None:
-                            self.treeOverview.AppendItem(branchRoot, "On reaching puzzle requirement" + getEventComment(entry.idSuccessful), data=entry.idSuccessful, image=self.__idImageEvent)
-                        else:
-                            self.treeOverview.AppendItem(branchRoot, "(untracked)", data=entry.idSuccessful, image=self.__idImageEvent)
-
-                    elif type(entry) == TeaExecutionGroup:
-                        branchRoot = self.treeOverview.AppendItem(teaItem, "Branch on " + str(key) + getEventComment(key), data=entry, image=self.__idImageConditional)
-                        for group in entry.group:
-                            self.treeOverview.AppendItem(branchRoot, str(group) + getEventComment(group), data=group, image=self.__idImageEvent)
-                    
-                    elif type(entry) == PuzzleExecutionGroup:
-                        # There can be duplicate events - see A Work of Art
-                        if entry.idInternalPuzzle in condPuzzle:
-                            condPuzzle[entry.idInternalPuzzle].append(entry)
-                        else:
-                            condPuzzle[entry.idInternalPuzzle] = [entry]
-                    
-                    else:
-                        print("Unknown :: " + str(entry))
-            
-            idPuzzles = list(condPuzzle.keys())
-            idPuzzles.sort()
-
-            def addPuzzleEntryToBranch(head, entry):
-                self.treeOverview.AppendItem(head, "On initial execution" + getEventComment(entry.idBase), data=entry.idBase, image=self.__idImageEvent)
-                addIfDataNotNone(entry.idRetry, head, "On future executions while puzzle is unsolved" + getEventComment(entry.idRetry), image=self.__idImageEvent)
-                addIfDataNotNone(entry.idSkip, head, "On execution if puzzle is skipped" + getEventComment(entry.idSkip), image=self.__idImageEvent)
-                addIfDataNotNone(entry.idSolve, head, "On execution if puzzle is solved" + getEventComment(entry.idSolve), image=self.__idImageEvent)
-                addIfDataNotNone(entry.idReturnAfterSolve, head, "On future executions while puzzle is solved" + getEventComment(entry.idReturnAfterSolve), image=self.__idImageEvent)
-
-            def isPuzzleRemovable(entry):
-                info = self._state.getEventInfoEntry(entry.idBase)
-                isRemovable = False
-                if info != None and info.typeEvent == 4:
-                    isRemovable = True
-                return isRemovable
-
-            for key in idPuzzles:
-                entry = condPuzzle[key][0]
-
-                if (nzLstEntry := self._state.getNazoListEntry(entry.idInternalPuzzle)) != None:
-                    puzzleEntryName = "%03d - %s" % (nzLstEntry.idExternal, nzLstEntry.name)
-                else:
-                    puzzleEntryName = "i%03d" % entry.idInternalPuzzle
-
-                entryGroup = condPuzzle[key]
-                if len(entryGroup) == 1:
-                    if isPuzzleRemovable(entry):
-                        branchRoot = self.treeOverview.AppendItem(puzzleItem, "Removable " + puzzleEntryName, data=entry, image=self.__idRemovable)
-                    else:
-                        branchRoot = self.treeOverview.AppendItem(puzzleItem, puzzleEntryName, data=entry, image=self.__idImagePuzzle)
-                    self.treeOverview.AppendItem(branchRoot, "Edit puzzle data...", data=entry.idInternalPuzzle, image=self.__idImagePuzzle)
-                    addPuzzleEntryToBranch(branchRoot, entry)
-                else:
-                    # TODO - Fix naming, unclear since they're the same under this paradigm
-                    puzzleRoot = self.treeOverview.AppendItem(puzzleItem, puzzleEntryName, data=entry, image=self.__idImagePuzzle)
-                    self.treeOverview.AppendItem(puzzleRoot, "Edit puzzle data...", data=entry.idInternalPuzzle, image=self.__idImagePuzzle)
-                    for entry in entryGroup:
-                        if isPuzzleRemovable(entry):
-                            branchRoot = self.treeOverview.AppendItem(puzzleRoot, "Removable " + str(entry.idBase), data=entry, image=self.__idImageEvent)
-                        else:
-                            branchRoot = self.treeOverview.AppendItem(puzzleRoot, str(entry.idBase), data=entry, image=self.__idImageEvent)
-                        addPuzzleEntryToBranch(branchRoot, entry)
-
-        def newEventBranchGenerator():
             self._treeItemEvent = self.treeOverview.AppendItem(rootItem, "Events", image=self.__idImageEvent)
             self._eventManager.createTreeBranches(self._treeItemEvent, getEvents(self._state.getFileAccessor(), self._state))
 
@@ -414,8 +277,7 @@ class FrameOverviewTreeGen (pageOverview):
         # TODO - Add way to access progression marker for room 0 (empty by default!)
         # TODO - Display progression markers per-room
 
-        newEventBranchGenerator()
-        # generateEventBranch()
+        generateEventBranch()
         generatePuzzleBranch()
         generateCharacterBranch()
         generatePlaceBranch()

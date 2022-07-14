@@ -367,6 +367,7 @@ def createBlankPuzzleEventChain(filesystem : WriteableFilesystemCompatibilityLay
 def createBlankTeaEventChain(filesystem : WriteableFilesystemCompatibilityLayer, state : Layton2GameState, baseIdEvent : int):
     pass
 
+# TODO - Removable..?
 def createConditionalRevisit(filesystem : WriteableFilesystemCompatibilityLayer, state : Layton2GameState, baseIdEvent : int, flagRevisit : int) -> EventConditionAwaitingViewedExecutionGroup:
     idEvents = [baseIdEvent, baseIdEvent + 1]
     nameEvents = ["widebrim Conditional", "widebrim Conditional 2"]
