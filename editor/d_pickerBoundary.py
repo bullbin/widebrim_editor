@@ -24,8 +24,8 @@ class DialogChangeBoundary(PickerChangeBoundary):
         super().__init__(parent)
         self._color = Colour(color[0], color[1], color[2])
         self._width = highlightWidth
-        self._coordPin = Point(0,0)
-        self._coordActive = Point(0,0)
+        self._coordPin      : Point = Point(0,0)
+        self._coordActive   : Point = Point(0,0)
         self._bitmap = bitmap
 
         self.btnSetBoundaryFromAnim.Hide()
@@ -42,6 +42,9 @@ class DialogChangeBoundary(PickerChangeBoundary):
         self.__dragBottomLeft       = False
         self.__dragBottomRight      = False
         self.__lastDragPos : Point  = Point(0,0)
+
+        # Workaround - Remove handles
+        self._showHandles = True
 
         # HACK - Without something to stop immediate event cue the last mouse movement is inputted into wx...
         self.__inputAllowed = False
@@ -80,13 +83,14 @@ class DialogChangeBoundary(PickerChangeBoundary):
             bottomRight = Point(pointAnchor.x + DialogChangeBoundary.RADIUS_POINTS, pointAnchor.y + DialogChangeBoundary.RADIUS_POINTS)
             return Rect(topLeft, bottomRight)
         
-        rectArea = Rect(self._coordActive, self._coordPin)
-        dc.SetPen(Pen(self._color, self._width, PENSTYLE_SOLID))
-        dc.SetBrush(Brush(self._color, BRUSHSTYLE_TRANSPARENT))
-        dc.DrawRectangle(drawHandleRectangle(rectArea.GetBottomLeft()))
-        dc.DrawRectangle(drawHandleRectangle(rectArea.GetBottomRight()))
-        dc.DrawRectangle(drawHandleRectangle(rectArea.GetTopLeft()))
-        dc.DrawRectangle(drawHandleRectangle(rectArea.GetTopRight()))
+        if self._showHandles:
+            rectArea = Rect(self._coordActive, self._coordPin)
+            dc.SetPen(Pen(self._color, self._width, PENSTYLE_SOLID))
+            dc.SetBrush(Brush(self._color, BRUSHSTYLE_TRANSPARENT))
+            dc.DrawRectangle(drawHandleRectangle(rectArea.GetBottomLeft()))
+            dc.DrawRectangle(drawHandleRectangle(rectArea.GetBottomRight()))
+            dc.DrawRectangle(drawHandleRectangle(rectArea.GetTopLeft()))
+            dc.DrawRectangle(drawHandleRectangle(rectArea.GetTopRight()))
 
     def panelBitmapOnPaint(self, event):
         dc = BufferedPaintDC(self.panelBitmap)
@@ -144,19 +148,20 @@ class DialogChangeBoundary(PickerChangeBoundary):
         pos = event.GetPosition()
         rectArea = Rect(self._coordActive, self._coordPin)
         self.__lastDragPos = pos
-        if getHandleRect(rectArea.GetTopLeft()).Contains(pos):
-            self.__isDragging = True
-            self.__dragTopLeft = True
-        elif getHandleRect(rectArea.GetTopRight()).Contains(pos):
-            self.__isDragging = True
-            self.__dragTopRight = True
-        elif getHandleRect(rectArea.GetBottomLeft()).Contains(pos):
-            self.__isDragging = True
-            self.__dragBottomLeft = True
-        elif getHandleRect(rectArea.GetBottomRight()).Contains(pos):
-            self.__isDragging = True
-            self.__dragBottomRight = True
-        elif getBoundaryRect(rectArea).Contains(pos):
+        if self._showHandles:
+            if getHandleRect(rectArea.GetTopLeft()).Contains(pos):
+                self.__isDragging = True
+                self.__dragTopLeft = True
+            elif getHandleRect(rectArea.GetTopRight()).Contains(pos):
+                self.__isDragging = True
+                self.__dragTopRight = True
+            elif getHandleRect(rectArea.GetBottomLeft()).Contains(pos):
+                self.__isDragging = True
+                self.__dragBottomLeft = True
+            elif getHandleRect(rectArea.GetBottomRight()).Contains(pos):
+                self.__isDragging = True
+                self.__dragBottomRight = True
+        if not(self.__isDragging) and getBoundaryRect(rectArea).Contains(pos):
             self.__isDragging = True
             self.__dragBoundary = True
         return

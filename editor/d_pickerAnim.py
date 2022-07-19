@@ -54,6 +54,14 @@ class DialogPickerLimitedAnim(DialogPickerBgx):
         if event != None:
             event.Skip()
 
+    def _doOnSuccessfulImage(self):
+        self.timerAnimation.Stop()
+        return super()._doOnSuccessfulImage()
+
+    def btnCancelOnButtonClick(self, event):
+        self.timerAnimation.Stop()
+        return super().btnCancelOnButtonClick(event)
+
     def btnRemoveImageOnButtonClick(self, event):
         self._pathOut = ""
         self._doOnSuccessfulImage()

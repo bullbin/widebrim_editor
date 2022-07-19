@@ -41,6 +41,14 @@ class DialogChangeBoundaryWithSpritePositioning(DialogChangeBoundaryPygame):
         if event != None:
             event.Skip()
 
+    def btnAgreeOnButtonClick(self, event):
+        self.__timerAnimation.Stop()
+        return super().btnAgreeOnButtonClick(event)
+
+    def btnCancelOnButtonClick(self, event):
+        self.__timerAnimation.Stop()
+        return super().btnCancelOnButtonClick(event)
+
     def panelBitmapOnPaint(self, event):
 
         dc = BufferedPaintDC(self.panelBitmap)
@@ -66,7 +74,7 @@ class DialogChangeBoundaryWithSpritePositioning(DialogChangeBoundaryPygame):
         drawCharBitmap()
         self._paintHandles(dc)
 
-    def btnSetBoundaryFromAnimOnButtonClick(self, event):
+    def _setBoundsFromAnim(self):
         # TODO - Unify scale
         sizeX, sizeY = self.__animPreview.getDimensions()
         rectArea = Rect(self._coordActive, self._coordPin)
@@ -78,5 +86,8 @@ class DialogChangeBoundaryWithSpritePositioning(DialogChangeBoundaryPygame):
         self._coordActive.y = max(min(self._coordActive.y, self.panelBitmap.GetSize().y), 0)
         self._coordPin.x = max(min(self._coordPin.x, self.panelBitmap.GetSize().x), 0)
         self._coordPin.y = max(min(self._coordPin.y, self.panelBitmap.GetSize().y), 0)
+
+    def btnSetBoundaryFromAnimOnButtonClick(self, event):
+        self._setBoundsFromAnim()
         self.panelBitmap.Refresh(eraseBackground=False)
         return super().btnSetBoundaryFromAnimOnButtonClick(event)

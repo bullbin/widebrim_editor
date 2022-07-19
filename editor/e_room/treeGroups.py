@@ -1,16 +1,19 @@
 from __future__ import annotations
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 from editor.d_operandMultichoice import DialogMultipleChoice
-from editor.e_room.modifiers import modifyBoundary, modifyEventSelection, modifySpriteBoundary, modifySpritePath
+from editor.e_room.modifiers import modifyBoundary, modifyEventSelection, modifySpriteBoundary, modifySpritePath, modifySpritePosition
 from editor.e_room.utils import getShortenedString
 from widebrim.engine.const import PATH_EXT_EVENT, PATH_EXT_EXIT
 from widebrim.engine.state.manager.state import Layton2GameState
 from widebrim.gamemodes.room.const import PATH_ANIM_BGANI, PATH_FILE_HINTCOIN, PATH_FILE_TOBJ, PATH_PACK_TOBJ
-from widebrim.madhatter.hat_io.asset_dat.place import BgAni, EventEntry, Exit, TObjEntry, HintCoin
+from widebrim.madhatter.common import logSevere
+from widebrim.madhatter.hat_io.asset_dat.place import BgAni, EventEntry, Exit, PlaceData, TObjEntry, HintCoin
 from wx import TreeCtrl, TreeItemId, ID_OK
 from pygame import Surface, Rect
 from pygame.draw import rect as drawRectangle
 from pygame.draw import circle as drawCircle
+
+# TODO - Linting and docstrings
 
 _TREE_GROUP_WIDTH = 2
 
@@ -85,6 +88,22 @@ class TreeObjectPlaceData():
     def modifyItem(self, state : Layton2GameState, treeCtrl : TreeCtrl, selectedId : TreeItemId, parent, previewImage : Surface) -> RefreshInformation:
         return RefreshInformation()
     
+    def modifyAllItems(self, state : Layton2GameState, treeCtrl : TreeCtrl, selectedId : TreeItemId, parent, previewImage : Surface, otherPlaceData : List[PlaceData]) -> RefreshInformation:
+        """Modify all place data items sharing an equivalent entry to that of which this object is controlling. Note that this modifies data and may break references.
+
+        Args:
+            state (Layton2GameState): _description_
+            treeCtrl (TreeCtrl): _description_
+            selectedId (TreeItemId): _description_
+            parent (_type_): _description_
+            previewImage (Surface): _description_
+            otherPlaceData (List[PlaceData]): List of all place datas for this control to affect. The place data relevant to the current control should be at index 0.
+
+        Returns:
+            RefreshInformation: _description_
+        """
+        return self.modifyItem(state, treeCtrl, selectedId, parent, previewImage)
+    
     @staticmethod
     def fromPlaceData(data) -> TreeObjectPlaceData:
         return TreeObjectPlaceData()
@@ -139,6 +158,32 @@ class TreeGroupTObj(TreeObjectPlaceData):
                 return RefreshInformation(backgroundRefresh=changed)
 
         return super().modifyItem(state, treeCtrl, selectedId, parent, previewImage)
+
+    def modifyAllItems(self, state: Layton2GameState, treeCtrl: TreeCtrl, selectedId: TreeItemId, parent, previewImage: Surface, otherPlaceData: List[PlaceData]) -> RefreshInformation:
+        mismatchFound = False
+        similarEntries : List[TObjEntry] = []
+        for placeData in otherPlaceData[1:]:
+            foundForData = False
+            for indexTObj in range(placeData.getCountObjText()):
+                tObjEntry = placeData.getObjText(indexTObj)
+                if tObjEntry == self.__tObj:
+                    similarEntries.append(tObjEntry)
+                    foundForData = True
+                    break
+            
+            if not(foundForData):
+                mismatchFound = True
+            
+        # TODO - Error on mismatch
+        if mismatchFound:
+            logSevere("Mismatch trying to solve for identical TObj!")
+        
+        output = self.modifyItem(state, treeCtrl, selectedId, parent, previewImage)
+        for entry in similarEntries:
+            entry.idChar = self.__tObj.idChar
+            entry.idTObj = self.__tObj.idTObj
+            entry.bounding.cloneInto(self.__tObj.bounding)
+        return output
 
     def createTreeItems(self, state : Layton2GameState, treeCtrl : TreeCtrl, branchRoot : TreeItemId, index : Optional[int] = None):
         self._createRootItem(treeCtrl, branchRoot, "Comment", index)
@@ -225,6 +270,32 @@ class TreeGroupEventSpawner(TreeObjectPlaceData):
             treeCtrl.SetItemData(self.itemIdEvent, self.__eventEntry.idEvent)
             return super().modifyItem(state, treeCtrl, selectedId, parent, previewImage)
 
+    def modifyAllItems(self, state: Layton2GameState, treeCtrl: TreeCtrl, selectedId: TreeItemId, parent, previewImage: Surface, otherPlaceData: List[PlaceData]) -> RefreshInformation:
+        mismatchFound = False
+        similarEntries : List[EventEntry] = []
+        for placeData in otherPlaceData[1:]:
+            foundForData = False
+            for indexEvent in range(placeData.getCountObjEvents()):
+                eventEntry = placeData.getObjEvent(indexEvent)
+                if eventEntry == self.__eventEntry:
+                    similarEntries.append(eventEntry)
+                    foundForData = True
+                    break
+            
+            if not(foundForData):
+                mismatchFound = True
+            
+        # TODO - Error on mismatch
+        if mismatchFound:
+            logSevere("Mismatch trying to solve for identical event spawners!")
+
+        output = self.modifyItem(state, treeCtrl, selectedId, parent, previewImage)
+        for entry in similarEntries:
+            entry.bounding.cloneInto(self.__eventEntry.bounding)
+            entry.idEvent = self.__eventEntry.idEvent
+            entry.idImage = self.__eventEntry.idImage
+        return output
+
     def renderSelectionLine(self, surface: Surface):
         drawRectangle(surface, TreeGroupEventSpawner.COLOR_LINE, Rect(self.__eventEntry.bounding.x, self.__eventEntry.bounding.y, self.__eventEntry.bounding.width, self.__eventEntry.bounding.height), width=_TREE_GROUP_WIDTH)
 
@@ -272,6 +343,33 @@ class TreeGroupHintCoin(TreeObjectPlaceData):
     def modifyItem(self, state: Layton2GameState, treeCtrl : TreeCtrl, selectedId: TreeItemId, parent, previewImage: Surface) -> RefreshInformation:
         changed = modifyBoundary(parent, state, previewImage, self.__hintEntry.bounding, color=TreeGroupHintCoin.COLOR_LINE)
         return RefreshInformation(backgroundRefresh=changed)
+    
+    def modifyAllItems(self, state: Layton2GameState, treeCtrl: TreeCtrl, selectedId: TreeItemId, parent, previewImage: Surface, otherPlaceData: List[PlaceData]) -> RefreshInformation:
+        # Get original hint index
+        indexHintData = 0
+        for indexHint in range(otherPlaceData[0].getCountHintCoin()):
+            hint = otherPlaceData[0].getObjHintCoin(indexHint)
+            if hint == self.__hintEntry:
+                indexHintData = indexHint
+                break
+        
+        mismatchHintCount = False
+        modifyEntries : List[HintCoin] = []
+        for placeData in otherPlaceData[1:]:
+            if placeData.getCountHintCoin() > indexHintData:
+                modifyEntries.append(placeData.getObjHintCoin(indexHintData))
+            else:
+                mismatchHintCount = True
+
+        # TODO - Warn on mismatch count
+        if mismatchHintCount:
+            logSevere("Mismatch trying to solve for identical hint coins!")
+
+        output = self.modifyItem(state, treeCtrl, selectedId, parent, previewImage)
+        for entry in modifyEntries:
+            entry.bounding.cloneInto(self.__hintEntry.bounding)
+
+        return output
 
     @staticmethod
     def fromPlaceData(data : HintCoin) -> TreeGroupHintCoin:
@@ -296,7 +394,13 @@ class TreeGroupBackgroundAnimation(TreeObjectPlaceData):
 
     def modifyItem(self, state: Layton2GameState, treeCtrl: TreeCtrl, selectedId: TreeItemId, parent, previewImage: Surface) -> RefreshInformation:
         if selectedId == self.itemPos:
-            pass
+            oldPos = self.__bgAniEntry.pos
+            newPos = modifySpritePosition(parent, state, previewImage, PATH_ANIM_BGANI % self.__bgAniEntry.name, oldPos)
+            treeCtrl.SetItemData(selectedId, newPos)
+            if newPos != oldPos:
+                self.__bgAniEntry.pos = newPos
+                return RefreshInformation(backgroundRefresh=True)
+            return RefreshInformation(backgroundRefresh=False)
         elif selectedId == self.itemBgPath:
             oldPath = self.__bgAniEntry.name
             outPath = modifySpritePath(parent, state, oldPath,
@@ -309,6 +413,30 @@ class TreeGroupBackgroundAnimation(TreeObjectPlaceData):
             else:
                 return RefreshInformation(backgroundRefresh=False)
         return super().modifyItem(state, treeCtrl, selectedId, parent, previewImage)
+
+    def modifyAllItems(self, state: Layton2GameState, treeCtrl: TreeCtrl, selectedId: TreeItemId, parent, previewImage: Surface, otherPlaceData: List[PlaceData]) -> RefreshInformation:
+        mismatchFound = False
+        similarEntries : List[BgAni] = []
+        for placeData in otherPlaceData[1:]:
+            foundForEntry = False
+            for indexBgAni in range(placeData.getCountObjBgEvent()):
+                bgAni = placeData.getObjBgEvent(indexBgAni)
+                if bgAni == self.__bgAniEntry:
+                    foundForEntry = True
+                    similarEntries.append(bgAni)
+                    break
+            if not(foundForEntry):
+                mismatchFound = True
+
+        # TODO - Warning on mismatch
+        if mismatchFound:
+            logSevere("Mismatch trying to solve for identical BG Ani entries!")
+
+        output = self.modifyItem(state, treeCtrl, selectedId, parent, previewImage)
+        for entry in similarEntries:
+            entry.name = self.__bgAniEntry.name
+            entry.pos = self.__bgAniEntry.pos
+        return output
 
     def createTreeItems(self, state : Layton2GameState, treeCtrl : TreeCtrl, branchRoot : TreeItemId, index : Optional[int] = None):
         self._createRootItem(treeCtrl, branchRoot, "Background Animation", index)
@@ -439,6 +567,37 @@ class TreeGroupExit(TreeObjectPlaceData):
                 pass
                         
         return super().modifyItem(state, treeCtrl, selectedId, parent, previewImage)
+
+    def modifyAllItems(self, state: Layton2GameState, treeCtrl: TreeCtrl, selectedId: TreeItemId, parent, previewImage: Surface, otherPlaceData: List[PlaceData]) -> RefreshInformation:
+        
+        mismatchFound = False
+        similarEntries : List[Exit] = []
+        for placeData in otherPlaceData[1:]:
+            foundForData = False
+            for indexExit in range(placeData.getCountExits()):
+                exitEntry = placeData.getExit(indexExit)
+                if exitEntry == self.__placeExit:
+                    similarEntries.append(exitEntry)
+                    foundForData = True
+                    break
+            
+            if not(foundForData):
+                mismatchFound = True
+            
+        # TODO - Error on mismatch
+        if mismatchFound:
+            logSevere("Mismatch trying to solve for identical exits!")
+
+        output = self.modifyItem(state, treeCtrl, selectedId, parent, previewImage)
+        for entry in similarEntries:
+            entry.bounding.cloneInto(self.__placeExit.bounding)
+            entry.idImage = self.__placeExit.idImage
+            entry.idSound = self.__placeExit.idSound
+            entry.posTransition = self.__placeExit.posTransition
+            entry.modeDecoding = self.__placeExit.modeDecoding
+            entry.spawnData = self.__placeExit.spawnData
+
+        return output
 
     def createTreeItems(self, state : Layton2GameState, treeCtrl : TreeCtrl, branchRoot : TreeItemId, index : Optional[int] = None):
 

@@ -1,5 +1,4 @@
 from typing import Dict, List
-from editor.asset_management.event import EventConditionAwaitingViewedExecutionGroup, EventConditionPuzzleExecutionGroup, PuzzleExecutionGroup, TeaExecutionGroup
 from editor.asset_management.puzzle import PuzzleEntry, getPuzzles
 from editor.branch_management import EventBranchManager
 from editor.branch_management.branch_event.branch_event import EventBranchIcons
@@ -24,6 +23,7 @@ from widebrim.madhatter.hat_io.asset_dlz.ev_lch import EventDescriptorBankNds
 from editor.icons.getIconFromRom import getImageAndSetVariable
 
 # TODO - Check if pages already open
+# TODO - Chapter progression needs to be reloaded after event changes
 
 class FrameOverviewTreeGen (pageOverview):
 

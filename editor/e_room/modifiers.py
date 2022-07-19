@@ -4,11 +4,13 @@ from editor.d_pickerAnim import DialogPickerLimitedAnim
 from editor.d_pickerBoundary import DialogChangeBoundaryPygame
 from editor.d_pickerBoundaryAnim import DialogChangeBoundaryWithSpritePositioning
 from editor.d_pickerEvent import DialogEvent
+from editor.d_pickerMoveAnim import DialogSpriteReposition
+from editor.e_script.get_input_popup import VerifiedDialog, rangeIntCheckFunction
 from widebrim.engine.const import PATH_ANI
 from widebrim.engine.state.manager.state import Layton2GameState
-from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getTopScreenAnimFromPath
 from widebrim.madhatter.hat_io.asset_dat.place import BoundingBox
-from wx import ID_OK, Window
+from wx import ID_OK, Window, TextEntryDialog
 from re import match
 
 def modifyEventSelection(parent : Window, state : Layton2GameState, idEvent : int) -> int:
@@ -18,9 +20,44 @@ def modifyEventSelection(parent : Window, state : Layton2GameState, idEvent : in
         return dlg.GetSelection()
     return idEvent
 
-def modifySpritePosition(parent : Window, state : Layton2GameState, background : Surface, sprite : Surface, originalPos : Tuple[int,int]) -> Tuple[int,int]:
-    print("Modify called on", originalPos)
-    return originalPos
+def modifyPosition(parent : Window, pos : Tuple[int,int]):
+    print("Modify pos called on", pos)
+    dlg = VerifiedDialog(TextEntryDialog(parent, "Enter the X co-ordinate"), rangeIntCheckFunction(-(2 ** 31), (2 ** 31) - 1))
+    newX = dlg.do(str(pos[0]))
+    if newX == None:
+        return pos
+
+    dlg = VerifiedDialog(TextEntryDialog(parent, "Enter the Y co-ordinate"), rangeIntCheckFunction(-(2 ** 31), (2 ** 31) - 1))
+    newY = dlg.do(str(pos[1]))
+    if newY == None:
+        return pos
+    return (newX, newY)
+
+def modifySpritePosition(parent : Window, state : Layton2GameState, background : Surface, pathSprite : str, pos : Tuple[int,int]) -> Tuple[int,int]:
+    """Brings up a dialog to modify a position that is connected to a sprite. If no sprite could be loaded, the default position editing dialog will be presented instead.
+
+    Args:
+        parent (Window): wx dialog parent.
+        state (Layton2GameState): Game state used for file access.
+        background (Surface): Background preview used in dialog renderer.
+        pathSprite (str): Path to sprite associated with the sprite.
+        pos (Tuple[int,int]): Sprite position.
+
+    Returns:
+        Tuple[int,int]: Sprite position.
+    """
+    isTopScreenSprite = len(pathSprite) >= 4 and pathSprite[-4:] == ".sbj"
+    if isTopScreenSprite:
+        anim = getTopScreenAnimFromPath(state, pathSprite)
+    else:
+        anim = getBottomScreenAnimFromPath(state, pathSprite)
+    if anim.getActiveFrame() == None:
+        return modifyPosition(parent, pos)
+    print("Modify spritepos called on", pos)
+    dlg = DialogSpriteReposition(parent, background, anim, pos=pos)
+    if dlg.ShowModal() == ID_OK:
+        return dlg.GetPos()
+    return pos
 
 def modifySpritePath(parent : Window, state : Layton2GameState, pathSprite : str, reMatchString : str = ".+.arc", pathRoot : str = "/data_lt2/ani", allowEmptyImage=False) -> str:
     dlg = DialogPickerLimitedAnim(parent, state, state.getFileAccessor(), pathRoot, reMatchString=reMatchString, defaultPathRelative=pathSprite, allowEmptyImage=allowEmptyImage)

@@ -194,6 +194,7 @@ def getEvents(filesystem : WriteableFilesystemCompatibilityLayer, laytonState : 
                             eventGroups.append(EventConditionPuzzleExecutionGroup(entry.dataPuzzle, entry.indexEventViewedFlag, tempGroup[0], tempGroup[2], tempGroup[1]))
                         else:
                             eventGroups.append(EventConditionAwaitingViewedExecutionGroup(entry.indexEventViewedFlag, tempGroup[0], tempGroup[1]))
+                        eventsUntracked.remove(entry.idEvent)
                         continue
 
                     # Type 1 - Disappears after viewed
