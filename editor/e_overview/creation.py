@@ -115,8 +115,9 @@ class FrameOverviewTreeGen (pageOverview):
                 self.GetParent().AddPage(FramePuzzleEditor(self.GetParent(), self._filesystem, idInternal, self._state), self.treeOverview.GetItemText(item))
 
         def handlePlaceItem(item):
-            groupPlace : PlaceGroup = self.treeOverview.GetItemData(item)
-            self.GetParent().AddPage(FramePlaceEditor(self.GetParent(), self._filesystem, self._state, groupPlace), self.treeOverview.GetItemText(item))
+            if item != self._treeItemPlace:
+                groupPlace : PlaceGroup = self.treeOverview.GetItemData(item)
+                self.GetParent().AddPage(FramePlaceEditor(self.GetParent(), self._filesystem, self._state, groupPlace), self.treeOverview.GetItemText(item))
 
         item = event.GetItem()
 

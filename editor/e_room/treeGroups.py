@@ -1,9 +1,9 @@
 from __future__ import annotations
 from typing import Dict, Optional
 from editor.d_operandMultichoice import DialogMultipleChoice
-from editor.e_room.modifiers import modifyBoundary, modifyEventSelection, modifySpritePath
+from editor.e_room.modifiers import modifyBoundary, modifyEventSelection, modifySpriteBoundary, modifySpritePath
 from editor.e_room.utils import getShortenedString
-from widebrim.engine.const import PATH_EXT_EVENT
+from widebrim.engine.const import PATH_EXT_EVENT, PATH_EXT_EXIT
 from widebrim.engine.state.manager.state import Layton2GameState
 from widebrim.gamemodes.room.const import PATH_ANIM_BGANI, PATH_FILE_HINTCOIN, PATH_FILE_TOBJ, PATH_PACK_TOBJ
 from widebrim.madhatter.hat_io.asset_dat.place import BgAni, EventEntry, Exit, TObjEntry, HintCoin
@@ -11,6 +11,8 @@ from wx import TreeCtrl, TreeItemId, ID_OK
 from pygame import Surface, Rect
 from pygame.draw import rect as drawRectangle
 from pygame.draw import circle as drawCircle
+
+_TREE_GROUP_WIDTH = 2
 
 class RefreshInformation():
     def __init__(self, fullTreeRefresh = False, backgroundRefresh = False):
@@ -104,7 +106,7 @@ class TreeGroupTObj(TreeObjectPlaceData):
         return False
 
     def renderSelectionLine(self, surface: Surface):
-        drawRectangle(surface, TreeGroupTObj.COLOR_LINE, Rect(self.__tObj.bounding.x, self.__tObj.bounding.y, self.__tObj.bounding.width, self.__tObj.bounding.height), width=3)
+        drawRectangle(surface, TreeGroupTObj.COLOR_LINE, Rect(self.__tObj.bounding.x, self.__tObj.bounding.y, self.__tObj.bounding.width, self.__tObj.bounding.height), width=_TREE_GROUP_WIDTH)
 
     def __getTObjText(self, state : Layton2GameState):
         if self.__tObj.idTObj != -1:
@@ -133,13 +135,7 @@ class TreeGroupTObj(TreeObjectPlaceData):
                 # TODO
                 return super().modifyItem(state, treeCtrl, selectedId, parent, previewImage)
             else:
-                boundaryX = self.__tObj.bounding.x
-                boundaryY = self.__tObj.bounding.y
-                width = self.__tObj.bounding.width
-                height = self.__tObj.bounding.height
-
-                modifyBoundary(parent, state, previewImage, self.__tObj.bounding, color=TreeGroupTObj.COLOR_LINE)
-                changed = boundaryX != self.__tObj.bounding.x or boundaryY != self.__tObj.bounding.y or width != self.__tObj.bounding.width or height != self.__tObj.bounding.height
+                changed = modifyBoundary(parent, state, previewImage, self.__tObj.bounding, color=TreeGroupTObj.COLOR_LINE)
                 return RefreshInformation(backgroundRefresh=changed)
 
         return super().modifyItem(state, treeCtrl, selectedId, parent, previewImage)
@@ -196,14 +192,7 @@ class TreeGroupEventSpawner(TreeObjectPlaceData):
             return super().modifyItem(state, treeCtrl, selectedId, parent, previewImage)
         
         if selectedId == self.itemBounding:
-            # TODO - Offer way to infer from sprite boundary, either move sprite position or change boundary (should merge at some point with sprite in preview)
-            boundaryX = self.__eventEntry.bounding.x
-            boundaryY = self.__eventEntry.bounding.y
-            width = self.__eventEntry.bounding.width
-            height = self.__eventEntry.bounding.height
-
-            modifyBoundary(parent, state, previewImage, self.__eventEntry.bounding, color=TreeGroupEventSpawner.COLOR_LINE)
-            changed = boundaryX != self.__eventEntry.bounding.x or boundaryY != self.__eventEntry.bounding.y or width != self.__eventEntry.bounding.width or height != self.__eventEntry.bounding.height
+            changed = modifySpriteBoundary(parent, state, previewImage, self.__eventEntry.bounding, TreeGroupEventSpawner.COLOR_LINE, (PATH_EXT_EVENT % (self.__eventEntry.idImage & 0xff)))
             return RefreshInformation(backgroundRefresh=changed)
 
         elif selectedId == self.itemImage:
@@ -237,7 +226,7 @@ class TreeGroupEventSpawner(TreeObjectPlaceData):
             return super().modifyItem(state, treeCtrl, selectedId, parent, previewImage)
 
     def renderSelectionLine(self, surface: Surface):
-        drawRectangle(surface, TreeGroupEventSpawner.COLOR_LINE, Rect(self.__eventEntry.bounding.x, self.__eventEntry.bounding.y, self.__eventEntry.bounding.width, self.__eventEntry.bounding.height), width=3)
+        drawRectangle(surface, TreeGroupEventSpawner.COLOR_LINE, Rect(self.__eventEntry.bounding.x, self.__eventEntry.bounding.y, self.__eventEntry.bounding.width, self.__eventEntry.bounding.height), width=_TREE_GROUP_WIDTH)
 
     def createTreeItems(self, state : Layton2GameState, treeCtrl : TreeCtrl, branchRoot : TreeItemId, index : Optional[int] = None):
         self._createRootItem(treeCtrl, branchRoot, "Event Spawner", index)
@@ -273,7 +262,7 @@ class TreeGroupHintCoin(TreeObjectPlaceData):
         self.itemBounding = treeCtrl.AppendItem(self._treeRoot, "Edit interaction area...", data=self.__hintEntry.bounding)
     
     def renderSelectionLine(self, surface: Surface):
-        drawRectangle(surface, TreeGroupHintCoin.COLOR_LINE, Rect(self.__hintEntry.bounding.x, self.__hintEntry.bounding.y, self.__hintEntry.bounding.width, self.__hintEntry.bounding.height), width=3)
+        drawRectangle(surface, TreeGroupHintCoin.COLOR_LINE, Rect(self.__hintEntry.bounding.x, self.__hintEntry.bounding.y, self.__hintEntry.bounding.width, self.__hintEntry.bounding.height), width=_TREE_GROUP_WIDTH)
 
     def isItemSelected(self, selectedId: TreeItemId) -> bool:
         if self._treeRoot != None:
@@ -281,13 +270,7 @@ class TreeGroupHintCoin(TreeObjectPlaceData):
         return False
 
     def modifyItem(self, state: Layton2GameState, treeCtrl : TreeCtrl, selectedId: TreeItemId, parent, previewImage: Surface) -> RefreshInformation:
-        boundaryX = self.__hintEntry.bounding.x
-        boundaryY = self.__hintEntry.bounding.y
-        width = self.__hintEntry.bounding.width
-        height = self.__hintEntry.bounding.height
-
-        modifyBoundary(parent, state, previewImage, self.__hintEntry.bounding, color=TreeGroupHintCoin.COLOR_LINE)
-        changed = boundaryX != self.__hintEntry.bounding.x or boundaryY != self.__hintEntry.bounding.y or width != self.__hintEntry.bounding.width or height != self.__hintEntry.bounding.height
+        changed = modifyBoundary(parent, state, previewImage, self.__hintEntry.bounding, color=TreeGroupHintCoin.COLOR_LINE)
         return RefreshInformation(backgroundRefresh=changed)
 
     @staticmethod
@@ -334,7 +317,7 @@ class TreeGroupBackgroundAnimation(TreeObjectPlaceData):
     
     def renderSelectionLine(self, surface: Surface):
         # TODO - Get BG anim dimensions
-        drawCircle(surface, TreeGroupBackgroundAnimation.COLOR_LINE, self.__bgAniEntry.pos, radius=3, width=3)
+        drawCircle(surface, TreeGroupBackgroundAnimation.COLOR_LINE, self.__bgAniEntry.pos, radius=3, width=_TREE_GROUP_WIDTH)
     
     @staticmethod
     def fromPlaceData(data : BgAni) -> TreeGroupBackgroundAnimation:
@@ -405,13 +388,7 @@ class TreeGroupExit(TreeObjectPlaceData):
 
         if self.isItemSelected(selectedId):
             if selectedId == self.itemBounding:
-                boundaryX = self.__placeExit.bounding.x
-                boundaryY = self.__placeExit.bounding.y
-                width = self.__placeExit.bounding.width
-                height = self.__placeExit.bounding.height
-
-                modifyBoundary(parent, state, previewImage, self.__placeExit.bounding, color=TreeGroupExit.COLOR_LINE)
-                changed = boundaryX != self.__placeExit.bounding.x or boundaryY != self.__placeExit.bounding.y or width != self.__placeExit.bounding.width or height != self.__placeExit.bounding.height
+                changed = modifySpriteBoundary(parent, state, previewImage, self.__placeExit.bounding, TreeGroupExit.COLOR_LINE, PATH_EXT_EXIT % self.__placeExit.idImage)
                 return RefreshInformation(backgroundRefresh=changed)
             
             elif selectedId == self.itemArrowImage:
@@ -426,6 +403,7 @@ class TreeGroupExit(TreeObjectPlaceData):
                 
                 changed = doMultipleChoiceDialogFromKeyBank(mapExitIdToComments, TreeGroupExit.MAP_ID_TO_IMAGE_DESCRIPTION, "Change Exit Image",
                                                             self.__placeExit.idImage, "Exit Image: %s")
+                self.__placeExit.idImage = treeCtrl.GetItemData(self.itemArrowImage)
                 return RefreshInformation()
             
             elif selectedId == self.itemSound:
@@ -436,6 +414,7 @@ class TreeGroupExit(TreeObjectPlaceData):
                                                        4:"Loud metallic sliding door noise. This is ignored if using this exit spawns an event."}
                 changed = doMultipleChoiceDialogFromKeyBank(mapNoiseToComments, TreeGroupExit.MAP_NOISE_DESCRIPTION, "Change Sound",
                                                             self.__placeExit.idSound, "Sound: %s")
+                self.__placeExit.idSound = treeCtrl.GetItemData(self.itemSound)
                 return RefreshInformation()
             
             elif selectedId == self.itemExitTermination:
@@ -487,7 +466,7 @@ class TreeGroupExit(TreeObjectPlaceData):
                                              data=self.__placeExit.idSound)
 
     def renderSelectionLine(self, surface: Surface):
-        drawRectangle(surface, TreeGroupExit.COLOR_LINE, Rect(self.__placeExit.bounding.x, self.__placeExit.bounding.y, self.__placeExit.bounding.width, self.__placeExit.bounding.height), width=3)
+        drawRectangle(surface, TreeGroupExit.COLOR_LINE, Rect(self.__placeExit.bounding.x, self.__placeExit.bounding.y, self.__placeExit.bounding.width, self.__placeExit.bounding.height), width=_TREE_GROUP_WIDTH)
 
     @staticmethod
     def fromPlaceData(data : Exit) -> TreeGroupExit:
