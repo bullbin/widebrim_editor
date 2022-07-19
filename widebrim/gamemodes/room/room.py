@@ -808,7 +808,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
         autoEventId = None
         for entryId in range(8):
-            entry = autoEvent.entries[self.laytonState.getPlaceNum()].getSubPlaceEntry(entryId)
+            entry = autoEvent.getEntry(self.laytonState.getPlaceNum()).getSubPlaceEntry(entryId)
             if entry != None and entry.chapterStart <= self.laytonState.saveSlot.chapter <= entry.chapterEnd:
                 autoEventId = entry.idEvent
         
