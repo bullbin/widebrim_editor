@@ -11,29 +11,36 @@ from PIL.Image import Image as ImageType
 
 # TODO - Image crop, resizing popup
 # TODO - Slow to import big images, don't let the user do that
+# TODO - re match support (available in folder, better control over user error)
+# TODO - Better errors on certain input fails (re match, for example)
 
 class DialogPickerBgx(PickerBgx):
-    def __init__(self, parent, state : Layton2GameState, fileAccessor : WriteableFilesystemCompatibilityLayer, pathRoot : str, defaultPathRelative : Optional[str] = None):
+    def __init__(self, parent, state : Layton2GameState, fileAccessor : WriteableFilesystemCompatibilityLayer, pathRoot : str, reMatchString : Optional[str] = None, defaultPathRelative : Optional[str] = None):
         super().__init__(parent)
+
+        self.btnRemoveImage.Hide()
+        self.Layout()
+        
         self.fileAccessor = fileAccessor
-        self.__rootFolder, self.__folderLookup = generateFolderStructureFromRelativeRoot(fileAccessor.writeableFs, pathRoot)
-        self.__pathOut = ""
         self.btnConfirmSelected.Disable()
-        populateTreeCtrlFromFolderTree(self.treeFilesystem, self.__rootFolder)
+        self._pathOut = ""
+        self._rootFolder, self._folderLookup = generateFolderStructureFromRelativeRoot(fileAccessor.writeableFs, pathRoot, reMatchString)
+        populateTreeCtrlFromFolderTree(self.treeFilesystem, self._rootFolder)
+
         if defaultPathRelative != None:
             self.setDefaultRelativePath(defaultPathRelative)
-    
+
     def __getSelectedFolder(self) -> str:
         selected = self.treeFilesystem.GetSelection()
         if not(selected.IsOk()):
-            selected = self.__rootFolder.treeRef
+            selected = self._rootFolder.treeRef
 
         path = self.treeFilesystem.GetItemData(selected)
-        if path not in self.__folderLookup:
+        if path not in self._folderLookup:
             path = "/".join(path.split("/")[:-1])
         return path
 
-    def __isInputGood(self, value) -> Tuple[bool, str]:
+    def _isInputGood(self, value) -> Tuple[bool, str]:
         try:
             value.encode("ascii")
         except UnicodeEncodeError:
@@ -46,18 +53,28 @@ class DialogPickerBgx(PickerBgx):
             return (False, "Value may not contain special characters (?, *, &)")
         return (True, "")
 
+    def _pathInternalToExternal(self, value : str):
+        # TODO - bgx conversion here, oops
+        languageString = "/%s/" % self.fileAccessor.getLanguage().value
+        if value.count(languageString) == 1:
+            return value.replace(languageString, "/?/")
+        return value
+    
+    def _pathExternalToInternal(self, value : str):
+        subsPath = value.replace("/?/", "/" + self.fileAccessor.getLanguage().value + "/")
+        if len(subsPath) > 4 and subsPath[-4:] == ".bgx":
+            subsPath = subsPath[:-4] + ".arc"
+        return subsPath
+
     # Naming convention to match wx...
     def GetPath(self) -> str:
-        languageString = "/%s/" % self.fileAccessor.getLanguage().value
-        if self.__pathOut.count(languageString) == 1:
-            return self.__pathOut.replace(languageString, "/?/")
-        return self.__pathOut
+        return self._pathInternalToExternal(self._pathOut)
 
-    def __doOnSuccessfulImage(self):
+    def _doOnSuccessfulImage(self):
         self.EndModal(ID_OK)
 
-    def __updatePreviewImage(self, path) -> bool:
-        if path in self.__folderLookup:
+    def _updatePreviewImage(self, path) -> bool:
+        if path in self._folderLookup:
             return False
         
         imageData = self.fileAccessor.getData(path)
@@ -76,28 +93,26 @@ class DialogPickerBgx(PickerBgx):
         pillowImage = previewImage.getImage(0)
         pillowImage : ImageType
         self.bitmapPreviewBackground.SetBitmap(Bitmap.FromBuffer(pillowImage.size[0], pillowImage.size[1], pillowImage.convert("RGB").tobytes("raw", "RGB")))
-        self.__pathOut = path
+        self._pathOut = path
         self.btnConfirmSelected.Enable()
         return True
 
     def treeFilesystemOnTreeItemActivated(self, event):
         selected = self.treeFilesystem.GetSelection()
         path = self.treeFilesystem.GetItemData(selected)
-        self.__updatePreviewImage(path)
+        self._updatePreviewImage(path)
         return super().treeFilesystemOnTreeItemActivated(event)
 
     def setDefaultRelativePath(self, pathRelative : str):
-        subsPath = (self.__rootFolder.path + "/" + pathRelative).replace("/?/", "/" + self.fileAccessor.getLanguage().value + "/")
-        if len(subsPath) > 4 and subsPath[-4:] == ".bgx":
-            subsPath = subsPath[:-4] + ".arc"
-        if self.__updatePreviewImage(subsPath):
+        subsPath = self._rootFolder.path + "/" + self._pathExternalToInternal(pathRelative)
+        if self._updatePreviewImage(subsPath):
             folderPath = subsPath
-            while folderPath != self.__rootFolder.path:
+            while folderPath != self._rootFolder.path:
                 folderPath = "/".join(folderPath.split("/")[:-1])
-                folderNode = self.__folderLookup[folderPath]
+                folderNode = self._folderLookup[folderPath]
                 self.treeFilesystem.Expand(folderNode.treeRef)
             
-            folderNode = self.__folderLookup["/".join(subsPath.split("/")[:-1])]
+            folderNode = self._folderLookup["/".join(subsPath.split("/")[:-1])]
 
             sibling, cookie = self.treeFilesystem.GetFirstChild(folderNode.treeRef)
             for _idxChild in range(self.treeFilesystem.GetChildrenCount(folderNode.treeRef, recursively=False)):
@@ -108,8 +123,8 @@ class DialogPickerBgx(PickerBgx):
                 sibling = self.treeFilesystem.GetNextSibling(sibling)
 
     def btnConfirmSelectedOnButtonClick(self, event):
-        if self.__pathOut != "":
-            self.__doOnSuccessfulImage()
+        if self._pathOut != "":
+            self._doOnSuccessfulImage()
         return super().btnConfirmSelectedOnButtonClick(event)
 
     def btnImportImageOnButtonClick(self, event):       
@@ -152,7 +167,7 @@ class DialogPickerBgx(PickerBgx):
                 textEntryDialog.SetValue(inputFilepath)
                 if textEntryDialog.ShowModal() == ID_OK:
                     inputFilepath = textEntryDialog.GetValue()
-                    isGood, errorMsg = self.__isInputGood(inputFilepath)
+                    isGood, errorMsg = self._isInputGood(inputFilepath)
                     if not(isGood):
                         MessageDialog(self, errorMsg, "Invalid Name").ShowModal()
                     else:
@@ -174,7 +189,7 @@ class DialogPickerBgx(PickerBgx):
             return super().btnImportImageOnButtonClick(event)
         
         path = self.__getSelectedFolder()
-        folder = self.__folderLookup[path]
+        folder = self._folderLookup[path]
         filepath = getFilepath(path)
         if filepath == None:
             return super().btnImportImageOnButtonClick(event)
@@ -190,14 +205,14 @@ class DialogPickerBgx(PickerBgx):
 
         self.fileAccessor.writeableFs.addFile(filepath, packer.data)
         folder.files.append(filepath)
-        self.__pathOut = filepath
-        self.__doOnSuccessfulImage()
+        self._pathOut = filepath
+        self._doOnSuccessfulImage()
         return super().btnImportImageOnButtonClick(event)
 
     def btnDeleteFolderOnButtonClick(self, event):
         path = self.__getSelectedFolder()
         
-        if path == self.__rootFolder.path:
+        if path == self._rootFolder.path:
             MessageDialog(self, "The root folder cannot be deleted.", "Important Folder").ShowModal()
             return super().btnDeleteFolderOnButtonClick(event)
 
@@ -205,8 +220,8 @@ class DialogPickerBgx(PickerBgx):
             MessageDialog(self, "Deleting this folder may be harmful. To delete non-empty folders, use the Asset Management page.", "Folder not Empty").ShowModal()
             return super().btnDeleteFolderOnButtonClick(event)
         
-        folder = self.__folderLookup[path]
-        parentFolder = self.__folderLookup["/".join(path.split("/")[:-1])]
+        folder = self._folderLookup[path]
+        parentFolder = self._folderLookup["/".join(path.split("/")[:-1])]
         parentFolder.folders.remove(folder)
     
         # Avoid doing an update, it's expensive
@@ -219,7 +234,7 @@ class DialogPickerBgx(PickerBgx):
     def btnAddFolderOnButtonClick(self, event):
         
         path = self.__getSelectedFolder()
-        folder = self.__folderLookup[path]
+        folder = self._folderLookup[path]
         
         inputFilepath = "New Folder"
         doImport = True
@@ -230,12 +245,12 @@ class DialogPickerBgx(PickerBgx):
             textEntryDialog.SetValue(inputFilepath)
             if textEntryDialog.ShowModal() == ID_OK:
                 inputFilepath = textEntryDialog.GetValue()
-                isGood, errorMsg = self.__isInputGood(inputFilepath)
+                isGood, errorMsg = self._isInputGood(inputFilepath)
                 if not(isGood):
                     MessageDialog(self, errorMsg, "Invalid Name").ShowModal()
                 else:
                     testPath = path + "/" + inputFilepath
-                    if testPath in self.__folderLookup:
+                    if testPath in self._folderLookup:
                         MessageDialog(self, "Name refers to an existing folder.", "Invalid Name").ShowModal()
                     else:
                         doImport = False
@@ -247,7 +262,7 @@ class DialogPickerBgx(PickerBgx):
             
             folderPath = path + "/" + inputFilepath
             newFolder = FolderTreeNode(folderPath)
-            self.__folderLookup[folderPath] = newFolder
+            self._folderLookup[folderPath] = newFolder
 
             if len(folder.folders) > 0:
                 lastFolder = folder.folders[-1]

@@ -207,13 +207,33 @@ class TreeGroupEventSpawner(TreeObjectPlaceData):
             return RefreshInformation(backgroundRefresh=changed)
 
         elif selectedId == self.itemImage:
+            # TODO - Handle hidden trigger gracefully
+            # TODO - Prevent user entering hidden trigger image! Might be broken here, untested
             idImage = self.__eventEntry.idImage
-            modifySpritePath(parent, state, previewImage, PATH_EXT_EVENT % self.__eventEntry.idImage)
-            return RefreshInformation(backgroundRefresh=False)
-            # TODO - Correct return, change background
+            outPath = modifySpritePath(parent, state, (PATH_EXT_EVENT % (self.__eventEntry.idImage & 0xff)).split("/")[1],
+                                       pathRoot = "/data_lt2/ani/eventobj", reMatchString="/data_lt2/ani/eventobj/obj_([0-9]+).arc", allowEmptyImage=True)
+            if outPath == "":
+                # Hidden trigger
+                newId = 0
+            else:
+                newId = int(outPath)
+
+            self.__eventEntry.idImage = newId
+            treeCtrl.SetItemData(self.itemImage, newId)
+            if newId == 0:
+                treeCtrl.SetItemText(self.itemImage, "Image: None, hidden trigger")
+            else:
+                treeCtrl.SetItemText(self.itemImage, "Image: %s" % (PATH_EXT_EVENT % idImage))
+
+            if newId != idImage:
+                return RefreshInformation(backgroundRefresh=True)
+            else:
+                return RefreshInformation(backgroundRefresh=False)
         else:
             idEvent = self.__eventEntry.idEvent
             self.__eventEntry.idEvent = modifyEventSelection(parent, state, self.__eventEntry.idEvent)
+            treeCtrl.SetItemText(self.itemIdEvent, "Event: %i" % self.__eventEntry.idEvent)
+            treeCtrl.SetItemData(self.itemIdEvent, self.__eventEntry.idEvent)
             return super().modifyItem(state, treeCtrl, selectedId, parent, previewImage)
 
     def renderSelectionLine(self, surface: Surface):
@@ -285,6 +305,27 @@ class TreeGroupBackgroundAnimation(TreeObjectPlaceData):
         self.__bgAniEntry   : BgAni = BgAni()
         self.itemPos        : Optional[TreeItemId] = None
         self.itemBgPath     : Optional[TreeItemId] = None
+
+    def isItemSelected(self, selectedId: TreeItemId) -> bool:
+        if self._treeRoot != None:
+            return selectedId == self.itemPos or selectedId == self.itemBgPath
+        return False
+
+    def modifyItem(self, state: Layton2GameState, treeCtrl: TreeCtrl, selectedId: TreeItemId, parent, previewImage: Surface) -> RefreshInformation:
+        if selectedId == self.itemPos:
+            pass
+        elif selectedId == self.itemBgPath:
+            oldPath = self.__bgAniEntry.name
+            outPath = modifySpritePath(parent, state, oldPath,
+                                       pathRoot = "/data_lt2/ani/bgani", reMatchString="/data_lt2/ani/bgani/(.+).arc")
+            newPath = outPath + ".spr"
+            self.__bgAniEntry.name = newPath
+            treeCtrl.SetItemData(self.itemBgPath, newPath)
+            if newPath != oldPath:
+                return RefreshInformation(backgroundRefresh=True)
+            else:
+                return RefreshInformation(backgroundRefresh=False)
+        return super().modifyItem(state, treeCtrl, selectedId, parent, previewImage)
 
     def createTreeItems(self, state : Layton2GameState, treeCtrl : TreeCtrl, branchRoot : TreeItemId, index : Optional[int] = None):
         self._createRootItem(treeCtrl, branchRoot, "Background Animation", index)

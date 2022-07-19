@@ -1,5 +1,6 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 from widebrim.filesystem.low_level.fs_base import FilesystemBase
+from re import match
 from wx import TreeCtrl
 
 class FolderTreeNode():
@@ -25,7 +26,7 @@ class FolderTreeNode():
     def __str__(self):
         return self.toString()
 
-def generateFolderStructureFromRelativeRoot(fs : FilesystemBase, pathRoot : str) -> Tuple[FolderTreeNode, Dict[str, FolderTreeNode]]:
+def generateFolderStructureFromRelativeRoot(fs : FilesystemBase, pathRoot : str, reMatchString : Optional[str] = None) -> Tuple[FolderTreeNode, Dict[str, FolderTreeNode]]:
     """Generates a folder tree for all filepaths spanning from a root path.
 
     Args:
@@ -43,6 +44,12 @@ def generateFolderStructureFromRelativeRoot(fs : FilesystemBase, pathRoot : str)
     
     filepaths = fs.getFilepathsInFolder(pathRoot)
     filepaths.sort(key=len, reverse=False)
+
+    if reMatchString != None:
+        for filterFilepath in list(filepaths):
+            if match(reMatchString, filterFilepath) == None:
+                filepaths.remove(filterFilepath)
+
     for path in filepaths:
         trueFolderPath = "/".join(path.split("/")[:-1])
         folderPath = trueFolderPath
