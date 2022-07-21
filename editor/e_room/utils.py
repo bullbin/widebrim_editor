@@ -50,12 +50,18 @@ def getBoundingFromSurface(inSurf : Optional[Surface], pos : Tuple[int,int]) -> 
         return BoundingBox(pos[0], pos[1], 0, 0)
     return BoundingBox(pos[0], pos[1], inSurf.get_width(), inSurf.get_height())
 
-def blitBoundingAlphaFill(dest : Surface, bounding : BoundingBox, color : Tuple[int,int,int], alpha : int = 120):
+def blitBoundingAlphaFill(dest : Surface, bounding : BoundingBox, color : Tuple[int,int,int], alpha : int = 120, noBlend : bool = True):
     lenX = bounding.width
     lenY = bounding.height
     if lenX == 0 or lenY == 0:
         return
-    tempRect = Surface((lenX, lenY)).convert_alpha()
-    tempRect.fill((color[0], color[1], color[2], alpha))
-    # TODO - Can use a blend mode to force topmost color to stay
-    dest.blit(tempRect, (bounding.x, bounding.y))
+    
+    # TODO - Change code to show only hittable hitboxes
+    if noBlend:
+        for x in range(lenX):
+            for y in range(lenY):
+                dest.set_at((bounding.x + x, bounding.y + y), (color[0], color[1], color[2], alpha))
+    else:
+        tempRect = Surface((lenX, lenY)).convert_alpha()
+        tempRect.fill((color[0], color[1], color[2], alpha))
+        dest.blit(tempRect, (bounding.x, bounding.y))

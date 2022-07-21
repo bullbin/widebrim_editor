@@ -25,6 +25,7 @@ class TreeObjectPlaceData():
     def __init__(self):
         self._treeRoot : Optional[TreeItemId] = None
         self.__isModified = False
+        self.__nameStr = ""
     
     def isModifiable(self, selectedId):
         if self._treeRoot != None:
@@ -32,17 +33,22 @@ class TreeObjectPlaceData():
         return False
 
     def _createRootItem(self, treeCtrl : TreeCtrl, branchRoot : TreeItemId, name : str, index : Optional[int] = None):
+        self.__nameStr = name
         if index == None:
             self._treeRoot = treeCtrl.AppendItem(branchRoot, "New " + name)
         else:
             self._treeRoot = treeCtrl.AppendItem(branchRoot, "%s %i" % (name, (index + 1)))
+
+    def setNameIndex(self, treeCtrl : TreeCtrl, index : int):
+        if self.isValid():
+            treeCtrl.SetItemText(self._treeRoot, "%s %i" % (self.__nameStr, (index + 1)))
 
     def isValid(self) -> bool:
         if self._treeRoot != None:
             return self._treeRoot.IsOk()
         return False
 
-    def renderSelectionLine(self, surface : Surface):
+    def renderSelectionLine(self, surface : Surface, overrideWidth : Optional[int] = None):
         """Render this group as a selection boundary on a surface.
 
         Args:
@@ -78,7 +84,7 @@ class TreeObjectPlaceData():
         if self._treeRoot != None:
             treeCtrl.DeleteChildren(self._treeRoot)
             treeCtrl.Delete(self._treeRoot)
-    
+
     def isItemSelected(self, selectedId : TreeItemId) -> bool:
         """Returns true if any item within the group is selected.
 
@@ -124,8 +130,11 @@ class TreeGroupTObj(TreeObjectPlaceData):
         self.itemChar       : Optional[TreeItemId] = None
         self.itemBounding   : Optional[TreeItemId] = None
 
-    def renderSelectionLine(self, surface: Surface):
-        blitBoundingLine(surface, self.__tObj.bounding, TreeGroupTObj.COLOR_LINE)
+    def renderSelectionLine(self, surface: Surface, overrideWidth : Optional[int] = None):
+        if overrideWidth != None:
+            blitBoundingLine(surface, self.__tObj.bounding, TreeGroupTObj.COLOR_LINE, width=overrideWidth)
+        else:
+            blitBoundingLine(surface, self.__tObj.bounding, TreeGroupTObj.COLOR_LINE)
 
     def renderSelectionAlphaFill(self, surface: Surface, alpha : int = 120):
         blitBoundingAlphaFill(surface, self.__tObj.bounding, TreeGroupTObj.COLOR_LINE, alpha=alpha)
@@ -298,8 +307,11 @@ class TreeGroupEventSpawner(TreeObjectPlaceData):
             entry.idImage = self.__eventEntry.idImage
         return output
 
-    def renderSelectionLine(self, surface: Surface):
-        blitBoundingLine(surface, self.__eventEntry.bounding, TreeGroupEventSpawner.COLOR_LINE)
+    def renderSelectionLine(self, surface: Surface, overrideWidth : Optional[int] = None):
+        if overrideWidth == None:
+            blitBoundingLine(surface, self.__eventEntry.bounding, TreeGroupEventSpawner.COLOR_LINE)
+        else:
+            blitBoundingLine(surface, self.__eventEntry.bounding, TreeGroupEventSpawner.COLOR_LINE, width=overrideWidth)
 
     def renderSelectionAlphaFill(self, surface: Surface, alpha : int = 120):
         blitBoundingAlphaFill(surface, self.__eventEntry.bounding, TreeGroupEventSpawner.COLOR_LINE, alpha=alpha)
@@ -337,8 +349,11 @@ class TreeGroupHintCoin(TreeObjectPlaceData):
         self._createRootItem(treeCtrl, branchRoot, "Hint Coin", index)
         self.itemBounding = treeCtrl.AppendItem(self._treeRoot, "Edit interaction area...", data=self.__hintEntry.bounding)
     
-    def renderSelectionLine(self, surface: Surface):
-        blitBoundingLine(surface, self.__hintEntry.bounding, TreeGroupHintCoin.COLOR_LINE)
+    def renderSelectionLine(self, surface: Surface, overrideWidth : Optional[int] = None):
+        if overrideWidth == None:
+            blitBoundingLine(surface, self.__hintEntry.bounding, TreeGroupHintCoin.COLOR_LINE)
+        else:
+            blitBoundingLine(surface, self.__hintEntry.bounding, TreeGroupHintCoin.COLOR_LINE, width=overrideWidth)
 
     def renderSelectionAlphaFill(self, surface: Surface, alpha : int = 120):
         blitBoundingAlphaFill(surface, self.__hintEntry.bounding, TreeGroupHintCoin.COLOR_LINE, alpha=alpha)
@@ -419,6 +434,7 @@ class TreeGroupBackgroundAnimation(TreeObjectPlaceData):
             newPath = outPath + ".spr"
             self.__bgAniEntry.name = newPath
             treeCtrl.SetItemData(self.itemBgPath, newPath)
+            treeCtrl.SetItemText(self.itemBgPath, "Image: %s" % (PATH_ANIM_BGANI % newPath))
             if newPath != oldPath:
                 return RefreshInformation(backgroundRefresh=True)
             else:
@@ -454,7 +470,7 @@ class TreeGroupBackgroundAnimation(TreeObjectPlaceData):
         self.itemBgPath = treeCtrl.AppendItem(self._treeRoot, "Image: %s" % (PATH_ANIM_BGANI % self.__bgAniEntry.name), data=self.__bgAniEntry.name)
         self.itemPos = treeCtrl.AppendItem(self._treeRoot, "Edit animation position...", data=self.__bgAniEntry.pos)
     
-    def renderSelectionLine(self, surface: Surface):
+    def renderSelectionLine(self, surface: Surface, overrideWidth : Optional[int] = None):
         # TODO - Get BG anim dimensions
         drawCircle(surface, TreeGroupBackgroundAnimation.COLOR_LINE, self.__bgAniEntry.pos, radius=3, width=2)
     
@@ -544,7 +560,7 @@ class TreeGroupExit(TreeObjectPlaceData):
                 changed = doMultipleChoiceDialogFromKeyBank(mapExitIdToComments, TreeGroupExit.MAP_ID_TO_IMAGE_DESCRIPTION, "Change Exit Image",
                                                             self.__placeExit.idImage, "Exit Image: %s")
                 self.__placeExit.idImage = treeCtrl.GetItemData(self.itemArrowImage)
-                return RefreshInformation()
+                return RefreshInformation(backgroundRefresh=True)
             
             elif selectedId == self.itemSound:
                 mapNoiseToComments : Dict[int, str] = {2:"No noise will be made. This is ignored if using this exit spawns an event.",
@@ -636,8 +652,11 @@ class TreeGroupExit(TreeObjectPlaceData):
         self.itemSound = treeCtrl.AppendItem(self._treeRoot, "Sound: %s" % getMapString(TreeGroupExit.MAP_NOISE_DESCRIPTION, self.__placeExit.idSound),
                                              data=self.__placeExit.idSound)
 
-    def renderSelectionLine(self, surface: Surface):
-        blitBoundingLine(surface, self.__placeExit.bounding, TreeGroupExit.COLOR_LINE)
+    def renderSelectionLine(self, surface: Surface, overrideWidth : Optional[int] = None):
+        if overrideWidth == None:
+            blitBoundingLine(surface, self.__placeExit.bounding, TreeGroupExit.COLOR_LINE)
+        else:
+            blitBoundingLine(surface, self.__placeExit.bounding, TreeGroupExit.COLOR_LINE, width=overrideWidth)
 
     def renderSelectionAlphaFill(self, surface: Surface, alpha : int = 120):
         blitBoundingAlphaFill(surface, self.__placeExit.bounding, TreeGroupExit.COLOR_LINE, alpha=alpha)

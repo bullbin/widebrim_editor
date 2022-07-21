@@ -61,6 +61,9 @@ class DialogChangeBoundary(PickerChangeBoundary):
         return self.__inputAllowed
 
     def GetBounding(self) -> BoundingBox:
+
+        # TODO - Some boundings may be stored unsigned! Need to clamp cases like this where data goes outside bounds
+
         smallActive = _scalePointDown(self._coordActive)
         smallPin = _scalePointDown(self._coordPin)
         minCoord    = (min(smallActive.x, smallPin.x), min(smallActive.y, smallPin.y))
