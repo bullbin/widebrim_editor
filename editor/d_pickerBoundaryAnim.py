@@ -16,8 +16,8 @@ def _scaleBitmap(bitmap : Bitmap):
 
 class DialogChangeBoundaryWithSpritePositioning(DialogChangeBoundaryPygame):
 
-    def __init__(self, parent, bitmap: Surface, animation : AnimatedImageObject, boundary: BoundingBox, color: Tuple[int, int, int] = (255,0,0), highlightWidth: int = 4):
-        super().__init__(parent, bitmap, boundary, color, highlightWidth)
+    def __init__(self, parent, bitmap: Surface, animation : AnimatedImageObject, boundary: BoundingBox, surfaceOverlay : Optional[Surface], color: Tuple[int, int, int] = (255,0,0), highlightWidth: int = 4):
+        super().__init__(parent, bitmap, boundary, color=color, highlightWidth=highlightWidth, surfaceOverlay=surfaceOverlay)
         self.__animPreview : AnimatedImageObject = animation
         self.__timerAnimationLastUpdateTime   = perf_counter()
         self.__animPreview.update(0)
@@ -70,8 +70,10 @@ class DialogChangeBoundaryWithSpritePositioning(DialogChangeBoundaryPygame):
             dc.DrawBitmap(self._lastPaintedBitmap, minPinX, minPinY, useMask=True)
 
         dc.DrawBitmap(self._bitmap, 0, 0)
-        self._paintOutline(dc)
+        self._paintInfill(dc)
         drawCharBitmap()
+        self._paintBitmapOverlay(dc)
+        self._paintLines(dc)
         self._paintHandles(dc)
 
     def _setBoundsFromAnim(self):
@@ -82,10 +84,11 @@ class DialogChangeBoundaryWithSpritePositioning(DialogChangeBoundaryPygame):
         bottomRight = Point(topLeft.x + (sizeX * 2), topLeft.y + (sizeY * 2))
         self._coordActive = topLeft
         self._coordPin = bottomRight
-        self._coordActive.x = max(min(self._coordActive.x, self.panelBitmap.GetSize().x), 0)
-        self._coordActive.y = max(min(self._coordActive.y, self.panelBitmap.GetSize().y), 0)
-        self._coordPin.x = max(min(self._coordPin.x, self.panelBitmap.GetSize().x), 0)
-        self._coordPin.y = max(min(self._coordPin.y, self.panelBitmap.GetSize().y), 0)
+        if self._clampToEdges:
+            self._coordActive.x = max(min(self._coordActive.x, self.panelBitmap.GetSize().x), 0)
+            self._coordActive.y = max(min(self._coordActive.y, self.panelBitmap.GetSize().y), 0)
+            self._coordPin.x = max(min(self._coordPin.x, self.panelBitmap.GetSize().x), 0)
+            self._coordPin.y = max(min(self._coordPin.y, self.panelBitmap.GetSize().y), 0)
 
     def btnSetBoundaryFromAnimOnButtonClick(self, event):
         self._setBoundsFromAnim()

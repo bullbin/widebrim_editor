@@ -1,21 +1,19 @@
 from __future__ import annotations
 from typing import Dict, List, Optional
+
 from editor.d_operandMultichoice import DialogMultipleChoice
 from editor.e_room.modifiers import modifyBoundary, modifyEventSelection, modifySpriteBoundary, modifySpritePath, modifySpritePosition
-from editor.e_room.utils import getShortenedString
+from editor.e_room.utils import blitBoundingAlphaFill, blitBoundingLine, getShortenedString
 from widebrim.engine.const import PATH_EXT_EVENT, PATH_EXT_EXIT
 from widebrim.engine.state.manager.state import Layton2GameState
 from widebrim.gamemodes.room.const import PATH_ANIM_BGANI, PATH_FILE_HINTCOIN, PATH_FILE_TOBJ, PATH_PACK_TOBJ
 from widebrim.madhatter.common import logSevere
 from widebrim.madhatter.hat_io.asset_dat.place import BgAni, EventEntry, Exit, PlaceData, TObjEntry, HintCoin
 from wx import TreeCtrl, TreeItemId, ID_OK
-from pygame import Surface, Rect
-from pygame.draw import rect as drawRectangle
+from pygame import Surface
 from pygame.draw import circle as drawCircle
 
 # TODO - Linting and docstrings
-
-_TREE_GROUP_WIDTH = 2
 
 class RefreshInformation():
     def __init__(self, fullTreeRefresh = False, backgroundRefresh = False):
@@ -28,6 +26,11 @@ class TreeObjectPlaceData():
         self._treeRoot : Optional[TreeItemId] = None
         self.__isModified = False
     
+    def isModifiable(self, selectedId):
+        if self._treeRoot != None:
+            return selectedId != self._treeRoot
+        return False
+
     def _createRootItem(self, treeCtrl : TreeCtrl, branchRoot : TreeItemId, name : str, index : Optional[int] = None):
         if index == None:
             self._treeRoot = treeCtrl.AppendItem(branchRoot, "New " + name)
@@ -35,6 +38,8 @@ class TreeObjectPlaceData():
             self._treeRoot = treeCtrl.AppendItem(branchRoot, "%s %i" % (name, (index + 1)))
 
     def isValid(self) -> bool:
+        if self._treeRoot != None:
+            return self._treeRoot.IsOk()
         return False
 
     def renderSelectionLine(self, surface : Surface):
@@ -45,7 +50,7 @@ class TreeObjectPlaceData():
         """
         pass
     
-    def renderSelectionAlphaFill(self, surface : Surface):
+    def renderSelectionAlphaFill(self, surface : Surface, alpha : int = 120):
         """Render this group as a selection plane on a surface.
 
         Args:
@@ -85,10 +90,10 @@ class TreeObjectPlaceData():
         """
         return False
     
-    def modifyItem(self, state : Layton2GameState, treeCtrl : TreeCtrl, selectedId : TreeItemId, parent, previewImage : Surface) -> RefreshInformation:
+    def modifyItem(self, state : Layton2GameState, treeCtrl : TreeCtrl, selectedId : TreeItemId, parent, previewImage : Surface, foregroundImage : Optional[Surface] = None) -> RefreshInformation:
         return RefreshInformation()
     
-    def modifyAllItems(self, state : Layton2GameState, treeCtrl : TreeCtrl, selectedId : TreeItemId, parent, previewImage : Surface, otherPlaceData : List[PlaceData]) -> RefreshInformation:
+    def modifyAllItems(self, state : Layton2GameState, treeCtrl : TreeCtrl, selectedId : TreeItemId, parent, previewImage : Surface, otherPlaceData : List[PlaceData], foregroundImage : Optional[Surface] = None) -> RefreshInformation:
         """Modify all place data items sharing an equivalent entry to that of which this object is controlling. Note that this modifies data and may break references.
 
         Args:
@@ -102,7 +107,7 @@ class TreeObjectPlaceData():
         Returns:
             RefreshInformation: _description_
         """
-        return self.modifyItem(state, treeCtrl, selectedId, parent, previewImage)
+        return self.modifyItem(state, treeCtrl, selectedId, parent, previewImage, foregroundImage=foregroundImage)
     
     @staticmethod
     def fromPlaceData(data) -> TreeObjectPlaceData:
@@ -119,20 +124,18 @@ class TreeGroupTObj(TreeObjectPlaceData):
         self.itemChar       : Optional[TreeItemId] = None
         self.itemBounding   : Optional[TreeItemId] = None
 
-    def isValid(self) -> bool:
-        if self._treeRoot != None:
-            return self._treeRoot.IsOk()
-        return False
-
     def renderSelectionLine(self, surface: Surface):
-        drawRectangle(surface, TreeGroupTObj.COLOR_LINE, Rect(self.__tObj.bounding.x, self.__tObj.bounding.y, self.__tObj.bounding.width, self.__tObj.bounding.height), width=_TREE_GROUP_WIDTH)
+        blitBoundingLine(surface, self.__tObj.bounding, TreeGroupTObj.COLOR_LINE)
+
+    def renderSelectionAlphaFill(self, surface: Surface, alpha : int = 120):
+        blitBoundingAlphaFill(surface, self.__tObj.bounding, TreeGroupTObj.COLOR_LINE, alpha=alpha)
 
     def __getTObjText(self, state : Layton2GameState):
         if self.__tObj.idTObj != -1:
             return state.getFileAccessor().getPackedString(PATH_PACK_TOBJ % state.language.value, PATH_FILE_TOBJ % self.__tObj.idTObj)
         return state.getFileAccessor().getPackedString(PATH_PACK_TOBJ % state.language.value, PATH_FILE_HINTCOIN)
 
-    def modifyItem(self, state: Layton2GameState, treeCtrl : TreeCtrl, selectedId: TreeItemId, parent, previewImage: Surface) -> RefreshInformation:
+    def modifyItem(self, state: Layton2GameState, treeCtrl : TreeCtrl, selectedId: TreeItemId, parent, previewImage : Surface, foregroundImage : Optional[Surface] = None) -> RefreshInformation:
         if self._treeRoot != None:
             if selectedId == self.itemChar:
                 choices = {"Layton":"Layton will appear in the text window for this comment.", "Luke":"Luke will appear in the text window for this comment."}
@@ -153,13 +156,13 @@ class TreeGroupTObj(TreeObjectPlaceData):
             elif selectedId == self.itemComment:
                 # TODO
                 return super().modifyItem(state, treeCtrl, selectedId, parent, previewImage)
-            else:
-                changed = modifyBoundary(parent, state, previewImage, self.__tObj.bounding, color=TreeGroupTObj.COLOR_LINE)
+            elif selectedId == self.itemBounding:
+                changed = modifyBoundary(parent, state, previewImage, self.__tObj.bounding, color=TreeGroupTObj.COLOR_LINE, foreground=foregroundImage)
                 return RefreshInformation(backgroundRefresh=changed)
 
         return super().modifyItem(state, treeCtrl, selectedId, parent, previewImage)
 
-    def modifyAllItems(self, state: Layton2GameState, treeCtrl: TreeCtrl, selectedId: TreeItemId, parent, previewImage: Surface, otherPlaceData: List[PlaceData]) -> RefreshInformation:
+    def modifyAllItems(self, state: Layton2GameState, treeCtrl: TreeCtrl, selectedId: TreeItemId, parent, previewImage : Surface, otherPlaceData: List[PlaceData], foregroundImage : Optional[Surface] = None) -> RefreshInformation:
         mismatchFound = False
         similarEntries : List[TObjEntry] = []
         for placeData in otherPlaceData[1:]:
@@ -178,7 +181,7 @@ class TreeGroupTObj(TreeObjectPlaceData):
         if mismatchFound:
             logSevere("Mismatch trying to solve for identical TObj!")
         
-        output = self.modifyItem(state, treeCtrl, selectedId, parent, previewImage)
+        output = self.modifyItem(state, treeCtrl, selectedId, parent, previewImage, foregroundImage=foregroundImage)
         for entry in similarEntries:
             entry.idChar = self.__tObj.idChar
             entry.idTObj = self.__tObj.idTObj
@@ -207,7 +210,7 @@ class TreeGroupTObj(TreeObjectPlaceData):
 
     def isItemSelected(self, selectedId : TreeItemId) -> bool:
         if self._treeRoot != None:
-            return selectedId == self.itemBounding or selectedId == self.itemChar or selectedId == self.itemComment
+            return selectedId == self._treeRoot or selectedId == self.itemBounding or selectedId == self.itemChar or selectedId == self.itemComment
         return False
 
     @staticmethod
@@ -229,15 +232,13 @@ class TreeGroupEventSpawner(TreeObjectPlaceData):
 
     def isItemSelected(self, selectedId : TreeItemId) -> bool:
         if self._treeRoot != None:
-            return selectedId == self.itemBounding or selectedId == self.itemImage or selectedId == self.itemIdEvent
+            return selectedId == self._treeRoot or selectedId == self.itemBounding or selectedId == self.itemImage or selectedId == self.itemIdEvent
         return False
 
-    def modifyItem(self, state: Layton2GameState, treeCtrl : TreeCtrl, selectedId: TreeItemId, parent, previewImage : Surface) -> RefreshInformation:
-        if not(self.isItemSelected(selectedId)):
-            return super().modifyItem(state, treeCtrl, selectedId, parent, previewImage)
-        
+    def modifyItem(self, state: Layton2GameState, treeCtrl : TreeCtrl, selectedId: TreeItemId, parent, previewImage : Surface, foregroundImage : Optional[Surface] = None) -> RefreshInformation:
         if selectedId == self.itemBounding:
-            changed = modifySpriteBoundary(parent, state, previewImage, self.__eventEntry.bounding, TreeGroupEventSpawner.COLOR_LINE, (PATH_EXT_EVENT % (self.__eventEntry.idImage & 0xff)))
+            changed = modifySpriteBoundary(parent, state, previewImage, self.__eventEntry.bounding, TreeGroupEventSpawner.COLOR_LINE,
+                                           (PATH_EXT_EVENT % (self.__eventEntry.idImage & 0xff)), foreground=foregroundImage)
             return RefreshInformation(backgroundRefresh=changed)
 
         elif selectedId == self.itemImage:
@@ -263,14 +264,15 @@ class TreeGroupEventSpawner(TreeObjectPlaceData):
                 return RefreshInformation(backgroundRefresh=True)
             else:
                 return RefreshInformation(backgroundRefresh=False)
-        else:
-            idEvent = self.__eventEntry.idEvent
+        elif selectedId == self.itemIdEvent:
             self.__eventEntry.idEvent = modifyEventSelection(parent, state, self.__eventEntry.idEvent)
             treeCtrl.SetItemText(self.itemIdEvent, "Event: %i" % self.__eventEntry.idEvent)
             treeCtrl.SetItemData(self.itemIdEvent, self.__eventEntry.idEvent)
             return super().modifyItem(state, treeCtrl, selectedId, parent, previewImage)
+        else:
+            return super().modifyItem(state, treeCtrl, selectedId, parent, previewImage)
 
-    def modifyAllItems(self, state: Layton2GameState, treeCtrl: TreeCtrl, selectedId: TreeItemId, parent, previewImage: Surface, otherPlaceData: List[PlaceData]) -> RefreshInformation:
+    def modifyAllItems(self, state: Layton2GameState, treeCtrl: TreeCtrl, selectedId: TreeItemId, parent, previewImage : Surface, otherPlaceData: List[PlaceData], foregroundImage : Optional[Surface] = None) -> RefreshInformation:
         mismatchFound = False
         similarEntries : List[EventEntry] = []
         for placeData in otherPlaceData[1:]:
@@ -289,7 +291,7 @@ class TreeGroupEventSpawner(TreeObjectPlaceData):
         if mismatchFound:
             logSevere("Mismatch trying to solve for identical event spawners!")
 
-        output = self.modifyItem(state, treeCtrl, selectedId, parent, previewImage)
+        output = self.modifyItem(state, treeCtrl, selectedId, parent, previewImage, foregroundImage=foregroundImage)
         for entry in similarEntries:
             entry.bounding.cloneInto(self.__eventEntry.bounding)
             entry.idEvent = self.__eventEntry.idEvent
@@ -297,7 +299,10 @@ class TreeGroupEventSpawner(TreeObjectPlaceData):
         return output
 
     def renderSelectionLine(self, surface: Surface):
-        drawRectangle(surface, TreeGroupEventSpawner.COLOR_LINE, Rect(self.__eventEntry.bounding.x, self.__eventEntry.bounding.y, self.__eventEntry.bounding.width, self.__eventEntry.bounding.height), width=_TREE_GROUP_WIDTH)
+        blitBoundingLine(surface, self.__eventEntry.bounding, TreeGroupEventSpawner.COLOR_LINE)
+
+    def renderSelectionAlphaFill(self, surface: Surface, alpha : int = 120):
+        blitBoundingAlphaFill(surface, self.__eventEntry.bounding, TreeGroupEventSpawner.COLOR_LINE, alpha=alpha)
 
     def createTreeItems(self, state : Layton2GameState, treeCtrl : TreeCtrl, branchRoot : TreeItemId, index : Optional[int] = None):
         self._createRootItem(treeCtrl, branchRoot, "Event Spawner", index)
@@ -333,18 +338,24 @@ class TreeGroupHintCoin(TreeObjectPlaceData):
         self.itemBounding = treeCtrl.AppendItem(self._treeRoot, "Edit interaction area...", data=self.__hintEntry.bounding)
     
     def renderSelectionLine(self, surface: Surface):
-        drawRectangle(surface, TreeGroupHintCoin.COLOR_LINE, Rect(self.__hintEntry.bounding.x, self.__hintEntry.bounding.y, self.__hintEntry.bounding.width, self.__hintEntry.bounding.height), width=_TREE_GROUP_WIDTH)
+        blitBoundingLine(surface, self.__hintEntry.bounding, TreeGroupHintCoin.COLOR_LINE)
+
+    def renderSelectionAlphaFill(self, surface: Surface, alpha : int = 120):
+        blitBoundingAlphaFill(surface, self.__hintEntry.bounding, TreeGroupHintCoin.COLOR_LINE, alpha=alpha)
 
     def isItemSelected(self, selectedId: TreeItemId) -> bool:
         if self._treeRoot != None:
-            return selectedId == self.itemBounding
+            return selectedId == self._treeRoot or selectedId == self.itemBounding
         return False
 
-    def modifyItem(self, state: Layton2GameState, treeCtrl : TreeCtrl, selectedId: TreeItemId, parent, previewImage: Surface) -> RefreshInformation:
-        changed = modifyBoundary(parent, state, previewImage, self.__hintEntry.bounding, color=TreeGroupHintCoin.COLOR_LINE)
-        return RefreshInformation(backgroundRefresh=changed)
+    def modifyItem(self, state: Layton2GameState, treeCtrl : TreeCtrl, selectedId: TreeItemId, parent, previewImage : Surface, foregroundImage : Optional[Surface] = None) -> RefreshInformation:
+        if self._treeRoot != None:
+            if selectedId == self.itemBounding:
+                changed = modifyBoundary(parent, state, previewImage, self.__hintEntry.bounding, color=TreeGroupHintCoin.COLOR_LINE, foreground=foregroundImage)
+                return RefreshInformation(backgroundRefresh=changed)
+        return super().modifyItem(state, treeCtrl, selectedId, parent, previewImage)
     
-    def modifyAllItems(self, state: Layton2GameState, treeCtrl: TreeCtrl, selectedId: TreeItemId, parent, previewImage: Surface, otherPlaceData: List[PlaceData]) -> RefreshInformation:
+    def modifyAllItems(self, state: Layton2GameState, treeCtrl: TreeCtrl, selectedId: TreeItemId, parent, previewImage : Surface, otherPlaceData: List[PlaceData], foregroundImage : Optional[Surface] = None) -> RefreshInformation:
         # Get original hint index
         indexHintData = 0
         for indexHint in range(otherPlaceData[0].getCountHintCoin()):
@@ -365,7 +376,7 @@ class TreeGroupHintCoin(TreeObjectPlaceData):
         if mismatchHintCount:
             logSevere("Mismatch trying to solve for identical hint coins!")
 
-        output = self.modifyItem(state, treeCtrl, selectedId, parent, previewImage)
+        output = self.modifyItem(state, treeCtrl, selectedId, parent, previewImage, foregroundImage=foregroundImage)
         for entry in modifyEntries:
             entry.bounding.cloneInto(self.__hintEntry.bounding)
 
@@ -379,7 +390,7 @@ class TreeGroupHintCoin(TreeObjectPlaceData):
 
 class TreeGroupBackgroundAnimation(TreeObjectPlaceData):
 
-    COLOR_LINE = (255,0,255)
+    COLOR_LINE = (127,63,127)
 
     def __init__(self):
         super().__init__()
@@ -389,13 +400,13 @@ class TreeGroupBackgroundAnimation(TreeObjectPlaceData):
 
     def isItemSelected(self, selectedId: TreeItemId) -> bool:
         if self._treeRoot != None:
-            return selectedId == self.itemPos or selectedId == self.itemBgPath
+            return selectedId == self._treeRoot or selectedId == self.itemPos or selectedId == self.itemBgPath
         return False
 
-    def modifyItem(self, state: Layton2GameState, treeCtrl: TreeCtrl, selectedId: TreeItemId, parent, previewImage: Surface) -> RefreshInformation:
+    def modifyItem(self, state: Layton2GameState, treeCtrl: TreeCtrl, selectedId: TreeItemId, parent, previewImage : Surface, foregroundImage : Optional[Surface] = None) -> RefreshInformation:
         if selectedId == self.itemPos:
             oldPos = self.__bgAniEntry.pos
-            newPos = modifySpritePosition(parent, state, previewImage, PATH_ANIM_BGANI % self.__bgAniEntry.name, oldPos)
+            newPos = modifySpritePosition(parent, state, previewImage, PATH_ANIM_BGANI % self.__bgAniEntry.name, oldPos, foreground=foregroundImage, color=TreeGroupBackgroundAnimation.COLOR_LINE)
             treeCtrl.SetItemData(selectedId, newPos)
             if newPos != oldPos:
                 self.__bgAniEntry.pos = newPos
@@ -414,7 +425,7 @@ class TreeGroupBackgroundAnimation(TreeObjectPlaceData):
                 return RefreshInformation(backgroundRefresh=False)
         return super().modifyItem(state, treeCtrl, selectedId, parent, previewImage)
 
-    def modifyAllItems(self, state: Layton2GameState, treeCtrl: TreeCtrl, selectedId: TreeItemId, parent, previewImage: Surface, otherPlaceData: List[PlaceData]) -> RefreshInformation:
+    def modifyAllItems(self, state: Layton2GameState, treeCtrl: TreeCtrl, selectedId: TreeItemId, parent, previewImage : Surface, otherPlaceData: List[PlaceData], foregroundImage : Optional[Surface] = None) -> RefreshInformation:
         mismatchFound = False
         similarEntries : List[BgAni] = []
         for placeData in otherPlaceData[1:]:
@@ -432,7 +443,7 @@ class TreeGroupBackgroundAnimation(TreeObjectPlaceData):
         if mismatchFound:
             logSevere("Mismatch trying to solve for identical BG Ani entries!")
 
-        output = self.modifyItem(state, treeCtrl, selectedId, parent, previewImage)
+        output = self.modifyItem(state, treeCtrl, selectedId, parent, previewImage, foregroundImage=foregroundImage)
         for entry in similarEntries:
             entry.name = self.__bgAniEntry.name
             entry.pos = self.__bgAniEntry.pos
@@ -445,7 +456,7 @@ class TreeGroupBackgroundAnimation(TreeObjectPlaceData):
     
     def renderSelectionLine(self, surface: Surface):
         # TODO - Get BG anim dimensions
-        drawCircle(surface, TreeGroupBackgroundAnimation.COLOR_LINE, self.__bgAniEntry.pos, radius=3, width=_TREE_GROUP_WIDTH)
+        drawCircle(surface, TreeGroupBackgroundAnimation.COLOR_LINE, self.__bgAniEntry.pos, radius=3, width=2)
     
     @staticmethod
     def fromPlaceData(data : BgAni) -> TreeGroupBackgroundAnimation:
@@ -489,10 +500,10 @@ class TreeGroupExit(TreeObjectPlaceData):
 
     def isItemSelected(self, selectedId: TreeItemId) -> bool:
         if self._treeRoot != None:
-            return selectedId in [self.itemBounding, self.itemSound, self.itemPosTransition, self.itemArrowImage, self.itemExitType, self.itemExitTermination]
+            return selectedId in [self._treeRoot, self.itemBounding, self.itemSound, self.itemPosTransition, self.itemArrowImage, self.itemExitType, self.itemExitTermination]
         return super().isItemSelected(selectedId)
 
-    def modifyItem(self, state: Layton2GameState, treeCtrl: TreeCtrl, selectedId: TreeItemId, parent, previewImage: Surface) -> RefreshInformation:
+    def modifyItem(self, state: Layton2GameState, treeCtrl: TreeCtrl, selectedId: TreeItemId, parent, previewImage : Surface, foregroundImage : Optional[Surface] = None) -> RefreshInformation:
 
         def doMultipleChoiceDialogFromKeyBank(bankComments : Dict[int, str], bankChoices : Dict[int, str], title : str, currentChoice : int, treeStr : str):
             choicesToKey = {}
@@ -516,7 +527,8 @@ class TreeGroupExit(TreeObjectPlaceData):
 
         if self.isItemSelected(selectedId):
             if selectedId == self.itemBounding:
-                changed = modifySpriteBoundary(parent, state, previewImage, self.__placeExit.bounding, TreeGroupExit.COLOR_LINE, PATH_EXT_EXIT % self.__placeExit.idImage)
+                changed = modifySpriteBoundary(parent, state, previewImage, self.__placeExit.bounding, TreeGroupExit.COLOR_LINE,
+                                               PATH_EXT_EXIT % self.__placeExit.idImage, foreground=foregroundImage)
                 return RefreshInformation(backgroundRefresh=changed)
             
             elif selectedId == self.itemArrowImage:
@@ -568,7 +580,7 @@ class TreeGroupExit(TreeObjectPlaceData):
                         
         return super().modifyItem(state, treeCtrl, selectedId, parent, previewImage)
 
-    def modifyAllItems(self, state: Layton2GameState, treeCtrl: TreeCtrl, selectedId: TreeItemId, parent, previewImage: Surface, otherPlaceData: List[PlaceData]) -> RefreshInformation:
+    def modifyAllItems(self, state: Layton2GameState, treeCtrl: TreeCtrl, selectedId: TreeItemId, parent, previewImage : Surface, otherPlaceData: List[PlaceData], foregroundImage : Optional[Surface] = None) -> RefreshInformation:
         
         mismatchFound = False
         similarEntries : List[Exit] = []
@@ -588,7 +600,7 @@ class TreeGroupExit(TreeObjectPlaceData):
         if mismatchFound:
             logSevere("Mismatch trying to solve for identical exits!")
 
-        output = self.modifyItem(state, treeCtrl, selectedId, parent, previewImage)
+        output = self.modifyItem(state, treeCtrl, selectedId, parent, previewImage, foregroundImage=foregroundImage)
         for entry in similarEntries:
             entry.bounding.cloneInto(self.__placeExit.bounding)
             entry.idImage = self.__placeExit.idImage
@@ -625,7 +637,10 @@ class TreeGroupExit(TreeObjectPlaceData):
                                              data=self.__placeExit.idSound)
 
     def renderSelectionLine(self, surface: Surface):
-        drawRectangle(surface, TreeGroupExit.COLOR_LINE, Rect(self.__placeExit.bounding.x, self.__placeExit.bounding.y, self.__placeExit.bounding.width, self.__placeExit.bounding.height), width=_TREE_GROUP_WIDTH)
+        blitBoundingLine(surface, self.__placeExit.bounding, TreeGroupExit.COLOR_LINE)
+
+    def renderSelectionAlphaFill(self, surface: Surface, alpha : int = 120):
+        blitBoundingAlphaFill(surface, self.__placeExit.bounding, TreeGroupExit.COLOR_LINE, alpha=alpha)
 
     @staticmethod
     def fromPlaceData(data : Exit) -> TreeGroupExit:

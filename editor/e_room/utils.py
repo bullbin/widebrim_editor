@@ -1,3 +1,9 @@
+from typing import Optional, Tuple
+from pygame import Surface, Rect
+from pygame.draw import rect as drawRectangle
+
+from widebrim.madhatter.hat_io.asset_dat.place import BoundingBox
+
 def getShortenedString(text : str, maxChars=36, extra="(...)", addSpace=True) -> str:
     """Shorten string to fit character length.
 
@@ -35,3 +41,21 @@ def getShortenedString(text : str, maxChars=36, extra="(...)", addSpace=True) ->
                     return text[:-checkLen] + extra[1:]
 
         return text
+    
+def blitBoundingLine(dest : Surface, bounding : BoundingBox, color : Tuple[int,int,int], width : int = 2):
+    drawRectangle(dest, color, Rect(bounding.x, bounding.y, bounding.width, bounding.height), width=width, border_radius=0)
+
+def getBoundingFromSurface(inSurf : Optional[Surface], pos : Tuple[int,int]) -> BoundingBox:
+    if inSurf == None:
+        return BoundingBox(pos[0], pos[1], 0, 0)
+    return BoundingBox(pos[0], pos[1], inSurf.get_width(), inSurf.get_height())
+
+def blitBoundingAlphaFill(dest : Surface, bounding : BoundingBox, color : Tuple[int,int,int], alpha : int = 120):
+    lenX = bounding.width
+    lenY = bounding.height
+    if lenX == 0 or lenY == 0:
+        return
+    tempRect = Surface((lenX, lenY)).convert_alpha()
+    tempRect.fill((color[0], color[1], color[2], alpha))
+    # TODO - Can use a blend mode to force topmost color to stay
+    dest.blit(tempRect, (bounding.x, bounding.y))

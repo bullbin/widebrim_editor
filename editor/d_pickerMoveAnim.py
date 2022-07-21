@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Optional, Tuple
 
 from pygame import Surface
 from editor.d_pickerBoundaryAnim import DialogChangeBoundaryWithSpritePositioning
@@ -6,11 +6,12 @@ from widebrim.engine.anim.image_anim.image import AnimatedImageObject
 from widebrim.madhatter.hat_io.asset_dat.place import BoundingBox
 
 class DialogSpriteReposition(DialogChangeBoundaryWithSpritePositioning):
-    def __init__(self, parent, bitmap: Surface, animation: AnimatedImageObject, pos : Tuple[int,int], color: Tuple[int, int, int] = (255,255,255), highlightWidth: int = 4):
-        super().__init__(parent, bitmap, animation, BoundingBox(pos[0],pos[1],animation.getDimensions()[0],animation.getDimensions()[1]), color, highlightWidth)
+    def __init__(self, parent, bitmap: Surface, animation: AnimatedImageObject, pos : Tuple[int,int], surfaceOverlay : Optional[Surface], color: Tuple[int, int, int] = (255,255,255), highlightWidth: int = 4):
+        super().__init__(parent, bitmap, animation, BoundingBox(pos[0],pos[1],animation.getDimensions()[0],animation.getDimensions()[1]), color=color, highlightWidth=highlightWidth, surfaceOverlay=surfaceOverlay)
         self.SetTitle("Change Position")
         self.btnCreateMidSize.SetLabelText("Recenter")
         self._showHandles = False
+        self._clampToEdges = False
         self.btnSetBoundaryFromAnim.Hide()
         self.Layout()
         self.panelBitmap.Refresh(eraseBackground=False)

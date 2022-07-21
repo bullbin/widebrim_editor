@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Optional, Tuple
 from pygame import Surface
 from editor.d_pickerAnim import DialogPickerLimitedAnim
 from editor.d_pickerBoundary import DialogChangeBoundaryPygame
@@ -33,7 +33,7 @@ def modifyPosition(parent : Window, pos : Tuple[int,int]):
         return pos
     return (newX, newY)
 
-def modifySpritePosition(parent : Window, state : Layton2GameState, background : Surface, pathSprite : str, pos : Tuple[int,int]) -> Tuple[int,int]:
+def modifySpritePosition(parent : Window, state : Layton2GameState, background : Surface, pathSprite : str, pos : Tuple[int,int], color : Tuple[int,int,int], foreground : Optional[Surface]=None) -> Tuple[int,int]:
     """Brings up a dialog to modify a position that is connected to a sprite. If no sprite could be loaded, the default position editing dialog will be presented instead.
 
     Args:
@@ -42,6 +42,7 @@ def modifySpritePosition(parent : Window, state : Layton2GameState, background :
         background (Surface): Background preview used in dialog renderer.
         pathSprite (str): Path to sprite associated with the sprite.
         pos (Tuple[int,int]): Sprite position.
+        foreground (Optional[Surface]): Surface to overlay onto preview. Defaults to None.
 
     Returns:
         Tuple[int,int]: Sprite position.
@@ -54,7 +55,7 @@ def modifySpritePosition(parent : Window, state : Layton2GameState, background :
     if anim.getActiveFrame() == None:
         return modifyPosition(parent, pos)
     print("Modify spritepos called on", pos)
-    dlg = DialogSpriteReposition(parent, background, anim, pos=pos)
+    dlg = DialogSpriteReposition(parent, background, anim, pos=pos, color=color, surfaceOverlay=foreground)
     if dlg.ShowModal() == ID_OK:
         return dlg.GetPos()
     return pos
@@ -71,7 +72,7 @@ def modifySpritePath(parent : Window, state : Layton2GameState, pathSprite : str
     except AttributeError:
         return dlg.GetPath()
 
-def modifySpriteBoundary(parent : Window, state : Layton2GameState, background : Surface, boundary : BoundingBox, color : Tuple[int,int,int], spritePath : str) -> bool:
+def modifySpriteBoundary(parent : Window, state : Layton2GameState, background : Surface, boundary : BoundingBox, color : Tuple[int,int,int], spritePath : str, foreground : Optional[Surface] = None) -> bool:
     """Brings up a dialog to modify a boundary that is connected to another sprite. If no sprite could be loaded, the default boundary dialog will be presented instead.
 
     Args:
@@ -81,15 +82,16 @@ def modifySpriteBoundary(parent : Window, state : Layton2GameState, background :
         boundary (BoundingBox): Boundary being edited in-place.
         color (Tuple[int,int,int]): Line color for outlining boundary.
         spritePath (str): Path to sprite associated with the boundary.
+        foreground (Optional[Surface]): Surface to overlay onto preview. Defaults to None.
 
     Returns:
         bool: True if boundary was modified.
     """
     anim = getBottomScreenAnimFromPath(state, spritePath)
     if anim.getActiveFrame() != None:
-        dlg = DialogChangeBoundaryWithSpritePositioning(parent, background, anim, boundary, color=color)
+        dlg = DialogChangeBoundaryWithSpritePositioning(parent, background, anim, boundary, color=color, surfaceOverlay=foreground)
     else:
-        dlg = DialogChangeBoundaryPygame(parent, background, boundary, color=color)
+        dlg = DialogChangeBoundaryPygame(parent, background, boundary, color=color, surfaceOverlay=foreground)
     if dlg.ShowModal() == ID_OK:
         newBoundary = dlg.GetBounding()
         output = (boundary.x != newBoundary.x) or (boundary.y != newBoundary.y) or (boundary.width != newBoundary.width) or (boundary.height != newBoundary.height)
@@ -100,7 +102,7 @@ def modifySpriteBoundary(parent : Window, state : Layton2GameState, background :
         return output
     return False
 
-def modifyBoundary(parent : Window, state : Layton2GameState, background : Surface, boundary : BoundingBox, color : Tuple[int,int,int]) -> bool:
+def modifyBoundary(parent : Window, state : Layton2GameState, background : Surface, boundary : BoundingBox, color : Tuple[int,int,int], foreground : Optional[Surface] = None) -> bool:
     """Brings up a dialog to modify a boundary.
 
     Args:
@@ -109,11 +111,12 @@ def modifyBoundary(parent : Window, state : Layton2GameState, background : Surfa
         background (Surface): Background preview used in dialog renderer.
         boundary (BoundingBox): Boundary being edited in-place.
         color (Tuple[int,int,int]): Line color for outlining boundary.
+        foreground (Optional[Surface]): Surface to overlay onto preview. Defaults to None.
 
     Returns:
         bool: True if boundary was modified.
     """
-    dlg = DialogChangeBoundaryPygame(parent, background, boundary, color=color)
+    dlg = DialogChangeBoundaryPygame(parent, background, boundary, color=color, surfaceOverlay=foreground)
     if dlg.ShowModal() == ID_OK:
         newBoundary = dlg.GetBounding()
         output = (boundary.x != newBoundary.x) or (boundary.y != newBoundary.y) or (boundary.width != newBoundary.width) or (boundary.height != newBoundary.height)

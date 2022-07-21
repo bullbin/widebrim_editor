@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Optional, Tuple
 from .nopush_editor import PickerChangeBoundary
 from pygame import Surface
 from pygame.image import tostring
@@ -20,13 +20,14 @@ class DialogChangeBoundary(PickerChangeBoundary):
 
     RADIUS_POINTS = 6
 
-    def __init__(self, parent, bitmap : Bitmap, boundary : BoundingBox, color : Tuple[int, int, int] = (255,0,0), highlightWidth : int = 4):
+    def __init__(self, parent, bitmap : Bitmap, bitmapOverlay : Optional[Bitmap], boundary : BoundingBox, color : Tuple[int, int, int] = (255,0,0), highlightWidth : int = 4):
         super().__init__(parent)
         self._color = Colour(color[0], color[1], color[2])
         self._width = highlightWidth
         self._coordPin      : Point = Point(0,0)
         self._coordActive   : Point = Point(0,0)
         self._bitmap = bitmap
+        self.__bitmapOverlay = bitmapOverlay
 
         self.btnSetBoundaryFromAnim.Hide()
         self.btnReset.Disable()
@@ -45,6 +46,7 @@ class DialogChangeBoundary(PickerChangeBoundary):
 
         # Workaround - Remove handles
         self._showHandles = True
+        self._clampToEdges = True
 
         # HACK - Without something to stop immediate event cue the last mouse movement is inputted into wx...
         self.__inputAllowed = False
@@ -68,14 +70,23 @@ class DialogChangeBoundary(PickerChangeBoundary):
         return BoundingBox(minCoord[0], minCoord[1], width, height)
 
     def __loadBoundary(self, boundary : BoundingBox):
+        # TODO - Clamp if needed
         self._coordActive = _scalePointUp(Point(boundary.x, boundary.y))
         self._coordPin = _scalePointUp(Point(boundary.x + boundary.width, boundary.y + boundary.height))
 
     def _paintOutline(self, dc : BufferedPaintDC):
-        if _scalePointDown(self._coordActive) != _scalePointDown(self._coordPin):
-            dc.SetPen(Pen(self._color, self._width, PENSTYLE_SOLID))
-            dc.SetBrush(Brush(self._color, BRUSHSTYLE_BDIAGONAL_HATCH))
-            dc.DrawRectangle(Rect(self._coordPin, self._coordActive))
+        self._paintLines(dc)
+        self._paintInfill(dc)
+
+    def _paintLines(self, dc : BufferedPaintDC):
+        dc.SetPen(Pen(self._color, self._width, PENSTYLE_SOLID))
+        dc.SetBrush(Brush(self._color, BRUSHSTYLE_TRANSPARENT))
+        dc.DrawRectangle(Rect(self._coordPin, self._coordActive))
+
+    def _paintInfill(self, dc : BufferedPaintDC):
+        dc.SetPen(Pen(self._color, self._width, PENSTYLE_SOLID))
+        dc.SetBrush(Brush(self._color, BRUSHSTYLE_BDIAGONAL_HATCH))
+        dc.DrawRectangle(Rect(self._coordPin, self._coordActive))
 
     def _paintHandles(self, dc : BufferedPaintDC):
         def drawHandleRectangle(pointAnchor : Point):
@@ -92,11 +103,17 @@ class DialogChangeBoundary(PickerChangeBoundary):
             dc.DrawRectangle(drawHandleRectangle(rectArea.GetTopLeft()))
             dc.DrawRectangle(drawHandleRectangle(rectArea.GetTopRight()))
 
+    def _paintBitmapOverlay(self, dc : BufferedPaintDC):
+        if self.__bitmapOverlay != None:
+            dc.DrawBitmap(self.__bitmapOverlay, 0, 0)
+
     def panelBitmapOnPaint(self, event):
         dc = BufferedPaintDC(self.panelBitmap)
         dc.Clear()
         dc.DrawBitmap(self._bitmap, 0, 0)
-        self._paintOutline(dc)
+        self._paintInfill(dc)
+        self._paintBitmapOverlay(dc)
+        self._paintLines(dc)
         self._paintHandles(dc)
         return super().panelBitmapOnPaint(event)
     
@@ -174,10 +191,11 @@ class DialogChangeBoundary(PickerChangeBoundary):
                 rectArea.Offset(deltaPos)
                 self._coordActive = rectArea.GetTopLeft()
                 self._coordPin = rectArea.GetBottomRight()
-                self._coordActive.x = max(min(self._coordActive.x, self.panelBitmap.GetSize().x), 0)
-                self._coordActive.y = max(min(self._coordActive.y, self.panelBitmap.GetSize().y), 0)
-                self._coordPin.x = max(min(self._coordPin.x, self.panelBitmap.GetSize().x), 0)
-                self._coordPin.y = max(min(self._coordPin.y, self.panelBitmap.GetSize().y), 0)
+                if self._clampToEdges:
+                    self._coordActive.x = max(min(self._coordActive.x, self.panelBitmap.GetSize().x), 0)
+                    self._coordActive.y = max(min(self._coordActive.y, self.panelBitmap.GetSize().y), 0)
+                    self._coordPin.x = max(min(self._coordPin.x, self.panelBitmap.GetSize().x), 0)
+                    self._coordPin.y = max(min(self._coordPin.y, self.panelBitmap.GetSize().y), 0)
             elif self.__dragBottomLeft:
                 self._coordActive = rectArea.GetTopLeft()
                 self._coordActive.x += deltaPos.x
@@ -218,10 +236,16 @@ class DialogChangeBoundary(PickerChangeBoundary):
         return
 
 class DialogChangeBoundaryPygame(DialogChangeBoundary):
-    def __init__(self, parent, surface: Surface, boundary: BoundingBox, color : Tuple[int, int, int] = (255,0,0), highlightWidth : int = 4):
-        super().__init__(parent, self.__convertPygameToBuffer(surface), boundary, color=color, highlightWidth=highlightWidth)
+    def __init__(self, parent, surface: Surface, boundary: BoundingBox, surfaceOverlay : Optional[Surface] = None, color : Tuple[int, int, int] = (255,0,0), highlightWidth : int = 4):
+        if surfaceOverlay == None:
+            super().__init__(parent, self.__convertPygameToBuffer(surface), None, boundary, color=color, highlightWidth=highlightWidth)
+        else:
+            super().__init__(parent, self.__convertPygameToBuffer(surface), self.__convertPygameToBuffer(surfaceOverlay, True), boundary, color=color, highlightWidth=highlightWidth)
     
-    def __convertPygameToBuffer(self, surface : Surface) -> Bitmap:
-        bitmap = Bitmap.FromBuffer(surface.get_width(), surface.get_height(), tostring(surface, "RGB"))
+    def __convertPygameToBuffer(self, surface : Surface, hasTransparency : bool = False) -> Bitmap:
+        if hasTransparency:
+            bitmap = Bitmap.FromBufferRGBA(surface.get_width(), surface.get_height(), tostring(surface, "RGBA"))
+        else:
+            bitmap = Bitmap.FromBuffer(surface.get_width(), surface.get_height(), tostring(surface, "RGB"))
         bitmap = _scaleBitmap(bitmap)
         return bitmap

@@ -1,8 +1,9 @@
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 from editor.asset_management.plz_txt.jiten import createNextNewRoomTitleId, getFreeRoomJitenNameTagId, getUsedRoomNameTags
 from editor.asset_management.room import PlaceGroup, getPackPathForPlaceIndex
 from editor.d_operandMultichoice import DialogMultipleChoice
 from editor.e_room.modifiers import modifySpritePosition
+from editor.e_room.utils import blitBoundingAlphaFill, blitBoundingLine, getBoundingFromSurface
 from editor.e_script.get_input_popup import VerifiedDialog
 from editor.treeUtils import isItemOnPathToItem
 from widebrim.madhatter.hat_io.asset import File
@@ -22,11 +23,15 @@ from widebrim.madhatter.hat_io.asset_placeflag import PlaceFlag
 
 from re import search
 
+# TODO - Fix need to double click
+# TODO - Cache anims and bg (slowdown blitting)
 # TODO - AutoEvent
 
 class FramePlaceEditor(editorRoom):
 
     INVALID_FRAME_COLOR = (255,0,0)
+    ALPHA_FILL_DESELECTED = 48
+    ALPHA_FILL_SELECTED = 127
 
     def __init__(self, parent, filesystem : WriteableFilesystemCompatibilityLayer, state : Layton2GameState, groupPlace : PlaceGroup):
         super().__init__(parent)
@@ -63,6 +68,7 @@ class FramePlaceEditor(editorRoom):
         self.__invalidSurface.fill(FramePlaceEditor.INVALID_FRAME_COLOR)
 
         self.__lastValidSuggestion = None
+        self._lastSelectedGroup = None
     
     def ensureLoaded(self):
         if self._loaded:
@@ -111,6 +117,21 @@ class FramePlaceEditor(editorRoom):
                 if itemDestination != self._treeRootHintCoin:
                     self.checkRoomApplyToAll.Enable()
                 break
+        
+        noItemSelected = True
+        for itemDestination in self._treeItemsHintCoin + self._treeItemsBgAni + self._treeItemsEventSpawner + self._treeItemsTObj + self._treeItemsExits:
+            itemDestination : TreeObjectPlaceData
+            if itemDestination.isItemSelected(item):
+                noItemSelected = False
+                if self._lastSelectedGroup != itemDestination:
+                    self._lastSelectedGroup = itemDestination
+                    self._generateBackgrounds()
+                break
+        
+        if noItemSelected and self._lastSelectedGroup != None:
+            self._lastSelectedGroup = None
+            self._generateBackgrounds()
+
         return super().treeParamOnTreeSelChanged(event)
     
     def treeParamOnTreeItemActivated(self, event):
@@ -171,17 +192,14 @@ class FramePlaceEditor(editorRoom):
                     return createNextNewRoomTitleId(self._state, newName)
 
         def getBackgroundDevoidOfControl(treeGroup) -> Surface:
-            pathBgMain = PATH_PLACE_BG % self._getActiveState().bgMainId
-            background = getImageFromPath(self._state, pathBgMain)
-            if background == None:
-                background = self.__invalidSurface
-
-            # TODO - Render bgAni and event spawners
-
-            for spawner in self._treeItemsBgAni + self._treeItemsEventSpawner + self._treeItemsExits + self._treeItemsTObj + self._treeItemsHintCoin:
-                if spawner != treeGroup:
-                    spawner.renderSelectionLine(background)
-            return background
+            if type(treeGroup) == TreeGroupExit:
+                # TODO - match if the tree group relates to an immediate exit and don't show movemode
+                bg0, bg1 = self._getBackgroundBottomScreenLayers(treeGroup, hideSelected=True, topmostSelected=False, showHitbox=True, simulateMoveMode=True)
+            else:
+                bg0, bg1 = self._getBackgroundBottomScreenLayers(treeGroup, hideSelected=True, topmostSelected=False, showHitbox=True, simulateMoveMode=False)
+            
+            # TODO - Layer backgrounds!
+            return (bg0, bg1)
 
         item = self.treeParam.GetSelection()
         if item == self._treeItemName:
@@ -199,7 +217,7 @@ class FramePlaceEditor(editorRoom):
             return super().treeParamOnTreeItemActivated(event)
         elif item == self._treeItemMapPos:
             oldPos = self._getActiveState().posMap
-            self._getActiveState().posMap = modifySpritePosition(self, self._state, Surface((256,192)), PATH_ANIM_MAPICON, self._getActiveState().posMap)
+            self._getActiveState().posMap = modifySpritePosition(self, self._state, Surface((256,192)), PATH_ANIM_MAPICON, self._getActiveState().posMap, color=(255,255,255))
             self.treeParam.SetItemData(item, self._getActiveState().posMap)
             if oldPos != self._getActiveState().posMap:
                 self._generateBackgrounds()
@@ -207,16 +225,18 @@ class FramePlaceEditor(editorRoom):
 
         for obj in self._treeItemsTObj + self._treeItemsEventSpawner + self._treeItemsHintCoin + self._treeItemsBgAni + self._treeItemsExits:
             obj : TreeObjectPlaceData
-            if obj.isItemSelected(item):
+            if obj.isItemSelected(item) and obj.isModifiable(item):
                 if not(self.checkRoomApplyToAll.IsEnabled()) or (self.checkRoomApplyToAll.IsEnabled() and self.checkRoomApplyToAll.IsChecked()):
                     otherPlaceData = [self._getActiveState()]
                     for placeData in self._dataPlace:
                         if placeData != self._getActiveState():
                             otherPlaceData.append(placeData)
-                    result = obj.modifyAllItems(self._state, self.treeParam, item, self, getBackgroundDevoidOfControl(obj), otherPlaceData)
+                    background, foreground = getBackgroundDevoidOfControl(obj)
+                    result = obj.modifyAllItems(self._state, self.treeParam, item, self, background, otherPlaceData, foregroundImage=foreground)
                     print("Modified all: %s" % self.treeParam.GetItemText(item))
                 else:
-                    result = obj.modifyItem(self._state, self.treeParam, item, self, getBackgroundDevoidOfControl(obj))
+                    background, foreground = getBackgroundDevoidOfControl(obj)
+                    result = obj.modifyItem(self._state, self.treeParam, item, self, background, foregroundImage=foreground)
                     print("Modified: %s" % self.treeParam.GetItemText(item))
 
                 # TODO - Save changes?
@@ -418,25 +438,125 @@ class FramePlaceEditor(editorRoom):
 
         self.Thaw()
     
-    def _generateBackgrounds(self):
+    def _getBackgroundBottomScreenLayers(self, selectedElement : Optional[Type[TreeObjectPlaceData]] = None, hideSelected : bool = False, topmostSelected : bool = False, showHitbox : bool = True, simulateMoveMode : bool = False) -> Tuple[Surface, Surface]:
+        # TODO - Should we still show selected elements that are hidden from movemode? Currently we do...
+        # TODO - How can we make movemode clearer on selected elements?
+        # TODO - Show exit directions in movemode
 
-        def blitAnimsToBackground(placeData : PlaceData, backgroundSurf : Surface):
-            for indexBgAni in range(placeData.getCountObjBgEvent()):
-                bgAni = placeData.getObjBgEvent(indexBgAni)
-                if (anim := getBottomScreenAnimFromPath(self._state, PATH_ANIM_BGANI % bgAni.name)) != None:
-                    anim.setPos(bgAni.pos)
-                    anim.draw(backgroundSurf)
-            
-            for indexObjEvent in range(placeData.getCountObjEvents()):
-                objEvent = placeData.getObjEvent(indexObjEvent)
-                if objEvent.idImage & 0xff != 0:
-                    if (eventAsset := getBottomScreenAnimFromPath(self._state, PATH_EXT_EVENT % (objEvent.idImage & 0xff))) != None:
-                        eventAsset.setPos((objEvent.bounding.x, objEvent.bounding.y))
-                        eventAsset.draw(backgroundSurf)
-                
-            # TODO - Sort by draw and collision order (TObj and Hint on top?)
-            for spawner in self._treeItemsBgAni + self._treeItemsEventSpawner + self._treeItemsExits + self._treeItemsTObj + self._treeItemsHintCoin:
-                spawner.renderSelectionLine(backgroundSurf)
+        surfAlpha = Surface(RESOLUTION_NINTENDO_DS).convert_alpha()
+        surfTopmost = Surface(RESOLUTION_NINTENDO_DS).convert_alpha()
+        surfBottom = Surface(RESOLUTION_NINTENDO_DS)
+        surfAlpha.fill((255,255,255,0))
+        surfTopmost.fill((255,255,255,0))
+
+        dataPlace = self._getActiveState()
+        if dataPlace == None:
+            return (surfBottom, surfAlpha)
+        
+        surfBottom.blit(getImageFromPath(self._state, PATH_PLACE_BG % dataPlace.bgMainId), (0,0))
+        drawLayer = surfBottom
+
+        for item, indexBgAni in zip(self._treeItemsBgAni, range(dataPlace.getCountObjBgEvent())):
+            bgAni = dataPlace.getObjBgEvent(indexBgAni)
+            anim = getBottomScreenAnimFromPath(self._state, PATH_ANIM_BGANI % bgAni.name)
+            anim.setPos(bgAni.pos)
+
+            if item != selectedElement:
+                anim.draw(drawLayer)
+                if showHitbox and not(simulateMoveMode):
+                    if self.checkAlphaFillHitbox.IsChecked():
+                        blitBoundingAlphaFill(drawLayer, getBoundingFromSurface(anim.getActiveFrame(), bgAni.pos), TreeGroupBackgroundAnimation.COLOR_LINE, alpha=FramePlaceEditor.ALPHA_FILL_DESELECTED)
+                    blitBoundingLine(drawLayer, getBoundingFromSurface(anim.getActiveFrame(), bgAni.pos), TreeGroupBackgroundAnimation.COLOR_LINE)
+            else:
+                if not(hideSelected):
+                    if topmostSelected:
+                        target = surfTopmost
+                    else:
+                        target = drawLayer
+                    blitBoundingAlphaFill(target, getBoundingFromSurface(anim.getActiveFrame(), bgAni.pos), TreeGroupBackgroundAnimation.COLOR_LINE, alpha=FramePlaceEditor.ALPHA_FILL_SELECTED)
+                    anim.draw(target)
+                    blitBoundingLine(target, getBoundingFromSurface(anim.getActiveFrame(), bgAni.pos), TreeGroupBackgroundAnimation.COLOR_LINE)
+                drawLayer = surfAlpha
+
+        for item, indexExit in zip(self._treeItemsExits, range(dataPlace.getCountExits())):
+            placeExit = dataPlace.getExit(indexExit)
+            if item != selectedElement:
+                if showHitbox and ((not(simulateMoveMode) and placeExit.canBePressedImmediately()) or simulateMoveMode):
+                    if self.checkAlphaFillHitbox.IsChecked():
+                        item.renderSelectionAlphaFill(drawLayer, alpha=FramePlaceEditor.ALPHA_FILL_DESELECTED)
+                    item.renderSelectionLine(drawLayer)
+            else:
+                if not(hideSelected):
+                    if topmostSelected:
+                        target = surfTopmost
+                    else:
+                        target = drawLayer
+
+                    item.renderSelectionAlphaFill(target, alpha=FramePlaceEditor.ALPHA_FILL_SELECTED)
+                    item.renderSelectionLine(target)
+                drawLayer = surfAlpha
+        
+        for item in self._treeItemsTObj + self._treeItemsHintCoin:
+            item : TreeObjectPlaceData
+            if item != selectedElement:
+                if (showHitbox and not(simulateMoveMode)):
+                    if self.checkAlphaFillHitbox.IsChecked():
+                        item.renderSelectionAlphaFill(drawLayer, alpha=FramePlaceEditor.ALPHA_FILL_DESELECTED)
+                    item.renderSelectionLine(drawLayer)
+            else:
+                if not(hideSelected):
+                    if topmostSelected:
+                        target = surfTopmost
+                    else:
+                        target = drawLayer
+                    item.renderSelectionAlphaFill(target, alpha=FramePlaceEditor.ALPHA_FILL_SELECTED)
+                    item.renderSelectionLine(target)
+                drawLayer = surfAlpha
+        
+        for item, indexObjEvent in zip(self._treeItemsEventSpawner, range(dataPlace.getCountObjEvents())):
+            # TODO - Handle masking gracefully (ID 0) (plus bg ani)
+            objEvent = dataPlace.getObjEvent(indexObjEvent)
+            anim = getBottomScreenAnimFromPath(self._state, PATH_EXT_EVENT % (objEvent.idImage & 0xff))
+            anim.setPos((objEvent.bounding.x, objEvent.bounding.y))
+
+            if item != selectedElement:
+                anim.draw(drawLayer)
+                if showHitbox and not(simulateMoveMode):
+                    if self.checkAlphaFillHitbox.IsChecked():
+                        item.renderSelectionAlphaFill(drawLayer, alpha=FramePlaceEditor.ALPHA_FILL_DESELECTED)
+                    item.renderSelectionLine(drawLayer)
+            else:
+                if not(hideSelected):
+                    if topmostSelected:
+                        target = surfTopmost
+                    else:
+                        target = drawLayer
+                    item.renderSelectionAlphaFill(target, alpha=FramePlaceEditor.ALPHA_FILL_SELECTED)
+                    anim.draw(target)
+                    item.renderSelectionLine(target)
+                drawLayer = surfAlpha
+        
+        surfAlpha.blit(surfTopmost, (0,0))
+        return (surfBottom, surfAlpha)
+
+        # bg ani -> immediate exit -> tobj -> (touch) hints -> events -> exits
+
+    def _getBackgroundTopScreenLayers(self, selectedElement : Optional[Any] = None, hideSelected : bool = False) -> Tuple[Surface, Surface]:
+        pass
+
+    def checkboxShowHitboxOnCheckBox(self, event):
+        self._generateBackgrounds()
+        return super().checkboxShowHitboxOnCheckBox(event)
+    
+    def checkboxShowInterfaceOnCheckBox(self, event):
+        self._generateBackgrounds()
+        return super().checkboxShowInterfaceOnCheckBox(event)
+
+    def checkAlphaFillHitboxOnCheckBox(self, event):
+        self._generateBackgrounds()
+        return super().checkAlphaFillHitboxOnCheckBox(event)
+
+    def _generateBackgrounds(self):
         
         def blitTopInterfaceToBackground(placeData : PlaceData, backgroundSurf : Surface):
             pass
@@ -447,20 +567,12 @@ class FramePlaceEditor(editorRoom):
 
         self.Freeze()
         
-        pathBgMain = PATH_PLACE_BG % dataPlace.bgMainId
         pathBgSub = PATH_PLACE_MAP % dataPlace.bgMapId
 
-        background = getImageFromPath(self._state, pathBgMain)
-        if background == None:
-            background = self.__invalidSurface
-
-        # TODO - Cache result, this is slow
-        blitAnimsToBackground(dataPlace, background)
-        
-        if self.checkboxShowHitbox.IsChecked():
-            pass
-        if self.checkboxShowInterface.IsChecked():
-            pass
+        bg0, bg1 = self._getBackgroundBottomScreenLayers(self._lastSelectedGroup, hideSelected=False, topmostSelected=True, showHitbox = self.checkboxShowHitbox.IsChecked(),
+                                                         simulateMoveMode = self.checkboxShowInterface.IsChecked())
+        bg0.blit(bg1, (0,0))
+        background = bg0
 
         self.bitmapRoomBottom.SetBitmap(Bitmap.FromBuffer(background.get_width(), background.get_height(), tostring(background, "RGB")))
         
