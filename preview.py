@@ -143,6 +143,8 @@ cleanTempFolder()
 # TODO - cut puzzles are bad lol
 # TODO - State not being cleared between puzzles (58, 59)
 
+# TODO - Will encounter big problem with different editors overwriting data!
+
 # FS Plans
 # ani
 #     exclude system, tobj, sub, subgame, title, menu

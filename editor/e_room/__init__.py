@@ -1,1 +1,1 @@
-from .main import FramePlaceEditor
+from .managePlaceflag import FramePlaceConditionalEditor

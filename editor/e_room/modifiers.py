@@ -6,7 +6,6 @@ from editor.d_pickerBoundaryAnim import DialogChangeBoundaryWithSpritePositionin
 from editor.d_pickerEvent import DialogEvent
 from editor.d_pickerMoveAnim import DialogSpriteReposition
 from editor.e_script.get_input_popup import VerifiedDialog, rangeIntCheckFunction
-from widebrim.engine.const import PATH_ANI
 from widebrim.engine.state.manager.state import Layton2GameState
 from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getTopScreenAnimFromPath
 from widebrim.madhatter.hat_io.asset_dat.place import BoundingBox

@@ -2,33 +2,35 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 from editor.asset_management.plz_txt.jiten import createNextNewRoomTitleId, getFreeRoomJitenNameTagId, getUsedRoomNameTags
 from editor.asset_management.room import PlaceGroup, getPackPathForPlaceIndex
 from editor.d_operandMultichoice import DialogMultipleChoice
+from editor.d_pickerBgx import DialogPickerBgx
 from editor.e_room.modifiers import modifySpritePosition
 from editor.e_room.utils import blitBoundingAlphaFill, blitBoundingLine, getBoundingFromSurface
 from editor.e_script.get_input_popup import VerifiedDialog
 from editor.treeUtils import isItemOnPathToItem
-from widebrim.madhatter.common import logSevere
+from widebrim.engine.anim.font.static import generateImageFromString
+from widebrim.madhatter.common import log, logSevere
 from widebrim.madhatter.hat_io.asset import File
 from .treeGroups import TreeGroupBackgroundAnimation, TreeGroupEventSpawner, TreeGroupExit, TreeGroupHintCoin, TreeGroupTObj, TreeObjectPlaceData
 from editor.nopush_editor import editorRoom
-from widebrim.engine.const import PATH_DB_PLACEFLAG, PATH_EXT_EVENT, PATH_EXT_EXIT, PATH_PACK_PLACE_NAME, PATH_PLACE_BG, PATH_PLACE_MAP, PATH_PROGRESSION_DB, PATH_TEXT_PLACE_NAME, RESOLUTION_NINTENDO_DS
+from widebrim.engine.const import PATH_ANI, PATH_EXT_EVENT, PATH_EXT_EXIT, PATH_PACK_PLACE_NAME, PATH_PLACE_BG, PATH_PLACE_MAP, PATH_TEXT_PLACE_NAME, RESOLUTION_NINTENDO_DS
 from widebrim.engine.state.manager.state import Layton2GameState
-from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getImageFromPath, substituteLanguageString
+from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getImageFromPath, getTopScreenAnimFromPath, getTxt2String, substituteLanguageString
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
 from wx import TreeItemId, Bitmap, ID_OK, TextEntryDialog
 from widebrim.gamemodes.room.const import PATH_ANIM_BGANI, PATH_ANIM_MAPICON, PATH_PACK_PLACE
-from pygame import Surface
+from pygame import Surface, BLEND_RGB_SUB
 from pygame.image import tostring
-
 from widebrim.madhatter.hat_io.asset_dat.place import BgAni, EventEntry, Exit, HintCoin, PlaceData, PlaceDataNds, TObjEntry
-from widebrim.madhatter.hat_io.asset_placeflag import PlaceFlag
 
-from re import search
+from re import search, match
 
 # TODO - Fix need to double click
 # TODO - Cache anims and bg (slowdown blitting)
 # TODO - AutoEvent
 # TODO - Verify functionality to check that all hitboxes can be reached (e.g., hint coins)
 # TODO - Rewrite draw code to support multi-selection (select all in group) without horrible overdraw
+# TODO - Set up background redraw requests on per-screen basis (speedup)
+# TODO - Enable change all for properties too
 
 class FramePlaceEditor(editorRoom):
 
@@ -46,67 +48,39 @@ class FramePlaceEditor(editorRoom):
         self._state = state
         self._groupPlace = groupPlace
         
-        self._dataPlace         : List[PlaceData]             = []
-        self._treeToPlaceData   : Dict[TreeItemId, PlaceData] = {}
+        self._dataPlace                     : List[PlaceData]      = []
 
-        self._treeRoot                  : Optional[TreeItemId] = None
+        self.__treeRoot                     : Optional[TreeItemId] = None
 
-        self._treeItemName              : Optional[TreeItemId] = None
-        self._treeItemMapPos            : Optional[TreeItemId] = None
-        self._treeItemSound             : Optional[TreeItemId] = None
-
-        self._treeRootProperties        : Optional[TreeItemId] = None
-        self._treeRootHintCoin          : Optional[TreeItemId] = None
-        self._treeRootBackgroundAnim    : Optional[TreeItemId] = None
-        self._treeRootEventSpawner      : Optional[TreeItemId] = None
-        self._treeRootTextObjectSpawner : Optional[TreeItemId] = None
-        self._treeRootExit              : Optional[TreeItemId] = None
+        self.__treeRootProperties           : Optional[TreeItemId] = None
+        self.__treeRootHintCoin             : Optional[TreeItemId] = None
+        self.__treeRootBackgroundAnim       : Optional[TreeItemId] = None
+        self.__treeRootEventSpawner         : Optional[TreeItemId] = None
+        self.__treeRootTextObjectSpawner    : Optional[TreeItemId] = None
+        self.__treeRootExit                 : Optional[TreeItemId] = None
         
-        self._treeRootAutoevent         : Optional[TreeItemId] = None
+        self.__treeRootAutoevent            : Optional[TreeItemId] = None
 
-        self._treeItemsTObj             : List[TreeGroupTObj] = []
-        self._treeItemsEventSpawner     : List[TreeGroupEventSpawner] = []
-        self._treeItemsHintCoin         : List[TreeGroupHintCoin] = []
-        self._treeItemsBgAni            : List[TreeGroupBackgroundAnimation] = []
-        self._treeItemsExits            : List[TreeGroupExit] = []
+        self.__treeItemName                 : Optional[TreeItemId] = None
+        self.__treeItemMapPos               : Optional[TreeItemId] = None
+        self.__treeItemSound                : Optional[TreeItemId] = None
 
-        self._loaded = False
+        self.__treeItemsTObj                : List[TreeGroupTObj]                   = []
+        self.__treeItemsEventSpawner        : List[TreeGroupEventSpawner]           = []
+        self.__treeItemsHintCoin            : List[TreeGroupHintCoin]               = []
+        self.__treeItemsBgAni               : List[TreeGroupBackgroundAnimation]    = []
+        self.__treeItemsExits               : List[TreeGroupExit]                   = []
+
         self.__invalidSurface = Surface(RESOLUTION_NINTENDO_DS)
         self.__invalidSurface.fill(FramePlaceEditor.INVALID_FRAME_COLOR)
+        self.__imagesExit           : Dict[int, Surface]  = {}
 
-        self.__imagesExit = {}
+        self._lastValidSuggestion   : Optional[PlaceData] = None
+        self._lastSelectedGroup     : Optional[Type[TreeObjectPlaceData]] = None
+        self._loaded                : bool = False
 
-        self.__lastValidSuggestion = None
-        self._lastSelectedGroup = None
-    
-    def ensureLoaded(self):
-        if self._loaded:
-            return
-
-        pathPack = getPackPathForPlaceIndex(self._groupPlace.indexPlace)
-        pack = self._filesystem.getPack(pathPack)
-        for index in self._groupPlace.indicesStates:
-            loadedPlace = PlaceDataNds()
-            if (data := pack.getFile(PATH_PACK_PLACE % (self._groupPlace.indexPlace, index))) != None:
-                loadedPlace.load(data)
-            self._dataPlace.append(loadedPlace)
-
-        self.Freeze()
-        self._generateList()
-        self._generateTree()
-        self._generateBackgrounds()
-        self.refreshExitImages()
-        self._loaded = True
-        self.Thaw()
-
-    def treeStateProgressionOnTreeSelChanged(self, event):
-        if self.__lastValidSuggestion != self._getActiveState():
-            self.btnRoomCreateNew.Disable()
-            self.btnRoomDelete.Disable()
-            self.checkRoomApplyToAll.Disable()
-            self._generateTree()
-            self._generateBackgrounds()
-        return super().treeStateProgressionOnTreeSelChanged(event)
+    def _getActiveState(self) -> Optional[PlaceDataNds]:
+        return self._lastValidSuggestion
 
     def treeParamOnTreeSelChanged(self, event):
         # HACK - Method called when tree is broken. Workaround, see https://github.com/wxWidgets/Phoenix/issues/1500
@@ -119,30 +93,30 @@ class FramePlaceEditor(editorRoom):
         self.btnRoomCreateNew.Disable()
         self.btnRoomDelete.Disable()
         self.checkRoomApplyToAll.Disable()
-        for itemDestination in [self._treeRootHintCoin, self._treeRootBackgroundAnim, self._treeRootEventSpawner,
-                                self._treeRootTextObjectSpawner, self._treeRootExit]:
+        for itemDestination in [self.__treeRootHintCoin, self.__treeRootBackgroundAnim, self.__treeRootEventSpawner,
+                                self.__treeRootTextObjectSpawner, self.__treeRootExit]:
             if isItemOnPathToItem(self.treeParam, item, itemDestination):
                 # TODO - Can just reverse (don't allow nodes on branch to properties)
                 self.btnRoomCreateNew.Enable()
                 self.btnRoomDelete.Enable()
 
-                if itemDestination != self._treeRootHintCoin:
+                if itemDestination != self.__treeRootHintCoin:
                     self.checkRoomApplyToAll.Enable()
                 break
         
         noItemSelected = True
-        for itemDestination in self._treeItemsHintCoin + self._treeItemsBgAni + self._treeItemsEventSpawner + self._treeItemsTObj + self._treeItemsExits:
+        for itemDestination in self.__treeItemsHintCoin + self.__treeItemsBgAni + self.__treeItemsEventSpawner + self.__treeItemsTObj + self.__treeItemsExits:
             itemDestination : TreeObjectPlaceData
             if itemDestination.isItemSelected(item):
                 noItemSelected = False
                 if self._lastSelectedGroup != itemDestination:
                     self._lastSelectedGroup = itemDestination
-                    self._generateBackgrounds()
+                    self.__generateBackgrounds()
                 break
         
         if noItemSelected and self._lastSelectedGroup != None:
             self._lastSelectedGroup = None
-            self._generateBackgrounds()
+            self.__generateBackgrounds()
 
         return super().treeParamOnTreeSelChanged(event)
     
@@ -206,15 +180,15 @@ class FramePlaceEditor(editorRoom):
         def getBackgroundDevoidOfControl(treeGroup) -> Surface:
             if type(treeGroup) == TreeGroupExit:
                 # TODO - match if the tree group relates to an immediate exit and don't show movemode
-                bg0, bg1 = self._getBackgroundBottomScreenLayers(treeGroup, hideSelected=True, topmostSelected=False, showHitbox=True, simulateMoveMode=True)
+                bg0, bg1 = self.__getBackgroundBottomScreenLayers(treeGroup, hideSelected=True, topmostSelected=False, showHitbox=True, simulateMoveMode=True)
             else:
-                bg0, bg1 = self._getBackgroundBottomScreenLayers(treeGroup, hideSelected=True, topmostSelected=False, showHitbox=True, simulateMoveMode=False)
+                bg0, bg1 = self.__getBackgroundBottomScreenLayers(treeGroup, hideSelected=True, topmostSelected=False, showHitbox=True, simulateMoveMode=False)
             
             # TODO - Layer backgrounds!
             return (bg0, bg1)
 
         item = self.treeParam.GetSelection()
-        if item == self._treeItemName:
+        if item == self.__treeItemName:
             # TODO - Select name
             newId = modifyName()
             if newId != None:
@@ -225,17 +199,19 @@ class FramePlaceEditor(editorRoom):
 
                 self.treeParam.SetItemData(item, newId)
                 self.treeParam.SetItemText(item, "Name: %s" % self._filesystem.getPackedString(substituteLanguageString(self._state, PATH_PACK_PLACE_NAME), PATH_TEXT_PLACE_NAME % newId))
-                self._getActiveState().idNamePlace = newId
+                if self._getActiveState().idNamePlace != newId:
+                    self._getActiveState().idNamePlace = newId
+                    self.__generateBackgrounds()
             return super().treeParamOnTreeItemActivated(event)
-        elif item == self._treeItemMapPos:
+        elif item == self.__treeItemMapPos:
             oldPos = self._getActiveState().posMap
-            self._getActiveState().posMap = modifySpritePosition(self, self._state, Surface((256,192)), PATH_ANIM_MAPICON, self._getActiveState().posMap, color=(255,255,255))
+            self._getActiveState().posMap = modifySpritePosition(self, self._state, self.__getBackgroundTopScreen(False), PATH_ANIM_MAPICON, self._getActiveState().posMap, color=(255,255,255))
             self.treeParam.SetItemData(item, self._getActiveState().posMap)
             if oldPos != self._getActiveState().posMap:
-                self._generateBackgrounds()
+                self.__generateBackgrounds()
             return super().treeParamOnTreeItemActivated(event)
 
-        for obj in self._treeItemsTObj + self._treeItemsEventSpawner + self._treeItemsHintCoin + self._treeItemsBgAni + self._treeItemsExits:
+        for obj in self.__treeItemsTObj + self.__treeItemsEventSpawner + self.__treeItemsHintCoin + self.__treeItemsBgAni + self.__treeItemsExits:
             obj : TreeObjectPlaceData
             if obj.isItemSelected(item) and obj.isModifiable(item):
                 if not(self.checkRoomApplyToAll.IsEnabled()) or (self.checkRoomApplyToAll.IsEnabled() and self.checkRoomApplyToAll.IsChecked()):
@@ -253,110 +229,13 @@ class FramePlaceEditor(editorRoom):
 
                 # TODO - Save changes?
                 if result.backgroundRefresh:
-                    self._generateBackgrounds()
+                    self.__generateBackgrounds()
                 return super().treeParamOnTreeItemActivated(event)
         
         print("Cannot edit!")
         return super().treeParamOnTreeItemActivated(event)
 
-    def syncChanges(self):
-        pathPack = getPackPathForPlaceIndex(self._groupPlace.indexPlace)
-        pack = self._filesystem.getPack(pathPack)
-
-        datPlace = PATH_PACK_PLACE.replace("%i", "([0-9]*)")
-
-        contents : Dict[int, Dict[int, File]] = {}
-        for file in pack.files:
-            
-            if (result := search(datPlace, file.name)) != None:
-                indexPlace = int(result.group(1))
-                indexSubPlace = int(result.group(2))
-                
-                if indexPlace != self._groupPlace.indexPlace:
-                    if indexPlace not in contents:
-                        contents[indexPlace] = {}
-                    
-                    contents[indexPlace][indexSubPlace] = file
-
-        contents[self._groupPlace.indexPlace] = {}
-        for indexSubPlace, fileData in enumerate(self._dataPlace):
-            fileData.save()
-            contents[self._groupPlace.indexPlace][indexSubPlace] = File(name=PATH_PACK_PLACE % (self._groupPlace.indexPlace, indexSubPlace), data=fileData.data)
-
-        pack.files = []
-        indicesPlaces = list(contents.keys())
-        indicesPlaces.sort()
-        for indexPlace in indicesPlaces:
-            indicesSubPlaces = list(contents[indexPlace].keys())
-            indicesSubPlaces.sort()
-            for indexSubPlace in indicesSubPlaces:
-                pack.files.append(contents[indexPlace][indexSubPlace])
-
-        pack.save()
-        pack.compress()
-        self._filesystem.writeableFs.replaceFile(pathPack, pack.data)
-        print("Synced and sorted room pack!")
-
-    def _getActiveState(self) -> Optional[PlaceDataNds]:
-        # HACK - Method called when tree is broken. Workaround, see https://github.com/wxWidgets/Phoenix/issues/1500
-        if not(self.treeStateProgression):
-            return self.__lastValidSuggestion
-
-        selection = self.treeStateProgression.GetSelection()
-        if selection in self._treeToPlaceData:
-            # TODO - Variable branch mapping
-            self.__lastValidSuggestion = self._treeToPlaceData[selection]
-        return self.__lastValidSuggestion
-
-    def _generateList(self):
-        self.Freeze()
-
-        placeFlag = PlaceFlag()
-        if (data := self._filesystem.getPackedData(PATH_PROGRESSION_DB, PATH_DB_PLACEFLAG)):
-            placeFlag.load(data)
-
-        self.treeStateProgression.DeleteAllItems()
-        rootTreeProgression = self.treeStateProgression.AddRoot("You shouldn't be able to see this!")
-        
-        selection = None
-        for trueIndex, index in enumerate(self._groupPlace.indicesStates):
-            if index == 0:
-                selection = self.treeStateProgression.AppendItem(rootTreeProgression, "Default State", data=self._dataPlace[trueIndex])
-                self._treeToPlaceData[selection] = self._dataPlace[trueIndex]
-            else:
-                
-                entry = placeFlag.entries[self._groupPlace.indexPlace]
-                chapterEntry = entry.getEntry(index)
-                chapterMin = chapterEntry.chapterStart
-                chapterMax = chapterEntry.chapterEnd
-
-                subroomRoot = self.treeStateProgression.AppendItem(rootTreeProgression, "State " + str(index) + (": Chapter %i to %i" % (chapterMin, chapterMax)),
-                                                                   data=self._dataPlace[trueIndex])
-                self._treeToPlaceData[subroomRoot] = self._dataPlace[trueIndex]
-
-                if chapterMin == 0 or chapterMax == 0:
-                    self.treeStateProgression.AppendItem(subroomRoot, "Terminate subroom discovery on encounter")
-                    continue
-                
-                counterEntry = entry.getCounterEntry(index)
-                if counterEntry.indexEventCounter != 0:
-                    if counterEntry.decodeMode == 0:
-                        # Value same as val at index
-                        self.treeStateProgression.AppendItem(subroomRoot, "Variable " + str(counterEntry.indexEventCounter) + " equals " + str(counterEntry.unk1))
-                    elif counterEntry.decodeMode == 1:
-                        # Value different than val at index
-                        self.treeStateProgression.AppendItem(subroomRoot, "Variable " + str(counterEntry.indexEventCounter) + " doesn't equal " + str(counterEntry.unk1))
-                    elif counterEntry.decodeMode == 2:
-                        # Value less than val at index
-                        self.treeStateProgression.AppendItem(subroomRoot, "Variable " + str(counterEntry.indexEventCounter) + " greater than or equal to " + str(counterEntry.unk1))
-                    else:
-                        self.treeStateProgression.AppendItem(subroomRoot, "Misconfigured counter condition")
-
-        if selection != None:
-            self.treeStateProgression.SelectItem(selection)
-        self.Thaw()
-
-    def _generateTree(self):
+    def __generateTree(self):
 
         self.Freeze()
 
@@ -373,19 +252,19 @@ class FramePlaceEditor(editorRoom):
         treeRootBgAniExpanded           = False
         treeRootExitExpanded            = False
 
-        self._treeItemsTObj = []
-        self._treeItemsEventSpawner = []
-        self._treeItemsHintCoin = []
-        self._treeItemsBgAni = []
-        self._treeItemsExits = []
+        self.__treeItemsTObj = []
+        self.__treeItemsEventSpawner = []
+        self.__treeItemsHintCoin = []
+        self.__treeItemsBgAni = []
+        self.__treeItemsExits = []
 
-        if self._treeRoot != None:
-            treeRootPropertiesExpanded = self.treeParam.IsExpanded(self._treeRootProperties)
-            treeRootTObjExpanded = self.treeParam.IsExpanded(self._treeRootTextObjectSpawner)
-            treeRootEventSpawnerExpanded = self.treeParam.IsExpanded(self._treeRootEventSpawner)
-            treeRootHintCoinExpanded = self.treeParam.IsExpanded(self._treeRootHintCoin)
-            treeRootBgAniExpanded = self.treeParam.IsExpanded(self._treeRootBackgroundAnim)
-            treeRootExitExpanded = self.treeParam.IsExpanded(self._treeRootExit)
+        if self.__treeRoot != None:
+            treeRootPropertiesExpanded = self.treeParam.IsExpanded(self.__treeRootProperties)
+            treeRootTObjExpanded = self.treeParam.IsExpanded(self.__treeRootTextObjectSpawner)
+            treeRootEventSpawnerExpanded = self.treeParam.IsExpanded(self.__treeRootEventSpawner)
+            treeRootHintCoinExpanded = self.treeParam.IsExpanded(self.__treeRootHintCoin)
+            treeRootBgAniExpanded = self.treeParam.IsExpanded(self.__treeRootBackgroundAnim)
+            treeRootExitExpanded = self.treeParam.IsExpanded(self.__treeRootExit)
 
         self.treeParam.DeleteAllItems()
         dataPlace = self._getActiveState()
@@ -394,53 +273,53 @@ class FramePlaceEditor(editorRoom):
             return
 
         def generateDetailBranch():
-            self._treeRootProperties = self.treeParam.AppendItem(self._treeRoot, "Properties")
-            self._treeItemName = self.treeParam.AppendItem(self._treeRootProperties, "Name: %s" % self._filesystem.getPackedString(substituteLanguageString(self._state, PATH_PACK_PLACE_NAME), PATH_TEXT_PLACE_NAME % dataPlace.idNamePlace), data=dataPlace.idNamePlace)
-            self._treeItemMapPos = self.treeParam.AppendItem(self._treeRootProperties, "Edit map pinpoint position...", data=dataPlace.posMap)
-            self._treeItemSound = self.treeParam.AppendItem(self._treeRootProperties, "Change background music (ID %i)..." % dataPlace.idSound, data=dataPlace.idSound)
-            expandIfEnabled(self._treeRootProperties, treeRootPropertiesExpanded)
+            self.__treeRootProperties = self.treeParam.AppendItem(self.__treeRoot, "Properties")
+            self.__treeItemName = self.treeParam.AppendItem(self.__treeRootProperties, "Name: %s" % self._filesystem.getPackedString(substituteLanguageString(self._state, PATH_PACK_PLACE_NAME), PATH_TEXT_PLACE_NAME % dataPlace.idNamePlace), data=dataPlace.idNamePlace)
+            self.__treeItemMapPos = self.treeParam.AppendItem(self.__treeRootProperties, "Edit map pinpoint position...", data=dataPlace.posMap)
+            self.__treeItemSound = self.treeParam.AppendItem(self.__treeRootProperties, "Change background music (ID %i)..." % dataPlace.idSound, data=dataPlace.idSound)
+            expandIfEnabled(self.__treeRootProperties, treeRootPropertiesExpanded)
 
         def generateTextBranch():
-            self._treeRootTextObjectSpawner = self.treeParam.AppendItem(self._treeRoot, "Text Popups")
+            self.__treeRootTextObjectSpawner = self.treeParam.AppendItem(self.__treeRoot, "Text Popups")
             for idTObj in range(dataPlace.getCountObjText()):
                 newTObj = TreeGroupTObj.fromPlaceData(dataPlace.getObjText(idTObj))
-                newTObj.createTreeItems(self._state, self.treeParam, self._treeRootTextObjectSpawner, idTObj)
-                self._treeItemsTObj.append(newTObj)
-            expandIfEnabled(self._treeRootTextObjectSpawner, treeRootTObjExpanded)
+                newTObj.createTreeItems(self._state, self.treeParam, self.__treeRootTextObjectSpawner, idTObj)
+                self.__treeItemsTObj.append(newTObj)
+            expandIfEnabled(self.__treeRootTextObjectSpawner, treeRootTObjExpanded)
         
         def generateEventBranch():
-            self._treeRootEventSpawner = self.treeParam.AppendItem(self._treeRoot, "Event Spawners")
+            self.__treeRootEventSpawner = self.treeParam.AppendItem(self.__treeRoot, "Event Spawners")
             for idEventSpawner in range(dataPlace.getCountObjEvents()):
                 newEventSpawner = TreeGroupEventSpawner.fromPlaceData(dataPlace.getObjEvent(idEventSpawner))
-                newEventSpawner.createTreeItems(self._state, self.treeParam, self._treeRootEventSpawner, idEventSpawner)
-                self._treeItemsEventSpawner.append(newEventSpawner)
-            expandIfEnabled(self._treeRootEventSpawner, treeRootEventSpawnerExpanded)
+                newEventSpawner.createTreeItems(self._state, self.treeParam, self.__treeRootEventSpawner, idEventSpawner)
+                self.__treeItemsEventSpawner.append(newEventSpawner)
+            expandIfEnabled(self.__treeRootEventSpawner, treeRootEventSpawnerExpanded)
 
         def generateHintBranch():
-            self._treeRootHintCoin = self.treeParam.AppendItem(self._treeRoot, "Hint Coins")
+            self.__treeRootHintCoin = self.treeParam.AppendItem(self.__treeRoot, "Hint Coins")
             for idHintCoin in range(dataPlace.getCountHintCoin()):
                 newHintCoin = TreeGroupHintCoin.fromPlaceData(dataPlace.getObjHintCoin(idHintCoin))
-                newHintCoin.createTreeItems(self._state, self.treeParam, self._treeRootHintCoin, idHintCoin)
-                self._treeItemsHintCoin.append(newHintCoin)
-            expandIfEnabled(self._treeRootHintCoin, treeRootHintCoinExpanded)
+                newHintCoin.createTreeItems(self._state, self.treeParam, self.__treeRootHintCoin, idHintCoin)
+                self.__treeItemsHintCoin.append(newHintCoin)
+            expandIfEnabled(self.__treeRootHintCoin, treeRootHintCoinExpanded)
         
         def generateBgAniBranch():
-            self._treeRootBackgroundAnim = self.treeParam.AppendItem(self._treeRoot, "Background Animations")
+            self.__treeRootBackgroundAnim = self.treeParam.AppendItem(self.__treeRoot, "Background Animations")
             for idBgAni in range(dataPlace.getCountObjBgEvent()):
                 newBgAni = TreeGroupBackgroundAnimation.fromPlaceData(dataPlace.getObjBgEvent(idBgAni))
-                newBgAni.createTreeItems(self._state, self.treeParam, self._treeRootBackgroundAnim, idBgAni)
-                self._treeItemsBgAni.append(newBgAni)
-            expandIfEnabled(self._treeRootBackgroundAnim, treeRootBgAniExpanded)
+                newBgAni.createTreeItems(self._state, self.treeParam, self.__treeRootBackgroundAnim, idBgAni)
+                self.__treeItemsBgAni.append(newBgAni)
+            expandIfEnabled(self.__treeRootBackgroundAnim, treeRootBgAniExpanded)
 
         def generateExitBranch():
-            self._treeRootExit = self.treeParam.AppendItem(self._treeRoot, "Exits")
+            self.__treeRootExit = self.treeParam.AppendItem(self.__treeRoot, "Exits")
             for idExit in range(dataPlace.getCountExits()):
                 newExit = TreeGroupExit.fromPlaceData(dataPlace.getExit(idExit))
-                newExit.createTreeItems(self._state, self.treeParam, self._treeRootExit, idExit)
-                self._treeItemsExits.append(newExit)
-            expandIfEnabled(self._treeRootExit, treeRootExitExpanded)
+                newExit.createTreeItems(self._state, self.treeParam, self.__treeRootExit, idExit)
+                self.__treeItemsExits.append(newExit)
+            expandIfEnabled(self.__treeRootExit, treeRootExitExpanded)
 
-        self._treeRoot = self.treeParam.AddRoot("Root")
+        self.__treeRoot = self.treeParam.AddRoot("Root")
         generateDetailBranch()
         generateEventBranch()
         generateTextBranch()
@@ -450,19 +329,24 @@ class FramePlaceEditor(editorRoom):
 
         self.Thaw()
     
+    def reloadActivePlaceData(self):
+        self.__generateTree()
+        self.__generateBackgrounds()
+
     def refreshExitImages(self):
         # TODO - Not great but should ideally only be called once. No limit on exit images other than byte
         for indexImage in range(256):
-            activeAnim = getBottomScreenAnimFromPath(self._state, PATH_EXT_EXIT % indexImage)
-            if activeAnim.getActiveFrame() != None:
-                self.__imagesExit[indexImage] = activeAnim.getActiveFrame()
-            elif indexImage in self.__imagesExit:
-                del self.__imagesExit[indexImage]
+            pathExit = PATH_EXT_EXIT % indexImage
+            if self._filesystem.doesFileExist(PATH_ANI % pathExit):
+                activeAnim = getBottomScreenAnimFromPath(self._state, PATH_EXT_EXIT % indexImage)
+                if activeAnim.getActiveFrame() != None:
+                    self.__imagesExit[indexImage] = activeAnim.getActiveFrame()
+                elif indexImage in self.__imagesExit:
+                    del self.__imagesExit[indexImage]
 
-    def _getBackgroundBottomScreenLayers(self, selectedElement : Optional[Type[TreeObjectPlaceData]] = None, hideSelected : bool = False, topmostSelected : bool = False, showHitbox : bool = True, simulateMoveMode : bool = False) -> Tuple[Surface, Surface]:
+    def __getBackgroundBottomScreenLayers(self, selectedElement : Optional[Type[TreeObjectPlaceData]] = None, hideSelected : bool = False, topmostSelected : bool = False, showHitbox : bool = True, simulateMoveMode : bool = False) -> Tuple[Surface, Surface]:
         # TODO - Should we still show selected elements that are hidden from movemode? Currently we do...
         # TODO - How can we make movemode clearer on selected elements?
-        # TODO - Show exit directions in movemode
 
         # Topmost stores selection, does not need fancy filtering...
         surfTopmost = Surface(RESOLUTION_NINTENDO_DS).convert_alpha()
@@ -484,12 +368,16 @@ class FramePlaceEditor(editorRoom):
         if dataPlace == None:
             return (surfColorBackground, surfAlphaForeground)
         
-        surfColorBackground.blit(getImageFromPath(self._state, PATH_PLACE_BG % dataPlace.bgMainId), (0,0))
+        baseBg = getImageFromPath(self._state, PATH_PLACE_BG % dataPlace.bgMainId)
+        if (baseBg == None):
+            baseBg = self.__invalidSurface
+
+        surfColorBackground.blit(baseBg, (0,0))
         
         layerColor = surfColorBackground
         layerAlpha = surfAlphaBackground
 
-        for item, indexBgAni in zip(reversed(self._treeItemsBgAni), range(dataPlace.getCountObjBgEvent() -1, -1, -1)):
+        for item, indexBgAni in zip(reversed(self.__treeItemsBgAni), range(dataPlace.getCountObjBgEvent() -1, -1, -1)):
             bgAni = dataPlace.getObjBgEvent(indexBgAni)
             anim = getBottomScreenAnimFromPath(self._state, PATH_ANIM_BGANI % bgAni.name)
             anim.setPos(bgAni.pos)
@@ -517,8 +405,10 @@ class FramePlaceEditor(editorRoom):
                 
                 layerColor = surfColorForeground
                 layerAlpha = surfAlphaForeground
+        
+        # TODO - Draw interface...
 
-        for item, indexExit in zip(reversed(self._treeItemsExits), range(dataPlace.getCountExits() - 1, -1, -1)):
+        for item, indexExit in zip(reversed(self.__treeItemsExits), range(dataPlace.getCountExits() - 1, -1, -1)):
             placeExit = dataPlace.getExit(indexExit)
             if item != selectedElement:
                 if showHitbox and ((not(simulateMoveMode) and placeExit.canBePressedImmediately()) or simulateMoveMode):
@@ -546,7 +436,7 @@ class FramePlaceEditor(editorRoom):
                 layerColor = surfColorForeground
                 layerAlpha = surfAlphaForeground
         
-        for item in reversed(self._treeItemsTObj + self._treeItemsHintCoin):
+        for item in reversed(self.__treeItemsTObj + self.__treeItemsHintCoin):
             item : TreeObjectPlaceData
             if item != selectedElement:
                 if (showHitbox and not(simulateMoveMode)):
@@ -567,7 +457,7 @@ class FramePlaceEditor(editorRoom):
                 layerColor = surfColorForeground
                 layerAlpha = surfAlphaForeground
         
-        for item, indexObjEvent in zip(reversed(self._treeItemsEventSpawner), range(dataPlace.getCountObjEvents() - 1, -1, -1)):
+        for item, indexObjEvent in zip(reversed(self.__treeItemsEventSpawner), range(dataPlace.getCountObjEvents() - 1, -1, -1)):
             # TODO - Handle masking gracefully (ID 0) (plus bg ani)
             objEvent = dataPlace.getObjEvent(indexObjEvent)
             anim = getBottomScreenAnimFromPath(self._state, PATH_EXT_EVENT % (objEvent.idImage & 0xff))
@@ -602,55 +492,92 @@ class FramePlaceEditor(editorRoom):
         surfColorForeground.blit(surfTopmost, (0,0))
         return (surfColorBackground, surfColorForeground)
 
-        # bg ani -> immediate exit -> tobj -> (touch) hints -> events -> exits
+    def __getBackgroundTopScreen(self, includeMoveAnim : bool = True) -> Surface:
+        if self._getActiveState() == None:
+            return self.__invalidSurface
+        
+        pathBgSub = PATH_PLACE_MAP % self._getActiveState().bgMapId
+        bgBase = getImageFromPath(self._state, pathBgSub)
+        if bgBase == None:
+            bgBase = self.__invalidSurface
+        
+        POS_CENTER_TEXT_ROOM_TITLE  = (170,7)
+        POS_CENTER_TEXT_OBJECTIVE   = (128,172)
 
-    def _getBackgroundTopScreenLayers(self, selectedElement : Optional[Any] = None, hideSelected : bool = False) -> Tuple[Surface, Surface]:
-        pass
+        # TODO - Copied from old widebrim! Use text renderer, research into what method game uses to render here (what's permitted? newlines?)
+        surfObjective = generateImageFromString(self._state.fontEvent, "Preview Objective")
+        posObjective = (POS_CENTER_TEXT_OBJECTIVE[0] - surfObjective.get_width() // 2, POS_CENTER_TEXT_OBJECTIVE[1])
+        bgBase.blit(surfObjective, posObjective, special_flags=BLEND_RGB_SUB)
+
+        if (titleText := self._state.getFileAccessor().getPackedString(PATH_PACK_PLACE_NAME % self._state.language.value, PATH_TEXT_PLACE_NAME % self._getActiveState().idNamePlace)) != "":
+            surfRoomTitle = generateImageFromString(self._state.fontEvent, titleText)
+            posRoomTitle = (POS_CENTER_TEXT_ROOM_TITLE[0] - surfRoomTitle.get_width() // 2, POS_CENTER_TEXT_ROOM_TITLE[1])
+            bgBase.blit(surfRoomTitle, posRoomTitle, special_flags=BLEND_RGB_SUB)
+        
+        if includeMoveAnim:
+            anim = getTopScreenAnimFromPath(self._state, PATH_ANIM_MAPICON, pos=self._getActiveState().posMap)
+            if anim != None:
+                anim.draw(bgBase)
+        
+        return bgBase
 
     def checkboxShowHitboxOnCheckBox(self, event):
-        self._generateBackgrounds()
+        self.__generateBackgrounds()
         return super().checkboxShowHitboxOnCheckBox(event)
     
     def checkboxShowInterfaceOnCheckBox(self, event):
-        self._generateBackgrounds()
+        self.__generateBackgrounds()
         return super().checkboxShowInterfaceOnCheckBox(event)
 
     def checkAlphaFillHitboxOnCheckBox(self, event):
-        self._generateBackgrounds()
+        self.__generateBackgrounds()
         return super().checkAlphaFillHitboxOnCheckBox(event)
 
-    def _generateBackgrounds(self):
-        
-        def blitTopInterfaceToBackground(placeData : PlaceData, backgroundSurf : Surface):
-            pass
-
-        dataPlace = self._getActiveState()
-        if dataPlace == None:
-            return
-
+    def __generateBackgrounds(self):
         self.Freeze()
-        
-        pathBgSub = PATH_PLACE_MAP % dataPlace.bgMapId
 
-        bg0, bg1 = self._getBackgroundBottomScreenLayers(self._lastSelectedGroup, hideSelected=False, topmostSelected=True, showHitbox = self.checkboxShowHitbox.IsChecked(),
+        bg0, bg1 = self.__getBackgroundBottomScreenLayers(self._lastSelectedGroup, hideSelected=False, topmostSelected=True, showHitbox = self.checkboxShowHitbox.IsChecked(),
                                                          simulateMoveMode = self.checkboxShowInterface.IsChecked())
         bg0.blit(bg1, (0,0))
         background = bg0
-
         self.bitmapRoomBottom.SetBitmap(Bitmap.FromBuffer(background.get_width(), background.get_height(), tostring(background, "RGB")))
-        
-        background = getImageFromPath(self._state, pathBgSub)
-        if background == None:
-            background = self.__invalidSurface
-        
+
+        background = self.__getBackgroundTopScreen()
         self.bitmapRoomTop.SetBitmap(Bitmap.FromBuffer(background.get_width(), background.get_height(), tostring(background, "RGB")))
 
         self.Thaw()
     
+    def bitmapRoomBottomOnLeftDClick(self, event):
+        # TODO - Regex matching with range limits, special class for this entry mode
+        # TODO - Can error if out of range because this is not checked!
+        # TODO - Offer functionality to generate template
+        # TODO - Apply to all functionality
+        if self._getActiveState() != None:
+            reMatchString = "/data_lt2/bg/map/main([0-9]+).arc"
+            dlg = DialogPickerBgx(self, self._state, self._state.getFileAccessor(), "/data_lt2/bg/map", reMatchString, "main%i.arc" % self._getActiveState().bgMainId)
+            if dlg.ShowModal() == ID_OK:
+                groupingMatch = int(match(reMatchString, dlg.GetPath()).group(1))
+                if groupingMatch != self._getActiveState().bgMainId:
+                    self._getActiveState().bgMainId = groupingMatch
+                    self.__generateBackgrounds()
+        return super().bitmapRoomBottomOnLeftDClick(event)
+    
+    def bitmapRoomTopOnLeftDClick(self, event):
+        # TODO - Same as bottom bg TODOs
+        if self._getActiveState() != None:
+            reMatchString = "/data_lt2/bg/map/map([0-9]+).arc"
+            dlg = DialogPickerBgx(self, self._state, self._state.getFileAccessor(), "/data_lt2/bg/map", reMatchString, "map%i.arc" % self._getActiveState().bgMapId)
+            if dlg.ShowModal() == ID_OK:
+                groupingMatch = int(match(reMatchString, dlg.GetPath()).group(1))
+                if groupingMatch != self._getActiveState().bgMapId:
+                    self._getActiveState().bgMapId = groupingMatch
+                    self.__generateBackgrounds()
+        return super().bitmapRoomTopOnLeftDClick(event)
+
     def btnRoomCreateNewOnButtonClick(self, event):
         # TODO - Disable button if too many
         item = self.treeParam.GetSelection()
-        if isItemOnPathToItem(self.treeParam, item, self._treeRootEventSpawner):
+        if isItemOnPathToItem(self.treeParam, item, self.__treeRootEventSpawner):
             if self.checkRoomApplyToAll.IsChecked():
                 maxEventCount = 0
                 for placeData in self._dataPlace:
@@ -674,11 +601,11 @@ class FramePlaceEditor(editorRoom):
 
             currentData = self._getActiveState()
             newEntry = currentData.getObjEvent(currentData.getCountObjEvents() - 1)
-            self._treeItemsEventSpawner.append(TreeGroupEventSpawner.fromPlaceData(newEntry))
-            self._treeItemsEventSpawner[-1].createTreeItems(self._state, self.treeParam, self._treeRootEventSpawner, index=(currentData.getCountObjEvents() - 1))
-            self._generateBackgrounds()
+            self.__treeItemsEventSpawner.append(TreeGroupEventSpawner.fromPlaceData(newEntry))
+            self.__treeItemsEventSpawner[-1].createTreeItems(self._state, self.treeParam, self.__treeRootEventSpawner, index=(currentData.getCountObjEvents() - 1))
+            self.__generateBackgrounds()
 
-        elif isItemOnPathToItem(self.treeParam, item, self._treeRootTextObjectSpawner):
+        elif isItemOnPathToItem(self.treeParam, item, self.__treeRootTextObjectSpawner):
             if self.checkRoomApplyToAll.IsChecked():
                 maxTObj = 0
                 for placeData in self._dataPlace:
@@ -699,11 +626,11 @@ class FramePlaceEditor(editorRoom):
                     return
             currentData = self._getActiveState()
             newEntry = currentData.getObjText(currentData.getCountObjText() - 1)
-            self._treeItemsTObj.append(TreeGroupTObj.fromPlaceData(newEntry))
-            self._treeItemsTObj[-1].createTreeItems(self._state, self.treeParam, self._treeRootTextObjectSpawner, index=(currentData.getCountObjText() - 1))
-            self._generateBackgrounds()
+            self.__treeItemsTObj.append(TreeGroupTObj.fromPlaceData(newEntry))
+            self.__treeItemsTObj[-1].createTreeItems(self._state, self.treeParam, self.__treeRootTextObjectSpawner, index=(currentData.getCountObjText() - 1))
+            self.__generateBackgrounds()
 
-        elif isItemOnPathToItem(self.treeParam, item, self._treeRootHintCoin):
+        elif isItemOnPathToItem(self.treeParam, item, self.__treeRootHintCoin):
             # Hints are different - because the game stores hints by their index across all room data, we cannot allow events to have different hint counts
             # Although it is possible to remove the topmost hints without breaking things, in reality there's no real reason to do this...
             maxHintCount = 0
@@ -722,11 +649,11 @@ class FramePlaceEditor(editorRoom):
             
             currentData = self._getActiveState()
             newEntry = currentData.getObjHintCoin(currentData.getCountHintCoin() - 1)
-            self._treeItemsHintCoin.append(TreeGroupHintCoin.fromPlaceData(newEntry))
-            self._treeItemsHintCoin[-1].createTreeItems(self._state, self.treeParam, self._treeRootHintCoin, index=(currentData.getCountHintCoin() - 1))
-            self._generateBackgrounds()
+            self.__treeItemsHintCoin.append(TreeGroupHintCoin.fromPlaceData(newEntry))
+            self.__treeItemsHintCoin[-1].createTreeItems(self._state, self.treeParam, self.__treeRootHintCoin, index=(currentData.getCountHintCoin() - 1))
+            self.__generateBackgrounds()
 
-        elif isItemOnPathToItem(self.treeParam, item, self._treeRootBackgroundAnim):
+        elif isItemOnPathToItem(self.treeParam, item, self.__treeRootBackgroundAnim):
             if self.checkRoomApplyToAll.IsChecked():
                 maxBgAni = 0
                 for placeData in self._dataPlace:
@@ -748,11 +675,11 @@ class FramePlaceEditor(editorRoom):
 
             currentData = self._getActiveState()
             newEntry = currentData.getObjBgEvent(currentData.getCountObjBgEvent() - 1)
-            self._treeItemsBgAni.append(TreeGroupBackgroundAnimation.fromPlaceData(newEntry))
-            self._treeItemsBgAni[-1].createTreeItems(self._state, self.treeParam, self._treeRootBackgroundAnim, index=(currentData.getCountObjBgEvent() - 1))
-            self._generateBackgrounds()
+            self.__treeItemsBgAni.append(TreeGroupBackgroundAnimation.fromPlaceData(newEntry))
+            self.__treeItemsBgAni[-1].createTreeItems(self._state, self.treeParam, self.__treeRootBackgroundAnim, index=(currentData.getCountObjBgEvent() - 1))
+            self.__generateBackgrounds()
 
-        elif isItemOnPathToItem(self.treeParam, item, self._treeRootExit):
+        elif isItemOnPathToItem(self.treeParam, item, self.__treeRootExit):
             if self.checkRoomApplyToAll.IsChecked():
                 maxExit = 0
                 for placeData in self._dataPlace:
@@ -774,9 +701,9 @@ class FramePlaceEditor(editorRoom):
 
             currentData = self._getActiveState()
             newEntry = currentData.getExit(currentData.getCountExits() - 1)
-            self._treeItemsExits.append(TreeGroupExit.fromPlaceData(newEntry))
-            self._treeItemsExits[-1].createTreeItems(self._state, self.treeParam, self._treeRootExit, index=(currentData.getCountExits() - 1))
-            self._generateBackgrounds()
+            self.__treeItemsExits.append(TreeGroupExit.fromPlaceData(newEntry))
+            self.__treeItemsExits[-1].createTreeItems(self._state, self.treeParam, self.__treeRootExit, index=(currentData.getCountExits() - 1))
+            self.__generateBackgrounds()
 
         return super().btnRoomCreateNewOnButtonClick(event)
     
@@ -848,17 +775,17 @@ class FramePlaceEditor(editorRoom):
         # TODO - rewrite this, this is genuinely terrible
         nothingHappened = True
 
-        if nothingHappened and purgeDuplicate(self._treeItemsBgAni, placeData.getObjBgEvent, placeData.removeObjBgEvent, placeData.getCountObjBgEvent):
+        if nothingHappened and purgeDuplicate(self.__treeItemsBgAni, placeData.getObjBgEvent, placeData.removeObjBgEvent, placeData.getCountObjBgEvent):
             nothingHappened = False
-        if nothingHappened and purgeDuplicate(self._treeItemsHintCoin, placeData.getObjHintCoin, placeData.removeObjHintCoin, placeData.getCountHintCoin):
+        if nothingHappened and purgeDuplicate(self.__treeItemsHintCoin, placeData.getObjHintCoin, placeData.removeObjHintCoin, placeData.getCountHintCoin):
             nothingHappened = False
-        if nothingHappened and purgeDuplicate(self._treeItemsEventSpawner, placeData.getObjEvent, placeData.removeObjEvent, placeData.getCountObjEvents):
+        if nothingHappened and purgeDuplicate(self.__treeItemsEventSpawner, placeData.getObjEvent, placeData.removeObjEvent, placeData.getCountObjEvents):
             nothingHappened = False
-        if nothingHappened and purgeDuplicate(self._treeItemsTObj, placeData.getObjText, placeData.removeObjText, placeData.getCountObjText):
+        if nothingHappened and purgeDuplicate(self.__treeItemsTObj, placeData.getObjText, placeData.removeObjText, placeData.getCountObjText):
             nothingHappened = False
-        if nothingHappened and purgeDuplicate(self._treeItemsExits, placeData.getExit, placeData.removeExit, placeData.getCountExits):
+        if nothingHappened and purgeDuplicate(self.__treeItemsExits, placeData.getExit, placeData.removeExit, placeData.getCountExits):
             nothingHappened = False
         
         if not(nothingHappened):
-            self._generateBackgrounds()
+            self.__generateBackgrounds()
         return super().btnRoomDeleteOnButtonClick(event)

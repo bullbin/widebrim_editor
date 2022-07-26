@@ -4,7 +4,7 @@ from editor.branch_management import EventBranchManager
 from editor.branch_management.branch_event.branch_event import EventBranchIcons
 from editor.e_script import FrameScriptEditor
 from editor.e_puzzle import FramePuzzleEditor
-from editor.e_room import FramePlaceEditor
+from editor.e_room import FramePlaceConditionalEditor
 from editor.gui.command_annotator.bank import ScriptVerificationBank
 from editor.asset_management.room import PlaceGroup, getPlaceGroups
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
@@ -117,7 +117,7 @@ class FrameOverviewTreeGen (pageOverview):
         def handlePlaceItem(item):
             if item != self._treeItemPlace:
                 groupPlace : PlaceGroup = self.treeOverview.GetItemData(item)
-                self.GetParent().AddPage(FramePlaceEditor(self.GetParent(), self._filesystem, self._state, groupPlace), self.treeOverview.GetItemText(item))
+                self.GetParent().AddPage(FramePlaceConditionalEditor(self.GetParent(), self._filesystem, self._state, groupPlace), self.treeOverview.GetItemText(item))
 
         item = event.GetItem()
 
