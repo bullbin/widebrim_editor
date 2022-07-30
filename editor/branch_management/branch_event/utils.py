@@ -51,8 +51,12 @@ def getNameForEvent(state : Layton2GameState, eventId : int, tabName : bool = Tr
         
         if entry.typeEvent == 0:
             return str(eventId)
+        elif entry.typeEvent == 3:
+            return str(eventId) + " (No branching)"
+        elif entry.typeEvent == 6:
+            return str(eventId) + " (AutoEvent specific)"
         else:
-            return str(eventId) + " (Unknown)"
+            return str(eventId) + " (Unknown " + str(entry.typeEvent) + ")"
 
     elif eventId <= 30000:
         # Not a great heuristic but who cares

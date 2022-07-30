@@ -225,7 +225,7 @@ class FrameOverviewTreeGen (pageOverview):
                 storyFlag.load(data)
             
             branchRoot = self.treeOverview.AppendItem(rootItem, "Chapter Progression")
-            flagRoot = self.treeOverview.AppendItem(branchRoot, "Chapter 0 (erroneous)")
+            flagRoot = self.treeOverview.AppendItem(branchRoot, "Chapter 0 (default)")
 
             mapStoryflagToEvent = getStoryflagToEventMap()
 

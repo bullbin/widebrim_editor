@@ -24,6 +24,7 @@ from widebrim.filesystem.compatibility import WriteableFusedFileInterface
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
 from widebrim.filesystem.compatibility.compatibilityRom import WriteableRomFileInterface
 from widebrim.engine_ext.utils import cleanTempFolder
+
 import pygame
 from json import loads, dumps
 from ndspy import rom
@@ -144,6 +145,8 @@ cleanTempFolder()
 # TODO - State not being cleared between puzzles (58, 59)
 
 # TODO - Will encounter big problem with different editors overwriting data!
+# TODO - Method to call per-frame to check for which assets are in use (prevent contention)
+# TODO - Method to call per-frame to check which IDs are in use (prevent contention)
 
 # FS Plans
 # ani

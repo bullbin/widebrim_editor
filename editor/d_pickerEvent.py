@@ -5,6 +5,8 @@ from widebrim.engine.state.manager.state import Layton2GameState
 from .nopush_editor import PickerEvent
 from wx import MessageDialog, YES_NO, ID_YES, ID_OK, ID_CANCEL, TreeItemId
 
+# TODO - Improve warnings. Behaviour is known for all event types, enforce it
+
 class DialogEvent(PickerEvent):
     def __init__(self, parent, state : Layton2GameState, lastSelected : Optional[int] = None):
         super().__init__(parent)

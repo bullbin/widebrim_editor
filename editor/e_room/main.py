@@ -47,8 +47,6 @@ class FramePlaceEditor(editorRoom):
         self._filesystem = filesystem
         self._state = state
         self._groupPlace = groupPlace
-        
-        self._dataPlace                     : List[PlaceData]      = []
 
         self.__treeRoot                     : Optional[TreeItemId] = None
 
@@ -58,8 +56,6 @@ class FramePlaceEditor(editorRoom):
         self.__treeRootEventSpawner         : Optional[TreeItemId] = None
         self.__treeRootTextObjectSpawner    : Optional[TreeItemId] = None
         self.__treeRootExit                 : Optional[TreeItemId] = None
-        
-        self.__treeRootAutoevent            : Optional[TreeItemId] = None
 
         self.__treeItemName                 : Optional[TreeItemId] = None
         self.__treeItemMapPos               : Optional[TreeItemId] = None
@@ -79,6 +75,9 @@ class FramePlaceEditor(editorRoom):
         self._lastSelectedGroup     : Optional[Type[TreeObjectPlaceData]] = None
         self._loaded                : bool = False
 
+    def _getListPlaceData(self) -> Tuple[List[TreeItemId], List[PlaceData]]:
+        return ([], [])
+
     def _getActiveState(self) -> Optional[PlaceDataNds]:
         return self._lastValidSuggestion
 
@@ -88,7 +87,6 @@ class FramePlaceEditor(editorRoom):
             return super().treeParamOnTreeSelChanged(event)
         
         item = self.treeParam.GetFocusedItem()
-        print(self.treeParam.GetItemText(item), "->", self.treeParam.GetItemData(item))
 
         self.btnRoomCreateNew.Disable()
         self.btnRoomDelete.Disable()
@@ -193,7 +191,7 @@ class FramePlaceEditor(editorRoom):
             newId = modifyName()
             if newId != None:
                 if self.checkRoomApplyToAll.IsChecked():
-                    for placeData in self._dataPlace:
+                    for placeData in self._getListPlaceData()[1]:
                         if placeData != self._getActiveState():
                             placeData.idNamePlace = newId
 
@@ -216,7 +214,7 @@ class FramePlaceEditor(editorRoom):
             if obj.isItemSelected(item) and obj.isModifiable(item):
                 if not(self.checkRoomApplyToAll.IsEnabled()) or (self.checkRoomApplyToAll.IsEnabled() and self.checkRoomApplyToAll.IsChecked()):
                     otherPlaceData = [self._getActiveState()]
-                    for placeData in self._dataPlace:
+                    for placeData in self._getListPlaceData()[1]:
                         if placeData != self._getActiveState():
                             otherPlaceData.append(placeData)
                     background, foreground = getBackgroundDevoidOfControl(obj)
@@ -580,7 +578,7 @@ class FramePlaceEditor(editorRoom):
         if isItemOnPathToItem(self.treeParam, item, self.__treeRootEventSpawner):
             if self.checkRoomApplyToAll.IsChecked():
                 maxEventCount = 0
-                for placeData in self._dataPlace:
+                for placeData in self._getListPlaceData()[1]:
                     maxEventCount = max(placeData.getCountObjEvents(), maxEventCount)
 
                 # TODO - Make constant in madhatter
@@ -589,7 +587,7 @@ class FramePlaceEditor(editorRoom):
                     event.Skip()
                     return
                 
-                for placeData in self._dataPlace:
+                for placeData in self._getListPlaceData()[1]:
                     placeData.addObjEvent(EventEntry())
             else:
                 if self._getActiveState().getCountObjEvents() < 16:
@@ -608,14 +606,14 @@ class FramePlaceEditor(editorRoom):
         elif isItemOnPathToItem(self.treeParam, item, self.__treeRootTextObjectSpawner):
             if self.checkRoomApplyToAll.IsChecked():
                 maxTObj = 0
-                for placeData in self._dataPlace:
+                for placeData in self._getListPlaceData()[1]:
                     maxTObj = max(maxTObj, placeData.getCountObjText())
                 if maxTObj >= 16:
                     # TODO - Warning message
                     event.Skip()
                     return
                 
-                for placeData in self._dataPlace:
+                for placeData in self._getListPlaceData()[1]:
                     placeData.addObjText(TObjEntry())
             else:
                 if self._getActiveState().getCountObjText() < 16:
@@ -634,7 +632,7 @@ class FramePlaceEditor(editorRoom):
             # Hints are different - because the game stores hints by their index across all room data, we cannot allow events to have different hint counts
             # Although it is possible to remove the topmost hints without breaking things, in reality there's no real reason to do this...
             maxHintCount = 0
-            for placeData in self._dataPlace:
+            for placeData in self._getListPlaceData()[1]:
                 maxHintCount = max(placeData.getCountHintCoin(), maxHintCount)
 
             # TODO - Make constant in madhatter
@@ -644,7 +642,7 @@ class FramePlaceEditor(editorRoom):
                 event.Skip()
                 return
             
-            for placeData in self._dataPlace:
+            for placeData in self._getListPlaceData()[1]:
                 placeData.addObjHintCoin(HintCoin())
             
             currentData = self._getActiveState()
@@ -656,14 +654,14 @@ class FramePlaceEditor(editorRoom):
         elif isItemOnPathToItem(self.treeParam, item, self.__treeRootBackgroundAnim):
             if self.checkRoomApplyToAll.IsChecked():
                 maxBgAni = 0
-                for placeData in self._dataPlace:
+                for placeData in self._getListPlaceData()[1]:
                     maxBgAni = max(maxBgAni, placeData.getCountObjBgEvent())
                 if maxBgAni >= 12:
                     # TODO - Warning message
                     event.Skip()
                     return
                 
-                for placeData in self._dataPlace:
+                for placeData in self._getListPlaceData()[1]:
                     placeData.addObjBgEvent(BgAni())
             else:
                 if self._getActiveState().getCountObjBgEvent() < 12:
@@ -682,14 +680,14 @@ class FramePlaceEditor(editorRoom):
         elif isItemOnPathToItem(self.treeParam, item, self.__treeRootExit):
             if self.checkRoomApplyToAll.IsChecked():
                 maxExit = 0
-                for placeData in self._dataPlace:
+                for placeData in self._getListPlaceData()[1]:
                     maxExit = max(maxExit, placeData.getCountExits())
                 if maxExit >= 12:
                     # TODO - Warning message
                     event.Skip()
                     return
                 
-                for placeData in self._dataPlace:
+                for placeData in self._getListPlaceData()[1]:
                     placeData.addExit(Exit())
             else:
                 if self._getActiveState().getCountExits() < 12:
@@ -760,7 +758,7 @@ class FramePlaceEditor(editorRoom):
             reference = findTreeItem(group, methodGetItem, methodGetCountItem())
             if reference != None:
                 if not(self.checkRoomApplyToAll.IsEnabled()) or (self.checkRoomApplyToAll.IsEnabled() and self.checkRoomApplyToAll.IsChecked()):
-                    for placeData in self._dataPlace:
+                    for placeData in self._getListPlaceData()[1]:
                         if placeData != self._getActiveState():
                             removeDuplicate(methodGetItem(reference), placeData)
                 

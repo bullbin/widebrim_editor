@@ -9,7 +9,7 @@ from widebrim.madhatter.hat_io.asset_dlz.ev_inf2 import EventInfoList
 
 from widebrim.madhatter.hat_io.asset_dlz.ev_lch import EventDescriptorBank, EventDescriptorBankNds
 from editor.asset_management.event import EventConditionAwaitingViewedExecutionGroup, EventConditionPuzzleExecutionGroup, EventExecutionGroup, PuzzleExecutionGroup, TeaExecutionGroup
-from .workaround_tabname import getNameForEvent
+from .utils import getNameForEvent
 # TODO - Improve removable support
 # TODO - Improve comment renaming (can take same approach as tabs...)
 # TODO - Multiple puzzle launcher entries should have same launcher (same behaviour as old implementation)
