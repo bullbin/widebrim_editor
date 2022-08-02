@@ -492,6 +492,3 @@ class Layton2GameState():
     
     def getFileAccessor(self) -> ReadOnlyFileInterface:
         return self.__fileInterface
-    
-    def resetState(self):
-        pass

@@ -6,9 +6,11 @@ from widebrim.engine.anim.image_anim.imageAsNumber import StaticImageAsNumerical
 from widebrim.engine.anim.button import NullButton
 from pygame.constants import BLEND_RGB_SUB, MOUSEBUTTONDOWN, MOUSEBUTTONUP
 from widebrim.madhatter.hat_io.asset_dat.place import Exit, PlaceDataNds
+from widebrim.madhatter.hat_io.asset_placeflag import PlaceFlagCounterFlagEntry
 
 from widebrim.engine.const import PATH_PACK_PLACE_NAME, PATH_TEXT_GOAL, PATH_TEXT_PLACE_NAME, RESOLUTION_NINTENDO_DS
 from widebrim.engine.state.enum_mode import GAMEMODES
+
 if TYPE_CHECKING:
     from widebrim.engine.state.manager.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
@@ -734,19 +736,19 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
                     nzLstEntry = self.laytonState.getNazoListEntry(subFlag.param)
                     if nzLstEntry != None and not(saveSlot.puzzleData.getPuzzleData(nzLstEntry.idExternal - 1).wasSolved):
-                        saveSlot.chapter = storyFlag.getGroupAtIndex(indexStoryFlag).getChapter()
+                        saveSlot.chapter = storyFlagEntry.getChapter()
                         return
 
                 elif subFlag.type == 1:
                     if not(saveSlot.storyFlag.getSlot(subFlag.param)):
-                        saveSlot.chapter = storyFlag.getGroupAtIndex(indexStoryFlag).getChapter()
+                        saveSlot.chapter = storyFlagEntry.getChapter()
                         return
 
             indexStoryFlag += 1
 
     def __calculateRoom(self):
 
-        def checkEventCounter(placeFlagEntry):
+        def checkEventCounter(placeFlagEntry : PlaceFlagCounterFlagEntry):
             if placeFlagEntry.indexEventCounter > 127:
                 return False
 
@@ -771,9 +773,9 @@ class RoomPlayer(ScreenLayerNonBlocking):
 
         indexSubRoom = 0
         for proposedSubRoom in range(1,16):
-            placeFlagEntry = placeFlag.entries[indexRoom].getEntry(proposedSubRoom)
-            placeFlagCounterEntry = placeFlag.entries[indexRoom].getCounterEntry(proposedSubRoom)
-            if placeFlagEntry.chapterStart == 0 or placeFlagEntry.chapterEnd == 0:
+            placeFlagEntry = placeFlag.getEntry(indexRoom).getChapterEntry(proposedSubRoom)
+            placeFlagCounterEntry = placeFlag.getEntry(indexRoom).getCounterEntry(proposedSubRoom)
+            if placeFlagEntry.isEmpty():
                 break
 
             chapter = self.laytonState.saveSlot.chapter
