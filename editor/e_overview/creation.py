@@ -1,22 +1,22 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 from editor.asset_management.puzzle import PuzzleEntry, getPuzzles
 from editor.branch_management import EventBranchManager
+from editor.branch_management.branch_chapter.branch_chapter import ChapterBranchManager
 from editor.branch_management.branch_event.branch_event import EventBranchIcons
 from editor.e_script import FrameScriptEditor
 from editor.e_puzzle import FramePuzzleEditor
 from editor.e_room import FramePlaceConditionalEditor
 from editor.gui.command_annotator.bank import ScriptVerificationBank
 from editor.asset_management.room import PlaceGroup, getPlaceGroups
+from editor.treeUtils import isItemOnPathToItem
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
 from widebrim.madhatter.common import logSevere
-from widebrim.madhatter.hat_io.asset_dlz.ev_inf2 import EventInfoList
-from widebrim.madhatter.hat_io.asset_storyflag import StoryFlag
 from ..nopush_editor import pageOverview
 from widebrim.engine.state.manager import Layton2GameState
 from editor.asset_management import getCharacters, getEvents
-import wx
+from wx import ImageList, TreeItemId
 
-from widebrim.engine.const import PATH_DB_EV_INF2, PATH_DB_RC_ROOT, PATH_DB_STORYFLAG, PATH_PROGRESSION_DB
+from widebrim.engine.const import PATH_DB_RC_ROOT
 from widebrim.engine_ext.utils import substituteLanguageString
 from widebrim.madhatter.hat_io.asset_dlz.ev_lch import EventDescriptorBankNds
 
@@ -38,14 +38,13 @@ class FrameOverviewTreeGen (pageOverview):
         self._characters = []
         self._eventsLoose = ([], [])
         self._eventsGrouped = []
-        
 
         self._puzzles : List[List[PuzzleEntry]] = [[],[],[]]
         self._idToPuzzleEntry : Dict[int, PuzzleEntry] = {}
         # TODO - Puzzles?
 
         self.__useIcons = False
-        self.__icons = wx.ImageList(FrameOverviewTreeGen.SIZE_ICONS[0], FrameOverviewTreeGen.SIZE_ICONS[1])
+        self.__icons = ImageList(FrameOverviewTreeGen.SIZE_ICONS[0], FrameOverviewTreeGen.SIZE_ICONS[1])
 
         def useIconsIfFound(pathImage : str, forceImageIndex : int = 0):
             output = getImageAndSetVariable(self._filesystem, pathImage, self.__icons, forceImageIndex=forceImageIndex, resize=FrameOverviewTreeGen.SIZE_ICONS)
@@ -65,11 +64,13 @@ class FrameOverviewTreeGen (pageOverview):
         iconPack = EventBranchIcons(idImagePuzzle = self.__idImagePuzzle, idImageEvent = self.__idImageEvent, idImageConditional = self.__idImageConditional,
                                     idImageBad = self.__idImageBad, idImageRemovable = self.__idRemovable, idImageTea = self.__idTea)
         self._eventManager = EventBranchManager(state, self.treeOverview, iconPack=iconPack)
+        self._chapterManager = ChapterBranchManager(state, self.treeOverview)
 
-        self._treeItemEvent = None
-        self._treeItemPuzzle = None
-        self._treeItemCharacter = None
-        self._treeItemPlace = None
+        self._treeItemEvent     : Optional[TreeItemId] = None
+        self._treeItemPuzzle    : Optional[TreeItemId] = None
+        self._treeItemCharacter : Optional[TreeItemId] = None
+        self._treeItemChapter   : Optional[TreeItemId] = None
+        self._treeItemPlace     : Optional[TreeItemId] = None
         
         self._loaded = False
         self.GetParent().SetDoubleBuffered(True)
@@ -84,19 +85,8 @@ class FrameOverviewTreeGen (pageOverview):
         for entry in self._puzzles[0] + self._puzzles[1] + self._puzzles[2]:
             self._idToPuzzleEntry[entry.idInternal] = entry
 
-    def _isItemWithinPathToItem(self, itemSearchEnd : wx.TreeItemId, itemSearch) -> bool:
-        if itemSearchEnd == itemSearch:
-            return True
-        elif itemSearchEnd == self.treeOverview.GetRootItem():
-            return False
-        elif not(itemSearchEnd.IsOk()):
-            return False
-        treeParent = self.treeOverview.GetItemParent(itemSearchEnd)
-        while treeParent != self.treeOverview.GetRootItem():
-            if treeParent == itemSearch:
-                return True
-            treeParent = self.treeOverview.GetItemParent(treeParent)
-        return False
+    def _isItemWithinPathToItem(self, itemSearchEnd : TreeItemId, itemSearch) -> bool:
+        return isItemOnPathToItem(self.treeOverview, itemSearchEnd, itemSearch)
 
     def treeOverviewOnTreeItemActivated(self, event):
         # TODO - Can probably get bitmap from icons
@@ -119,10 +109,8 @@ class FrameOverviewTreeGen (pageOverview):
                 groupPlace : PlaceGroup = self.treeOverview.GetItemData(item)
                 self.GetParent().AddPage(FramePlaceConditionalEditor(self.GetParent(), self._filesystem, self._state, groupPlace), self.treeOverview.GetItemText(item))
 
-        item = event.GetItem()
-
-        if self._isItemWithinPathToItem(item, self._treeItemEvent):
-            response = self._eventManager.getCorrespondingActivatedItem(item)
+        def handleEventItem(item):
+            response = self._eventManager.getCorrespondingEventActivatedItem(item)
             if not(response.isNothing):
                 if response.isEvent:
                     self.GetParent().AddPage(FrameScriptEditor(self.GetParent(), self._filesystem, self._bankInstructions, response.getEventId(), self._state), response.getTabName(), bitmap=self.__icons.GetBitmap(self.__idImageEvent))
@@ -132,7 +120,14 @@ class FrameOverviewTreeGen (pageOverview):
                         logSevere("Crucial puzzle data missing!")
                     else:
                         self.GetParent().AddPage(FramePuzzleEditor(self.GetParent(), self._filesystem, response.getInternalPuzzleId(), self._state), response.getTabName(), bitmap=self.__icons.GetBitmap(self.__idImagePuzzle))
-        
+
+        def handleChapterItem(item):
+            pass
+
+        item = event.GetItem()
+
+        if self._treeItemEvent != None and self._isItemWithinPathToItem(item, self._treeItemEvent):
+            handleEventItem(item)
         elif self._treeItemPuzzle != None and self._isItemWithinPathToItem(item, self._treeItemPuzzle):
             handlePuzzleItem(item)
         elif self._treeItemPlace != None and self._isItemWithinPathToItem(item, self._treeItemPlace):
@@ -201,79 +196,8 @@ class FrameOverviewTreeGen (pageOverview):
                 self.treeOverview.AppendItem(self._treeItemPlace, "Room " + str(group.indexPlace), data=group)
 
         def generateStoryflagBranch():
-            
-            def getStoryflagToEventMap() -> Dict[int, int]:
-                evInf = EventInfoList()
-                if (data := self._filesystem.getData(substituteLanguageString(self._state, PATH_DB_EV_INF2))) != None:
-                    evInf.load(data)
-                
-                output = {}
-
-                for indexEvInf in range(evInf.getCountEntries()):
-                    entry = evInf.getEntry(indexEvInf)
-                    if entry.indexStoryFlag != None:
-                        if entry.indexStoryFlag not in output:
-                            output[entry.indexStoryFlag] = [entry.idEvent]
-                        else:
-                            output[entry.indexStoryFlag].append(entry.idEvent)
-                
-                return output
-
-            storyFlag = StoryFlag()
-
-            if (data := self._filesystem.getPackedData(PATH_PROGRESSION_DB, PATH_DB_STORYFLAG)):
-                storyFlag.load(data)
-            
-            branchRoot = self.treeOverview.AppendItem(rootItem, "Chapter Progression")
-            flagRoot = self.treeOverview.AppendItem(branchRoot, "Chapter 0 (default)")
-
-            mapStoryflagToEvent = getStoryflagToEventMap()
-
-            for group in storyFlag.flagGroups:
-
-                if group.getChapter() == 0:
-                    isEmpty = True
-                    for indexFlag in range(8):
-                        # TODO - Do we terminate early? Think so but needs checking
-                        if group.getFlag(indexFlag).type != 0:
-                            isEmpty = False
-                    if isEmpty:
-                        continue
-
-                flagRoot = self.treeOverview.AppendItem(branchRoot, "Chapter " + str(group.getChapter()))
-                for indexFlag in range(8):
-                    flag = group.getFlag(indexFlag)
-                    if flag != None:
-
-                        # TODO - There are intentional false cases, e.g. chapter 760 which refers to an impossible puzzle
-                        #        This stops the game from accidentally rolling over to chapter 0
-
-                        # Check puzzle completion
-                        if flag.type == 2:
-                            nzLstEntry = self._state.getNazoListEntry(flag.param)
-                            if nzLstEntry != None:
-                                self.treeOverview.AppendItem(flagRoot, 'Solve "%03i - %s"' % (nzLstEntry.idExternal, nzLstEntry.name))
-                            else:
-                                self.treeOverview.AppendItem(flagRoot, "Progression blocker - illegal puzzle")
-                        
-                        # Check storyflag set
-                        # TODO - Method to generate event friendly names
-                        elif flag.type == 1:
-                            if flag.param in mapStoryflagToEvent:
-                                if len(mapStoryflagToEvent[flag.param]) == 1:
-                                    self.treeOverview.AppendItem(flagRoot, "Play event " + str(mapStoryflagToEvent[flag.param][0]))
-                                else:
-                                    desc = ""
-                                    for indexEventId, eventId in enumerate(mapStoryflagToEvent[flag.param]):
-                                        if indexEventId == 0:
-                                            desc = str(eventId)
-                                        elif indexEventId != len(mapStoryflagToEvent[flag.param]) - 1:
-                                            desc = desc + ", " + str(eventId)
-                                        else:
-                                            desc = " or " + str(eventId)
-                                    self.treeOverview.AppendItem(flagRoot, "Play events " + desc)
-                            else:
-                                self.treeOverview.AppendItem(flagRoot, "Story flag " + str(flag.param) + " set")
+            self._treeItemChapter = self.treeOverview.AppendItem(rootItem, "Chapter Progression")
+            self._chapterManager.createTreeBranches(self._treeItemChapter)
         
         # TODO - Add way to access progression marker for room 0 (empty by default!)
         # TODO - Display progression markers per-room

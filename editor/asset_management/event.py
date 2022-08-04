@@ -412,9 +412,9 @@ def createConditionalRevisitAndPuzzleLimit(filesystem : WriteableFilesystemCompa
 
     return EventConditionPuzzleExecutionGroup(limit, flagRevisit, idEvents[0], idEvents[1], idEvents[2])
 
-def getUsedEventViewedFlags(filesystem : WriteableFilesystemCompatibilityLayer, state : Layton2GameState) -> Dict[int, int]:
+def getUsedEventViewedFlags(state : Layton2GameState) -> Dict[int, int]:
     evInf = EventInfoList()
-    if (data := filesystem.getData(substituteLanguageString(state, PATH_DB_EV_INF2))) != None:
+    if (data := state.getFileAccessor().getData(substituteLanguageString(state, PATH_DB_EV_INF2))) != None:
         evInf.load(data)
     
     output = {}
@@ -426,7 +426,7 @@ def getUsedEventViewedFlags(filesystem : WriteableFilesystemCompatibilityLayer, 
     
     return output
 
-def getFreeEventViewedFlags(filesystem : WriteableFilesystemCompatibilityLayer, state : Layton2GameState) -> List[int]:
+def getFreeEventViewedFlags(state : Layton2GameState) -> List[int]:
     """Returns a list of available flags for the EventViewed store in the save. These results are generated using event decoding heuristics so are susceptible to 'unexpected' behaviour.
 
     Args:
@@ -436,7 +436,7 @@ def getFreeEventViewedFlags(filesystem : WriteableFilesystemCompatibilityLayer, 
     Returns:
         List[int]: List of available EventViewed flags.
     """
-    usedFlags = getUsedEventViewedFlags(filesystem, state)
+    usedFlags = getUsedEventViewedFlags(state)
 
     flags = []
     for x in range(1024):
@@ -447,5 +447,37 @@ def getFreeEventViewedFlags(filesystem : WriteableFilesystemCompatibilityLayer, 
             flags.remove(usedIndex)
         except ValueError:
             logSevere("Event shares EventViewed", usedIndex)
+
+    return flags
+
+def getUsedStoryFlags(state : Layton2GameState) -> Dict[int, int]:
+    evInf = EventInfoList()
+    if (data := state.getFileAccessor().getData(substituteLanguageString(state, PATH_DB_EV_INF2))) != None:
+        evInf.load(data)
+    
+    output = {}
+
+    for indexEntry in range(evInf.getCountEntries()):
+        entry = evInf.getEntry(indexEntry)
+        if entry.indexStoryFlag != None:
+            if entry.idEvent in output:
+                logSevere("UsedStoryFlags: Duplicate detected on", entry.idEvent)
+            output[entry.idEvent] = entry.indexStoryFlag
+    
+    return output
+
+def getFreeStoryFlags(state : Layton2GameState) -> List[int]:
+    # TODO - Research whether any are forced (e.g. event variables)
+    usedFlags = getUsedStoryFlags(state)
+
+    flags = []
+    for x in range(128):
+        flags.append(x)
+    
+    for usedIndex in usedFlags.values():
+        try:
+            flags.remove(usedIndex)
+        except ValueError:
+            logSevere("Event shares StoryFlag", usedIndex)
 
     return flags

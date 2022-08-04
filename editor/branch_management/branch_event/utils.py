@@ -1,4 +1,3 @@
-
 from widebrim.engine.state.manager.state import Layton2GameState
 
 def getNameForPuzzle(state : Layton2GameState, internalPuzzleId : int) -> str:
@@ -18,6 +17,7 @@ def getNameForEvent(state : Layton2GameState, eventId : int, tabName : bool = Tr
     """
 
     # TODO - Merge into branch_event for unified name generation, will produce more consistent results
+    # TODO - Pulls name off states. Can be desynchronized.
 
     eventDescriptor = None
 

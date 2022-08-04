@@ -1,4 +1,5 @@
 from typing import Dict, List, Optional
+from editor.asset_management.chapter import createChapter
 from editor.asset_management.event import PuzzleExecutionGroup, createBlankEvent, createBlankPuzzleEventChain, createConditionalRevisit, createConditionalRevisitAndPuzzleLimit, getFreeEventViewedFlags
 from editor.asset_management.puzzle import PuzzleEntry
 from editor.d_operandMultichoice import DialogMultipleChoice
@@ -9,6 +10,7 @@ from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesys
 from widebrim.madhatter.common import logSevere
 from .creation import FrameOverviewTreeGen
 import wx
+from wx import OK, ICON_WARNING, MessageDialog, TextEntryDialog, TreeItemId
 
 class FrameOverview(FrameOverviewTreeGen):
 
@@ -30,7 +32,6 @@ class FrameOverview(FrameOverviewTreeGen):
             addToRange(idGroup)
 
         for loose in [self._eventManager.getTrackedEvents(), self._eventManager.getUntrackedEvents()]:
-            print("LOOSE EVENT", loose)
             addToRange(loose)
         
         if useGap:
@@ -161,7 +162,6 @@ class FrameOverview(FrameOverviewTreeGen):
             addToRange(idGroup)
 
         for loose in [self._eventManager.getTrackedEvents(), self._eventManager.getUntrackedEvents()]:
-            print(loose)
             addToRange(loose)
 
         return getNextFreeEvent()
@@ -228,12 +228,30 @@ class FrameOverview(FrameOverviewTreeGen):
         return idOutput
 
     def btnDeleteOnButtonClick(self, event):
-        itemFocused = self.treeOverview.GetFocusedItem()
-        print(self.treeOverview.GetItemText(itemFocused))
+
+        def handleDeleteEvent(item : TreeItemId):
+            pass
+
+        def handleDeleteChapter(item : TreeItemId):
+            pass
+
+        if not(self.treeOverview):
+            return super().btnDeleteOnButtonClick(event)
+
+        item = self.treeOverview.GetFocusedItem()
+        if self._isItemWithinPathToItem(item, self._treeItemEvent):
+            handleDeleteEvent(item)
+        elif self._isItemWithinPathToItem(item, self._treeItemChapter):
+            handleDeleteChapter(item)
+        else:
+            pass
+
+
         return super().btnDeleteOnButtonClick(event)
     
     def btnCreateNewOnButtonClick(self, event):
-        if self._isItemWithinPathToItem(self.treeOverview.GetFocusedItem(), self._treeItemEvent):
+
+        def handleCreateNewEvent(item):
             # TODO - Find branch (standard branch, puzzle branch, tea branch, etc)
             #        Could skip a popup, maybe...
 
@@ -256,9 +274,10 @@ class FrameOverview(FrameOverviewTreeGen):
                     if idEvent != None:
                         self._eventManager.addLooseEvent(createBlankEvent(self._filesystem, self._state, idEvent))
 
+
                 elif idxSelection == 1:
                     
-                    availableFlagsViewed = getFreeEventViewedFlags(self._filesystem, self._state)
+                    availableFlagsViewed = getFreeEventViewedFlags(self._state)
                     if len(availableFlagsViewed) == 0:
                         # TODO - wx error for ran out of flags!
                         return super().btnCreateNewOnButtonClick(event)
@@ -309,6 +328,52 @@ class FrameOverview(FrameOverviewTreeGen):
                 else:
                     idEvent = self.__doEventIdDialog(30,30)
 
+        # TODO - Do not show this button on 256 chapter entries (not permitted...)
+        def handleCreateNewChapter(item):
+            # TODO - New button has been added to add conditional. Use that instead!
+            def createNewChapter():
+
+                def checkChapterValue(x : str) -> bool:
+                    if x.isdigit():
+                        x = int(x)
+                        if self._chapterManager.getCorrespondingItem(x) != None:
+                            return (False, 0)
+                        elif 0 < x <= 65535:
+                            return (True, x)
+                    return (False, 0)
+
+                dlg = VerifiedDialog(TextEntryDialog(self, "Enter the new chapter ID"), checkChapterValue, errorOnBadInputMessage="Chapter must be a number and cannot be in use!")
+                # TODO - Get unused chapter...
+                newChapterId : Optional[int] = dlg.do(str(1))
+                if newChapterId != None:
+                    if not(createChapter(self._state, newChapterId)):
+                        # TODO - Error message creating new chapter
+                        return
+                
+                    self._chapterManager.addTrackedChapter(newChapterId)
+                
+                # TODO - Check if storyflag is full
+
+            def createNewCondition():
+                if not(self._chapterManager.canItemHaveMoreConditions(item)):
+                    dlg = MessageDialog(self, "This chapter already has 8 conditions. Delete conditions, run the flag cleanup or add another chapter to add more.", "Condition Limit Met", OK | ICON_WARNING).ShowModal()
+                    dlg.ShowModal()
+                    return
+
+            if item == self._treeItemChapter:
+                createNewChapter()
+            else:
+                createNewCondition()
+
+        item = self.treeOverview.GetFocusedItem()
+        if self._isItemWithinPathToItem(item, self._treeItemEvent):
+            handleCreateNewEvent(item)
+        elif self._isItemWithinPathToItem(item, self._treeItemChapter):
+            handleCreateNewChapter(item)
+        else:
+            pass
+
+        # TODO - Select new item
         return super().btnCreateNewOnButtonClick(event)
     
     def btnDuplicateOnButtonClick(self, event):

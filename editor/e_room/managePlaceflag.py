@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional, Tuple
 from editor.asset_management.room import PlaceGroup, getPackPathForPlaceIndex
 from editor.branch_management.branch_event.utils import getNameForEvent
+from editor.d_pickerChapter import DialogSelectChapter
 from editor.e_room.main import FramePlaceEditor
 from editor.treeUtils import isItemOnPathToItem
 from widebrim.engine.const import PATH_DB_AUTOEVENT, PATH_DB_PLACEFLAG, PATH_PROGRESSION_DB
@@ -12,11 +13,12 @@ from widebrim.madhatter.hat_io.asset_autoevent import AutoEvent
 from widebrim.madhatter.hat_io.asset_dat.place import PlaceData, PlaceDataNds
 from widebrim.gamemodes.room.const import PATH_PACK_PLACE
 from widebrim.madhatter.hat_io.asset_placeflag import PlaceFlag
-from wx import TreeItemId, StaticBox
+from wx import TreeItemId, StaticBox, ID_OK
 from re import match
 
 # TODO - Remove extra button checks (some cases aren't covered anyways, like deleting wrong item outside of state mode...)
 # TODO - When changing events for autoevent, ensure that the event has an EventViewed flag
+# TODO - Add SubMap infos
 
 class FramePlaceConditionalEditor(FramePlaceEditor):
 
@@ -314,8 +316,8 @@ class FramePlaceConditionalEditor(FramePlaceEditor):
             if index == 0:
                 selection = self.treeStateProgression.AppendItem(self.__rootTreeStates, "Default State", data=placeDataEntry)
             else:
-                entry = placeFlag.entries[self._groupPlace.indexPlace]
-                chapterEntry = entry.getEntry(index)
+                entry = placeFlag.getEntry(self._groupPlace.indexPlace)
+                chapterEntry = entry.getChapterEntry(index)
                 chapterMin = chapterEntry.chapterStart
                 chapterMax = chapterEntry.chapterEnd
 
@@ -555,10 +557,53 @@ class FramePlaceConditionalEditor(FramePlaceEditor):
     
     def btnEditChapterOnButtonClick(self, event):
         # TODO - Handle chp_inf here
+
+        def getMinMaxChapter(chapters : Tuple[int,int]) -> Tuple[int,int]:
+            chapterMin, chapterMax = chapters
+            dlg = DialogSelectChapter(self, self._state, defaultChapter=chapterMin, title="Set Minimum Chapter")
+            if dlg.ShowModal() == ID_OK:
+                if dlg.GetSelection() != None:
+                    chapterMin = dlg.GetSelection()
+            else:
+                return chapters
+
+            dlg = DialogSelectChapter(self, self._state, defaultChapter=chapterMax, title="Set Maximum Chapter")
+            if dlg.ShowModal() == ID_OK:
+                if dlg.GetSelection() != None:
+                    chapterMax = dlg.GetSelection()
+            else:
+                return chapters
+            
+            if chapterMin < chapterMax:
+                return (chapterMin, chapterMax)
+            else:
+                return (chapterMax, chapterMin)
+
+        if not(self.treeStateProgression):
+            return super().btnEditChapterOnButtonClick(event)
+        
+        item = self.treeStateProgression.GetSelection()
+
         if self.__isSelectedItemTypeAutoEvent():
-            print(self.__getChaptersFromItem(self.treeStateProgression.GetSelection()))
+            chapters = self.__getChaptersFromItem(self.treeStateProgression.GetSelection())
+            if chapters != None:
+                chapterMin, chapterMax = getMinMaxChapter(chapters)
+                # TODO - Replace with regex
+                originalString = self.treeStateProgression.GetItemText(item)
+                originalString = ("Chapter %i to %i: " % (chapterMin, chapterMax)) + ": ".join(originalString.split(": ")[1:])
+                self.treeStateProgression.SetItemText(item, originalString)
+            else:
+                logSevere("Couldn't modify autoevent chapters!")
         elif self.__isSelectedItemTypeState():
-            print(self.__getChaptersFromItem(self.__getItemCorrespondingToState(self._getActiveState())))
+            # TODO - Add precautions to prevent modifying default state (but we're already not doing great with chapter 999...)
+            chapters = self.__getChaptersFromItem(self.__getItemCorrespondingToState(self._getActiveState()))
+            if chapters != None:
+                chapterMin, chapterMax = getMinMaxChapter(chapters)
+                self.treeStateProgression.SetItemText(item, "State %i: Chapter %i to %i" % (255, chapterMin, chapterMax))
+                self.__correctTreeItemIndices()
+            else:
+                logSevere("Couldn't modify state chapters!")
+
         return super().btnEditChapterOnButtonClick(event)
 
     def btnMoveDownOnButtonClick(self, event):

@@ -47,7 +47,7 @@ class DialogEvent(PickerEvent):
         if item == self._lastGoodItem:
             return super().treeEventOnTreeSelChanged(event)
 
-        response = self._eventManager.getCorrespondingActivatedItem(item)
+        response = self._eventManager.getCorrespondingEventActivatedItem(item)
         if response.isNothing:
             return super().treeEventOnTreeSelChanged(event)
         elif response.isEvent:

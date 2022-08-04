@@ -21,7 +21,7 @@ def isItemOnPathToItem(treeCtrl : TreeCtrl, itemOnPath : TreeItemId, itemParent 
     elif not(itemOnPath.IsOk()):
         return False
     treeParent = treeCtrl.GetItemParent(itemOnPath)
-    while treeParent != treeCtrl.GetRootItem():
+    while treeParent.IsOk():
         if treeParent == itemParent:
             return True
         treeParent = treeCtrl.GetItemParent(treeParent)
