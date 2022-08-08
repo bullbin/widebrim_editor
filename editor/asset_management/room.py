@@ -1,72 +1,72 @@
 from typing import Dict, List, Optional
-from widebrim.engine.const import PATH_DB_AUTOEVENT, PATH_DB_PLACEFLAG, PATH_PROGRESSION_DB
+from widebrim.engine.const import PATH_DB_AUTOEVENT, PATH_DB_PLACEFLAG, PATH_DB_RC_ROOT, PATH_DB_SM_INF, PATH_PROGRESSION_DB
 from widebrim.engine.state.manager.state import Layton2GameState
 from widebrim.filesystem.compatibility.compatibilityRom import WriteableRomFileInterface
 from widebrim.gamemodes.room.const import PATH_PACK_PLACE, PATH_PLACE_A, PATH_PLACE_B
 from widebrim.madhatter.hat_io.asset import File, LaytonPack
 from widebrim.engine.file import ReadOnlyFileInterface
 from re import search, match
-from widebrim.madhatter.hat_io.asset_autoevent import AutoEvent, AutoEventSubPlaceEntry
+
+from widebrim.madhatter.hat_io.asset_autoevent import AutoEvent
+from widebrim.madhatter.hat_io.asset_dat.place import PlaceDataNds
+from widebrim.madhatter.hat_io.asset_dlz.sm_inf import DlzEntrySubmapInfo, SubmapInfoNds
 
 from widebrim.madhatter.hat_io.asset_placeflag import PlaceFlag
 
-def _loadPlaceFlag(state : Layton2GameState) -> PlaceFlag:
+def _saveProgressionFile(state : Layton2GameState, newFile : File, path : str) -> bool:
+    print("Saving progression file", path)
+    packProgression = state.getFileAccessor().getPack(PATH_PROGRESSION_DB)
+    fileNotFound = True
+    # TODO - GetFile
+    for file in packProgression.files:
+        if file.name == path:
+            newFile.save()
+            file.data = newFile.data
+            fileNotFound = False
+            break
+
+    if fileNotFound:
+        print("\tFailed to find progression file!")
+        newFile.name = path
+        newFile.save()
+        packProgression.files.append(newFile)
+    
+    packProgression.save()
+    packProgression.compress()
+    
+    accessor : WriteableRomFileInterface = state.getFileAccessor()
+    accessor.writeableFs.replaceFile(PATH_PROGRESSION_DB, packProgression.data)
+    return True
+
+def loadPlaceFlag(state : Layton2GameState) -> PlaceFlag:
     placeFlag = PlaceFlag()
-    if (data := state.getFileAccessor().getPackedData(PATH_PROGRESSION_DB, PATH_DB_PLACEFLAG)):
+    if (data := state.getFileAccessor().getPackedData(PATH_PROGRESSION_DB, PATH_DB_PLACEFLAG)) != None:
         placeFlag.load(data)
     return placeFlag
 
-def _savePlaceFlag(state : Layton2GameState, placeFlag : PlaceFlag) -> bool:
-    packProgression = state.getFileAccessor().getPack(PATH_PROGRESSION_DB)
-    fileNotFound = True
-    # TODO - GetFile
-    for file in packProgression.files:
-        if file.name == PATH_DB_PLACEFLAG:
-            placeFlag.save()
-            file.data = placeFlag.data
-            fileNotFound = False
-            break
+def savePlaceFlag(state : Layton2GameState, placeFlag : PlaceFlag) -> bool:
+    return _saveProgressionFile(state, placeFlag, PATH_DB_PLACEFLAG)
 
-    if fileNotFound:
-        placeFlag.name = PATH_DB_PLACEFLAG
-        placeFlag.save()
-        packProgression.files.append(placeFlag)
-    
-    packProgression.save()
-    packProgression.compress()
-    
-    accessor : WriteableRomFileInterface = state.getFileAccessor()
-    accessor.writeableFs.replaceFile(PATH_PROGRESSION_DB, packProgression.data)
-    return True
-
-def _loadAutoEvent(state : Layton2GameState) -> AutoEvent:
+def loadAutoEvent(state : Layton2GameState) -> AutoEvent:
     autoEvent = AutoEvent()
-    if (data := state.getFileAccessor().getPackedData(PATH_PROGRESSION_DB, PATH_DB_AUTOEVENT)):
+    if (data := state.getFileAccessor().getPackedData(PATH_PROGRESSION_DB, PATH_DB_AUTOEVENT)) != None:
         autoEvent.load(data)
     return autoEvent
 
-def _saveAutoEvent(state : Layton2GameState, autoEvent : AutoEvent) -> bool:
-    packProgression = state.getFileAccessor().getPack(PATH_PROGRESSION_DB)
-    fileNotFound = True
-    # TODO - GetFile
-    for file in packProgression.files:
-        if file.name == PATH_DB_AUTOEVENT:
-            autoEvent.save()
-            file.data = autoEvent.data
-            fileNotFound = False
-            break
+def saveAutoEvent(state : Layton2GameState, autoEvent : AutoEvent) -> bool:
+    return _saveProgressionFile(state, autoEvent, PATH_DB_AUTOEVENT)
 
-    if fileNotFound:
-        autoEvent.name = PATH_DB_AUTOEVENT
-        autoEvent.save()
-        packProgression.files.append(autoEvent)
-    
-    packProgression.save()
-    packProgression.compress()
-    
-    accessor : WriteableRomFileInterface = state.getFileAccessor()
-    accessor.writeableFs.replaceFile(PATH_PROGRESSION_DB, packProgression.data)
-    return True
+def _loadSubmapInfo(state : Layton2GameState) -> SubmapInfoNds:
+    output = SubmapInfoNds()
+    if (submapData := state.getFileAccessor().getData(PATH_DB_RC_ROOT % PATH_DB_SM_INF)) != None:
+        output.load(submapData)
+    return output
+
+def _saveSubmapInfo(state : Layton2GameState, submapInfo : SubmapInfoNds) -> bool:
+    fileAccessor : WriteableRomFileInterface = state.getFileAccessor()
+    submapInfo.save()
+    submapInfo.compress()
+    return fileAccessor.writeableFs.replaceFile(PATH_DB_RC_ROOT % PATH_DB_SM_INF, submapInfo.data)
 
 class PlaceGroup():
     def __init__(self, idxPlace : int, indicesStates : List[int]):
@@ -162,59 +162,63 @@ def _sortRoomPack(pack : LaytonPack) -> LaytonPack:
     return output
 
 def deleteRoom(state : Layton2GameState, indexPlace : int) -> bool:
-    autoEvent = _loadAutoEvent(state)
-    placeFlag = _loadPlaceFlag(state)
+    print("Deleting room", indexPlace)
+    if not(0 <= indexPlace < 128):
+        return False
 
-    # TODO - Delete submap info entries
-    subMapInfo = None
+    autoEvent = loadAutoEvent(state)
+    placeFlag = loadPlaceFlag(state)
+    subMapInfo = _loadSubmapInfo(state)
     
     datPlace = PATH_PACK_PLACE.replace("%i", "%s")
     datPlace = datPlace % (str(indexPlace), "[0-9]*")
 
     collection = autoEvent.getEntry(indexPlace)
     for x in range(8):
-        collection.setSubPlaceEntry(x, AutoEventSubPlaceEntry(0,0,0))
-    for entry in placeFlag.entries:
-        if entry.roomIndex == indexPlace:
-            entry.clear()
+        collection.getSubPlaceEntry(x).clear()
     
+    placeFlagEntry = placeFlag.getEntry(indexPlace)
+    if placeFlagEntry != None:
+        placeFlagEntry.clear()
+
+    for indexEntry in range(subMapInfo.getCountEntries()):
+        entry : DlzEntrySubmapInfo = subMapInfo.getEntry(indexEntry)
+        if entry.indexPlace == indexPlace:
+            subMapInfo.removeEntry(indexEntry)
+
     pathPlace = getPackPathForPlaceIndex(indexPlace)
-    packPlace = state.getFileAccessor().getPack(PATH_PLACE_A)
+    packPlace = state.getFileAccessor().getPack(pathPlace)
 
     for file in reversed(packPlace.files):
         if match(datPlace, file.name) != None:
             packPlace.files.remove(file)
     
-    _saveAutoEvent(autoEvent)
-    _savePlaceFlag(placeFlag)
+    saveAutoEvent(state, autoEvent)
+    savePlaceFlag(state, placeFlag)
+    _saveSubmapInfo(state, subMapInfo)
+    packPlace.save()
+    packPlace.compress()
+    return state.getFileAccessor().writeableFs.replaceFile(pathPlace, packPlace.data)
 
-
-
-def _createRoomByIndexForced(state : Layton2GameState, indexPlace : int, forceDelete : bool = False) -> Optional[PlaceGroup]:
-    pathPlace = getPackPathForPlaceIndex(indexPlace)
-    packPlace = state.getFileAccessor().getPack(PATH_PLACE_A)
-
-    autoEvent = _loadAutoEvent(state)
-    # TODO - Can probably borrow loaded placeflag from state
-    placeFlag = _loadPlaceFlag(state)
-
-    # TODO - Delete submap info entries
-    subMapInfo = None
-    
-    datPlace = PATH_PACK_PLACE.replace("%i", "%s")
-    datPlace = datPlace % (str(indexPlace), "[0-9]*")
-
+def _createRoomByIndexForced(state : Layton2GameState, indexPlace : int, forceDelete : bool = True) -> Optional[PlaceGroup]:
     if forceDelete:
-        collection = autoEvent.getEntry(indexPlace)
-        for x in range(8):
-            collection.setSubPlaceEntry(x, None)
-        placeFlag.getEntry(indexPlace).clear()
-    
-    toRemove = []
-    for indexFile, file in packPlace.files:
-        pass
-    
-    
+        if not(deleteRoom(state, indexPlace)):
+            return None
+
+    pathPlace = getPackPathForPlaceIndex(indexPlace)
+    packPlace = state.getFileAccessor().getPack(pathPlace)
+
+    # After deleting, everything should be ready (initial state is ignored, so should be good to just add data...)
+    newPlaceData = PlaceDataNds()
+    newPlaceData.name = PATH_PACK_PLACE % (indexPlace, 0)
+    newPlaceData.save()
+    packPlace.files.append(newPlaceData)
+
+    packPlace.save()
+    packPlace.compress()
+    if state.getFileAccessor().writeableFs.replaceFile(pathPlace, packPlace.data):
+        return PlaceGroup(indexPlace, [0])
+    return None
 
 def createRoomAsFirstFree(state : Layton2GameState, minIndex : int = 1, excludeFixedPurpose : bool = True) -> Optional[PlaceGroup]:
     # TODO - Riddleton number
@@ -242,6 +246,3 @@ def createRoomByIndex(state : Layton2GameState, indexPlace : int, overwrite=Fals
                     break
         return _createRoomByIndexForced(state, indexPlace, forceDelete = True)
     return None
-
-def deleteRoom(state : Layton2GameState, indexPlace : int) -> bool:
-    return False

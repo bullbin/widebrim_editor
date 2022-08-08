@@ -1,17 +1,15 @@
-from editor.asset_management.event import getFreeStoryFlags
 from widebrim.engine.const import PATH_DB_STORYFLAG, PATH_PROGRESSION_DB
 from widebrim.engine.state.manager.state import Layton2GameState
 from widebrim.filesystem.compatibility.compatibilityRom import WriteableRomFileInterface
-from widebrim.madhatter.common import logSevere
 from widebrim.madhatter.hat_io.asset_storyflag import StoryFlag
 
-def _loadStoryFlag(state : Layton2GameState) -> StoryFlag:
+def loadStoryFlag(state : Layton2GameState) -> StoryFlag:
     storyFlag = StoryFlag()
-    if (data := state.getFileAccessor().getPackedData(PATH_PROGRESSION_DB, PATH_DB_STORYFLAG)):
+    if (data := state.getFileAccessor().getPackedData(PATH_PROGRESSION_DB, PATH_DB_STORYFLAG)) != None:
         storyFlag.load(data)
     return storyFlag
 
-def _saveStoryFlag(state : Layton2GameState, storyFlag : StoryFlag) -> bool:
+def saveStoryFlag(state : Layton2GameState, storyFlag : StoryFlag) -> bool:
     packProgression = state.getFileAccessor().getPack(PATH_PROGRESSION_DB)
     fileNotFound = True
     for file in packProgression.files:
@@ -34,8 +32,7 @@ def _saveStoryFlag(state : Layton2GameState, storyFlag : StoryFlag) -> bool:
     return True
 
 def correctChapterOrder(storyFlag : StoryFlag):
-    initial = storyFlag.getGroupAtIndex(0)
-    groups = storyFlag.flagGroups[1:]
+    groups = storyFlag.flagGroups
 
     notEmpty = []
     empty = []
@@ -47,7 +44,7 @@ def correctChapterOrder(storyFlag : StoryFlag):
             notEmpty.append(group)
     
     notEmpty.sort(key=lambda x: x.getChapter())
-    storyFlag.flagGroups = [initial] + notEmpty + empty
+    storyFlag.flagGroups = notEmpty + empty
 
 def createChapter(state : Layton2GameState, chapter : int) -> bool:
     """Creates a new chapter based on the first free story group.
@@ -59,7 +56,7 @@ def createChapter(state : Layton2GameState, chapter : int) -> bool:
     Returns:
         bool: True if the chapter creation was successful. Reload the storyflag database and get by chapter to access the new group.
     """
-    storyFlag = _loadStoryFlag(state)
+    storyFlag = loadStoryFlag(state)
     wasSuccessful = False
 
     # TODO - Single pass, isolate target...
@@ -68,17 +65,37 @@ def createChapter(state : Layton2GameState, chapter : int) -> bool:
             return False
 
     for indexGroup, group in enumerate(storyFlag.flagGroups):
-        if indexGroup > 0:
-            # Don't touch the first group
-            if group.getChapter() == 0 and group.isEmpty():
-                group.setChapter(chapter)
-                correctChapterOrder(storyFlag)
-                wasSuccessful = True
-                break
+        # Don't touch the first group
+        if group.getChapter() == 0 and group.isEmpty():
+            group.setChapter(chapter)
+            correctChapterOrder(storyFlag)
+            wasSuccessful = True
+            break
     
     if wasSuccessful:
-        return _saveStoryFlag(state, storyFlag)
+        for flag in storyFlag.flagGroups:
+            print(flag.getChapter())
+        return saveStoryFlag(state, storyFlag)
     return False
+
+def addChapterCondition(state : Layton2GameState, chapter : int, isEvent : bool, index : int) -> bool:
+    storyFlag = loadStoryFlag(state)
+    idxEntry = storyFlag.getIndexFromChapter(chapter)
+    if idxEntry == None:
+        if not(createChapter(state, chapter)):
+            return False
+        storyFlag = loadStoryFlag(state)
+    entry = storyFlag.getGroupAtIndex(idxEntry)
+    flag = entry.getFirstEmptyFlag()
+    if flag == None:
+        # Condition was full
+        return False
+    if isEvent:
+        flag.type = 1
+    else:
+        flag.type = 2
+    flag.param = index
+    return saveStoryFlag(state, storyFlag)
 
 def deleteChapter(state : Layton2GameState, chapter : int) -> bool:
     """Deletes a chapter based on first matching index. This operation is shallow and will not fix broken references - progression may be broken.
@@ -90,14 +107,13 @@ def deleteChapter(state : Layton2GameState, chapter : int) -> bool:
     Returns:
         bool: True if deletion was successful. False if no match found or file export failed. Reload the storyflag database and get by chapter to access the updated groups.
     """
-    storyFlag = _loadStoryFlag(state)
+    storyFlag = loadStoryFlag(state)
 
     # TODO - Single pass, isolate target...
     for indexGroup, group in enumerate(storyFlag.flagGroups):
-        if not(indexGroup == 0 and group.getChapter() == 0 and chapter == 0):
-            if group.getChapter() == chapter:
-                group.setChapter(0)
-                group.clear()
-                correctChapterOrder(storyFlag)
-                return _saveStoryFlag(state, storyFlag)
+        if group.getChapter() == chapter:
+            group.setChapter(0)
+            group.clear()
+            correctChapterOrder(storyFlag)
+            return saveStoryFlag(state, storyFlag)
     return False

@@ -1,5 +1,6 @@
 from typing import Optional
 from editor.e_script.virtual.custom import VirtualInstructionGenerator
+from .const import OFFSET_VIRTUAL_INSTRUCTION
 from editor.gui.command_annotator.bank import Context, InstructionDescription, OperandDescription, OperandType
 from widebrim.engine.const import PATH_PACK_TALK
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
@@ -10,7 +11,7 @@ from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
 
 class DialogueInstructionDescription(InstructionDescription):
     def __init__(self):
-        self.opcode         = OPCODES_LT2.TextWindow.value + 0x0100
+        self.opcode         = OPCODES_LT2.TextWindow.value + OFFSET_VIRTUAL_INSTRUCTION
         self.description    = "Virtual Instruction\nBrings up the text box for dialogue in events. Script execution is paused while dialogue is playing back."
         self.contextValid   = [Context.DramaEvent]
         self.isUsed         = True

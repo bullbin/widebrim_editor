@@ -1,7 +1,9 @@
 from typing import Dict, List, Optional, Tuple
-from editor.asset_management.room import PlaceGroup, getPackPathForPlaceIndex
+from ..asset_management.event import giveEventViewedFlag
+from editor.asset_management.room import PlaceGroup, getPackPathForPlaceIndex, loadAutoEvent, loadPlaceFlag, saveAutoEvent, savePlaceFlag
 from editor.branch_management.branch_event.utils import getNameForEvent
 from editor.d_pickerChapter import DialogSelectChapter
+from editor.d_pickerEvent import DialogEvent
 from editor.e_room.main import FramePlaceEditor
 from editor.treeUtils import isItemOnPathToItem
 from widebrim.engine.const import PATH_DB_AUTOEVENT, PATH_DB_PLACEFLAG, PATH_PROGRESSION_DB
@@ -41,6 +43,11 @@ class FramePlaceConditionalEditor(FramePlaceEditor):
     NAME_TREE_ITEM_AUTOEVENT_BAD    = "(Automatic events only available for first 8 states)"
 
     NAME_ROOM_PROPERTIES_INFILL     = "Room Parameters: %s"
+
+    EVENTCOUNTER_STRING_MODE_0      = "Variable %i equals %i"
+    EVENTCOUNTER_STRING_MODE_1      = "Variable %i doesn't equal %i"
+    EVENTCOUNTER_STRING_MODE_2      = "Variable %i greater than or equal to %i"
+    EVENTCOUNTER_UNRECOGNISED       = "Misconfigured variable action"
 
     def __init__(self, parent, filesystem: WriteableFilesystemCompatibilityLayer, state: Layton2GameState, groupPlace: PlaceGroup):
         super().__init__(parent, filesystem, state, groupPlace)
@@ -201,6 +208,25 @@ class FramePlaceConditionalEditor(FramePlaceEditor):
         self.updateInterfaceButtons()
         return super().treeStateProgressionOnTreeSelChanged(event)
     
+    def treeStateProgressionOnTreeItemActivated(self, event):
+        if not(self.treeStateProgression):
+            return super().treeStateProgressionOnTreeItemActivated(event)
+
+        item = self.treeStateProgression.GetSelection()
+        if self.treeStateProgression.GetItemParent(item) == self.__rootTreeAutoEvent:
+            dlg = DialogEvent(self, self._state, self.treeStateProgression.GetItemData(item))
+            if dlg.ShowModal() == ID_OK:
+                chapterMin, chapterMax = (0,0)
+                if (chapters := self.__getChaptersFromItem(item)) != None:
+                    chapterMin, chapterMax = chapters
+
+                newFlag = giveEventViewedFlag(self._state, dlg.GetSelection())
+                if newFlag == None:
+                    logSevere("AddAutoEvent: Failed to get EventViewed flag, glitches are likely!")
+                self.treeStateProgression.SetItemData(item, dlg.GetSelection())
+                self.treeStateProgression.SetItemText(item, ("Chapter %i to %i: " % (chapterMin, chapterMax)) + getNameForEvent(self._state, dlg.GetSelection()))
+        return super().treeStateProgressionOnTreeItemActivated(event)
+
     def __reloadTitle(self):
         item = self.__getItemCorrespondingToState(self._lastValidSuggestion)
         if item != None:
@@ -285,11 +311,11 @@ class FramePlaceConditionalEditor(FramePlaceEditor):
         self.__activeItemHasCondition = False
 
         placeFlag = PlaceFlag()
-        if (data := self._filesystem.getPackedData(PATH_PROGRESSION_DB, PATH_DB_PLACEFLAG)):
+        if (data := self._filesystem.getPackedData(PATH_PROGRESSION_DB, PATH_DB_PLACEFLAG)) != None:
             placeFlag.load(data)
 
         autoEvent = AutoEvent()
-        if (data := self._filesystem.getPackedData(PATH_PROGRESSION_DB, PATH_DB_AUTOEVENT)):
+        if (data := self._filesystem.getPackedData(PATH_PROGRESSION_DB, PATH_DB_AUTOEVENT)) != None:
             autoEvent.load(data)
 
         def generateAutoEventBranch():
@@ -298,7 +324,7 @@ class FramePlaceConditionalEditor(FramePlaceEditor):
             if groupAutoEvent != None:
                 for indexAutoEvent in range(8):
                     if (entry := groupAutoEvent.getSubPlaceEntry(indexAutoEvent)) != None:
-                        if not(entry.chapterEnd == 0 or entry.chapterStart == 0):
+                        if not(entry.chapterEnd == 0 and entry.chapterStart == 0):
                             self.treeStateProgression.AppendItem(self.__rootTreeAutoEvent,
                                                                 ("Chapter %i to %i: " % (entry.chapterStart, entry.chapterEnd)) + getNameForEvent(self._state, entry.idEvent),
                                                                 data=entry.idEvent)
@@ -325,22 +351,23 @@ class FramePlaceConditionalEditor(FramePlaceEditor):
                                                                    data=placeDataEntry)
 
                 if chapterMin == 0 or chapterMax == 0:
-                    self.treeStateProgression.AppendItem(subroomRoot, "Terminate subroom discovery on encounter")
+                    # TODO - How to show this without breaking tree readoff?
+                    # self.treeStateProgression.AppendItem(subroomRoot, "Terminate subroom discovery on encounter")
                     continue
                 
                 counterEntry = entry.getCounterEntry(indexData)
                 if counterEntry.indexEventCounter != 0:
                     if counterEntry.decodeMode == 0:
                         # Value same as val at index
-                        self.treeStateProgression.AppendItem(subroomRoot, "Variable " + str(counterEntry.indexEventCounter) + " equals " + str(counterEntry.unk1))
+                        self.treeStateProgression.AppendItem(subroomRoot, FramePlaceConditionalEditor.EVENTCOUNTER_STRING_MODE_0 % (counterEntry.indexEventCounter, counterEntry.unk1))
                     elif counterEntry.decodeMode == 1:
                         # Value different than val at index
-                        self.treeStateProgression.AppendItem(subroomRoot, "Variable " + str(counterEntry.indexEventCounter) + " doesn't equal " + str(counterEntry.unk1))
+                        self.treeStateProgression.AppendItem(subroomRoot, FramePlaceConditionalEditor.EVENTCOUNTER_STRING_MODE_1 % (counterEntry.indexEventCounter, counterEntry.unk1))
                     elif counterEntry.decodeMode == 2:
                         # Value less than val at index
-                        self.treeStateProgression.AppendItem(subroomRoot, "Variable " + str(counterEntry.indexEventCounter) + " greater than or equal to " + str(counterEntry.unk1))
+                        self.treeStateProgression.AppendItem(subroomRoot, FramePlaceConditionalEditor.EVENTCOUNTER_STRING_MODE_2 % (counterEntry.indexEventCounter, counterEntry.unk1))
                     else:
-                        self.treeStateProgression.AppendItem(subroomRoot, "Misconfigured counter condition")
+                        self.treeStateProgression.AppendItem(subroomRoot, FramePlaceConditionalEditor.EVENTCOUNTER_UNRECOGNISED)
 
         if selection != None:
             self.treeStateProgression.SelectItem(selection)
@@ -380,6 +407,8 @@ class FramePlaceConditionalEditor(FramePlaceEditor):
     def syncChanges(self):
 
         def nonDestructiveWritePackChanges(dataOutput : List[PlaceData]):
+            """Writes room data without modifying other rooms."""
+
             # Preserve all other files (potentially changed) while changing ours
             # Get pack to overwrite
             pathPack = getPackPathForPlaceIndex(self._groupPlace.indexPlace)
@@ -420,10 +449,93 @@ class FramePlaceConditionalEditor(FramePlaceEditor):
             log("Updated room information -", pathPack)
 
         def nonDestructiveWriteAutoEvent():
-            pass
+            autoEvent = loadAutoEvent(self._state)
+            entry = autoEvent.getEntry(self._groupPlace.indexPlace)
+            entry.clear()
+
+            rootChild, _cookie = self.treeStateProgression.GetFirstChild(self.__rootTreeAutoEvent)
+            indexAutoEvent = 0
+            while rootChild.IsOk():
+                idEvent = self.treeStateProgression.GetItemData(rootChild)
+                chapterMin, chapterMax = (0,0)
+                if (chapters := self.__getChaptersFromItem(rootChild)) != None:
+                    chapterMin, chapterMax = chapters
+
+                autoEventEntry = entry.getSubPlaceEntry(indexAutoEvent)
+                autoEventEntry.chapterEnd = chapterMax
+                autoEventEntry.chapterStart = chapterMin
+
+                if type(idEvent) == int:
+                    autoEventEntry.idEvent = idEvent
+                else:
+                    logSevere("AutoEvent: Wrong data type for exporting under room", self._groupPlace.indexPlace)
+
+                rootChild = self.treeStateProgression.GetNextSibling(rootChild)
+                indexAutoEvent += 1
+            
+            saveAutoEvent(self._state, autoEvent)
 
         def nonDestructiveWritePlaceFlag():
-            pass
+            placeFlag = loadPlaceFlag(self._state)
+            entry = placeFlag.getEntry(self._groupPlace.indexPlace)
+            entry.clear()
+
+            rootChild, cookie = self.treeStateProgression.GetFirstChild(self.__rootTreeStates)
+            indexSubState = 0
+            while rootChild.IsOk():
+                nameItem = self.treeStateProgression.GetItemText(rootChild)
+                chapterMin, chapterMax = (0,0)
+                if not("Default" in nameItem):
+                    # Other states
+                    chapters = self.__getChaptersFromItem(rootChild)
+                    if chapters == None:
+                        logSevere("Failed to decode", nameItem)
+                    else:
+                        chapterMin, chapterMax = chapters
+                
+                chapterEntry = entry.getChapterEntry(indexSubState)
+                chapterEntry.chapterStart = chapterMin
+                chapterEntry.chapterEnd = chapterMax
+
+                if self.treeStateProgression.GetChildrenCount(rootChild, False) > 0:
+                    conditionalChild, _dumpCookie = self.treeStateProgression.GetFirstChild(rootChild)
+                    # Has an event counter entry
+                    stringMode0 = FramePlaceConditionalEditor.EVENTCOUNTER_STRING_MODE_0.replace("%i", "([0-9]+)")
+                    stringMode1 = FramePlaceConditionalEditor.EVENTCOUNTER_STRING_MODE_1.replace("%i", "([0-9]+)")
+                    stringMode2 = FramePlaceConditionalEditor.EVENTCOUNTER_STRING_MODE_2.replace("%i", "([0-9]+)")
+                    if (result := match(stringMode0, self.treeStateProgression.GetItemText(conditionalChild))) != None:
+                        idxVariable = int(result.group(0))
+                        value = int(result.group(1))
+                        print("Recognised 0!", idxVariable, value)
+                        counter = entry.getCounterEntry(indexSubState)
+                        counter.decodeMode = 0
+                        counter.indexEventCounter = idxVariable
+                        counter.unk1 = value
+                    elif (result := match(stringMode1, self.treeStateProgression.GetItemText(conditionalChild))) != None:
+                        idxVariable = int(result.group(0))
+                        value = int(result.group(1))
+                        print("Recognised 1!", idxVariable, value)
+                        counter = entry.getCounterEntry(indexSubState)
+                        counter.decodeMode = 1
+                        counter.indexEventCounter = idxVariable
+                        counter.unk1 = value
+                    elif (result := match(stringMode2, self.treeStateProgression.GetItemText(conditionalChild))) != None:
+                        idxVariable = int(result.group(0))
+                        value = int(result.group(1))
+                        print("Recognised 2!", idxVariable, value)
+                        counter = entry.getCounterEntry(indexSubState)
+                        counter.decodeMode = 2
+                        counter.indexEventCounter = idxVariable
+                        counter.unk1 = value
+                    else:
+                        print("Unrecognised condition:", self.treeStateProgression.GetItemText(conditionalChild))
+
+                    pass
+
+                rootChild = self.treeStateProgression.GetNextSibling(rootChild)
+                indexSubState += 1
+            
+            savePlaceFlag(self._state, placeFlag)
         
         if self.__rootTreeStates == None:
             return
@@ -451,6 +563,8 @@ class FramePlaceConditionalEditor(FramePlaceEditor):
             rootChild = self.treeStateProgression.GetNextSibling(rootChild)
         
         nonDestructiveWritePackChanges(dataOutput)
+        nonDestructiveWritePlaceFlag()
+        nonDestructiveWriteAutoEvent()
 
     def __addBelow(self, above : TreeItemId, duplicateAbove : bool = False):
         treeItems, treeData = self._getListPlaceData()

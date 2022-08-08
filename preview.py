@@ -15,6 +15,8 @@ def noLog(*args, **kwargs):
 common.logVerbose = noLog
 common.log = noLog
 
+# TODO - Rework chapters! Not working as expected, since chapter starts at 5...
+
 from wx import App, ID_OK, ID_CANCEL
 from editor.embed_mod import EditorWindow
 from editor.d_firstrun import DialogFirstRunWarning

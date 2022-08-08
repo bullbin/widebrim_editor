@@ -2,6 +2,8 @@ from __future__ import annotations
 from typing import Dict, List, Optional
 
 from editor.d_operandMultichoice import DialogMultipleChoice
+from ..d_pickerEvent import DialogEvent
+from editor.d_pickerRoom import DialogSelectRoom
 from editor.e_room.modifiers import modifyBoundary, modifyEventSelection, modifySpriteBoundary, modifySpritePath, modifySpritePosition
 from editor.e_room.utils import blitBoundingAlphaFill, blitBoundingLine, getShortenedString
 from widebrim.engine.const import PATH_EXT_EVENT, PATH_EXT_EXIT
@@ -14,6 +16,11 @@ from pygame import Surface
 from pygame.draw import circle as drawCircle
 
 # TODO - Linting and docstrings
+
+def _getMapString(bank : Dict[int, str], id : int) -> str:
+    if id in bank:
+        return bank[id]
+    return "Undefined (%i)" % id
 
 class RefreshInformation():
     def __init__(self, fullTreeRefresh = False, backgroundRefresh = False):
@@ -584,11 +591,43 @@ class TreeGroupExit(TreeObjectPlaceData):
                         dlg.SetSelection("Room")
                     
                     if dlg.ShowModal() == ID_OK:
-                        # TODO - Event and room trees, also handling wrong type
-                        pass
+                        if dlg.GetSelection() == "Room":
+                            extraDatDlg = DialogSelectRoom(parent, state, self.__placeExit.spawnData)
+                            if extraDatDlg.ShowModal() == ID_OK:
+                                self.__placeExit.spawnData = extraDatDlg.GetSelection()
+                                treeCtrl.SetItemText(self.itemExitTermination, "Destination: Room %i" % self.__placeExit.spawnData)
+                            else:
+                                return RefreshInformation()
+
+                        elif dlg.GetSelection() == "Event":
+                            extraDatDlg = DialogEvent(parent, state, self.__placeExit.spawnData)
+                            if extraDatDlg.ShowModal() == ID_OK:
+                                self.__placeExit.spawnData = extraDatDlg.GetSelection()
+                                treeCtrl.SetItemText(self.itemExitTermination, "Destination: Event %i" % self.__placeExit.spawnData)
+                            else:
+                                return RefreshInformation()
+
+                        if self.__placeExit.canSpawnEvent():
+                            if not(dlg.GetSelection() == "Event"):
+                                # Need to update, since we're still setup for spawning events
+                                self.__placeExit.modeDecoding = 0
+                                treeCtrl.SetItemText(self.itemExitType, "Exit Type: %s" % _getMapString(TreeGroupExit.MAP_TYPE_TO_OPTIONS, self.__placeExit.modeDecoding))
+                                
+                        else:
+                            if not(dlg.GetSelection() == "Room"):
+                                # Need to update, since we're still setup for spawning rooms
+                                self.__placeExit.modeDecoding = 2
+                                treeCtrl.SetItemText(self.itemExitType, "Exit Type: %s" % _getMapString(TreeGroupExit.MAP_TYPE_TO_OPTIONS, self.__placeExit.modeDecoding))
+                                # TODO - Update sound to silent
+
+                        treeCtrl.SetItemData(self.itemExitType, self.__placeExit.modeDecoding)
+                        treeCtrl.SetItemData(self.itemExitTermination, self.__placeExit.spawnData)
+                        return RefreshInformation(backgroundRefresh=True)
                     return RefreshInformation()
             
             elif selectedId == self.itemExitType:
+                if self.__placeExit.canSpawnEvent():
+                    pass
                 pass
 
             elif selectedId == self.itemPosTransition:
@@ -629,17 +668,12 @@ class TreeGroupExit(TreeObjectPlaceData):
 
     def createTreeItems(self, state : Layton2GameState, treeCtrl : TreeCtrl, branchRoot : TreeItemId, index : Optional[int] = None):
 
-        def getMapString(bank : Dict[int, str], id : int) -> str:
-            if id in bank:
-                return bank[id]
-            return "Undefined (%i)" % id
-
         self._createRootItem(treeCtrl, branchRoot, "Exit", index)
         self.itemBounding = treeCtrl.AppendItem(self._treeRoot, "Edit interaction area...", data=self.__placeExit.bounding)
         self.itemPosTransition = treeCtrl.AppendItem(self._treeRoot, "Edit map pinpoint destination...", data=self.__placeExit.posTransition)
-        self.itemArrowImage = treeCtrl.AppendItem(self._treeRoot, "Exit Image: %s" % getMapString(TreeGroupExit.MAP_ID_TO_IMAGE_DESCRIPTION, self.__placeExit.idImage),
+        self.itemArrowImage = treeCtrl.AppendItem(self._treeRoot, "Exit Image: %s" % _getMapString(TreeGroupExit.MAP_ID_TO_IMAGE_DESCRIPTION, self.__placeExit.idImage),
                                                   data=self.__placeExit.idImage)
-        self.itemExitType = treeCtrl.AppendItem(self._treeRoot, "Exit Type: %s" % getMapString(TreeGroupExit.MAP_TYPE_TO_OPTIONS, self.__placeExit.modeDecoding),
+        self.itemExitType = treeCtrl.AppendItem(self._treeRoot, "Exit Type: %s" % _getMapString(TreeGroupExit.MAP_TYPE_TO_OPTIONS, self.__placeExit.modeDecoding),
                                                   data=self.__placeExit.modeDecoding)
         
         if self.__placeExit.canSpawnEvent():
@@ -649,7 +683,7 @@ class TreeGroupExit(TreeObjectPlaceData):
             self.itemExitTermination = treeCtrl.AppendItem(self._treeRoot, "Destination: Room %i" % self.__placeExit.spawnData,
                                                            data=self.__placeExit.spawnData)
 
-        self.itemSound = treeCtrl.AppendItem(self._treeRoot, "Sound: %s" % getMapString(TreeGroupExit.MAP_NOISE_DESCRIPTION, self.__placeExit.idSound),
+        self.itemSound = treeCtrl.AppendItem(self._treeRoot, "Sound: %s" % _getMapString(TreeGroupExit.MAP_NOISE_DESCRIPTION, self.__placeExit.idSound),
                                              data=self.__placeExit.idSound)
 
     def renderSelectionLine(self, surface: Surface, overrideWidth : Optional[int] = None):

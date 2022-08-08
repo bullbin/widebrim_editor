@@ -1,3 +1,4 @@
+from .chapter import loadStoryFlag
 from widebrim.engine.const import EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_EV_INF2, PATH_DB_RC_ROOT, PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
 from widebrim.engine_ext.utils import substituteLanguageString
@@ -10,7 +11,7 @@ from widebrim.madhatter.hat_io.asset_dat.event import EventData
 from widebrim.madhatter.hat_io.asset_dlz.ev_inf2 import DlzEntryEvInf2, EventInfoList
 
 from widebrim.engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C
-from widebrim.madhatter.hat_io.asset_dlz.ev_lch import DlzEntryEventDescriptorBankNds, EventDescriptorBankNds
+from widebrim.madhatter.hat_io.asset_dlz.ev_lch import DlzEntryEventDescriptorBank, DlzEntryEventDescriptorBankNds, EventDescriptorBankNds
 from widebrim.madhatter.hat_io.asset_script import GdScript
 
 class EventExecutionGroup():
@@ -368,6 +369,39 @@ def createBlankPuzzleEventChain(filesystem : WriteableFilesystemCompatibilityLay
 def createBlankTeaEventChain(filesystem : WriteableFilesystemCompatibilityLayer, state : Layton2GameState, baseIdEvent : int):
     pass
 
+def ensureEventInDatabase(state : Layton2GameState, idEvent : int):
+    evLch = EventDescriptorBankNds()
+    evInf = EventInfoList()
+
+    if (data := state.getFileAccessor().getData(substituteLanguageString(state, PATH_DB_RC_ROOT % ("%s/ev_lch.dlz")))) != None:
+        evLch.load(data)
+    if (data := state.getFileAccessor().getData(substituteLanguageString(state, PATH_DB_EV_INF2))) != None:
+        evInf.load(data)
+    
+    # TODO - Sort
+    entryInf = evInf.searchForEntry(idEvent)
+    entryLch = evLch.searchForEntry(idEvent)
+
+    if entryInf == None:
+        logSevere("Recovered event database for", idEvent)
+        newEntry = DlzEntryEvInf2(id, 0, id, None, None, None)
+        evInf.addEntry(newEntry)
+    if entryLch == None:
+        logSevere("Adding placeholder comment for", idEvent)
+        newEntry = DlzEntryEventDescriptorBank(idEvent, "Recovered event database for " + str(idEvent))
+        entryLch.addEntry(newEntry)
+    
+    evInf.save()
+    evInf.compress()
+    state.getFileAccessor().writeableFs.replaceFile(substituteLanguageString(state, PATH_DB_EV_INF2), evInf.data)
+
+    evLch.save()
+    evLch.compress()
+    state.getFileAccessor().writeableFs.replaceFile(substituteLanguageString(state, PATH_DB_RC_ROOT % ("%s/ev_lch.dlz")), evLch.data)
+
+    # TODO - this is not good, avoid using files from widebrim's state outside of the preview engine!
+    state.unloadEventInfoDb()
+
 # TODO - Removable..?
 def createConditionalRevisit(filesystem : WriteableFilesystemCompatibilityLayer, state : Layton2GameState, baseIdEvent : int, flagRevisit : int) -> EventConditionAwaitingViewedExecutionGroup:
     idEvents = [baseIdEvent, baseIdEvent + 1]
@@ -481,3 +515,60 @@ def getFreeStoryFlags(state : Layton2GameState) -> List[int]:
             logSevere("Event shares StoryFlag", usedIndex)
 
     return flags
+
+def giveEventStoryFlag(state : Layton2GameState, idEvent : int) -> Optional[int]:
+    ensureEventInDatabase(state, idEvent)
+
+    evInf = EventInfoList()
+    if (data := state.getFileAccessor().getData(substituteLanguageString(state, PATH_DB_EV_INF2))) != None:
+        evInf.load(data)
+
+    entry = evInf.searchForEntry(idEvent)
+
+    # Verified: Any event type is permitted storyflag, it will be applied during event sequence regardless
+    if entry.indexStoryFlag == None:
+        logSevere("EventStoryFlag: Called to add new story flag to", idEvent)
+        freeStoryFlags = getFreeStoryFlags(state)
+        if len(freeStoryFlags) == 0:
+            logSevere("EventStoryFlag: Out of flags!")
+            return None
+
+        entry.indexStoryFlag = freeStoryFlags.pop(0)
+        logSevere("EventStoryFlag: Added", entry.indexStoryFlag)
+        evInf.save()
+        evInf.compress()
+        state.getFileAccessor().writeableFs.replaceFile(substituteLanguageString(state, PATH_DB_EV_INF2), evInf.data)
+
+        # TODO - this is not good, avoid using files from widebrim's state outside of the preview engine!
+        state.unloadEventInfoDb()
+    else:
+        logSevere("EventStoryFlag:", idEvent, "has flag", entry.indexStoryFlag)
+
+    return entry.indexStoryFlag
+
+def giveEventViewedFlag(state : Layton2GameState, idEvent : int) -> Optional[int]:
+    freeFlags = getFreeEventViewedFlags(state)
+    if len(freeFlags) == 0:
+        logSevere("EventViewedFlags: Out of event viewed flags!")
+        return None
+
+    ensureEventInDatabase(state, idEvent)
+    evInf = EventInfoList()
+    if (data := state.getFileAccessor().getData(substituteLanguageString(state, PATH_DB_EV_INF2))) != None:
+        evInf.load(data)
+
+    entry = evInf.searchForEntry(idEvent)
+
+    if entry.indexEventViewedFlag == None:
+        if entry.typeEvent == 0:
+            logSevere("EventViewedFlags: Upgraded event to type 3!")
+            entry.typeEvent = 3
+        entry.indexEventViewedFlag = freeFlags.pop(0)
+        evInf.save()
+        evInf.compress()
+        state.getFileAccessor().writeableFs.replaceFile(substituteLanguageString(state, PATH_DB_EV_INF2), evInf.data)
+
+        # TODO - this is not good, avoid using files from widebrim's state outside of the preview engine!
+        state.unloadEventInfoDb()
+
+    return entry.indexEventViewedFlag

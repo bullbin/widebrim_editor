@@ -5,6 +5,7 @@ from widebrim.engine.const import PATH_DB_EV_INF2, PATH_DB_STORYFLAG, PATH_PROGR
 from widebrim.engine.state.manager.state import Layton2GameState
 from wx import TreeCtrl, TreeItemId
 from widebrim.engine_ext.utils import substituteLanguageString
+from widebrim.madhatter.common import logSevere
 
 from widebrim.madhatter.hat_io.asset_dlz.ev_inf2 import EventInfoList
 from widebrim.madhatter.hat_io.asset_storyflag import StoryFlag
@@ -76,7 +77,6 @@ class ChapterBranchManager(BranchManager):
             storyFlag.load(data)
 
         self._branchRoot = branchParent
-        self._addIntoTreeAtCorrectId(0, "Chapter 0 (initial)", branchParent)
 
         for group in storyFlag.flagGroups:
 
@@ -121,6 +121,33 @@ class ChapterBranchManager(BranchManager):
     def addTrackedChapter(self, chapter : int):
         flagRoot = self._addIntoTreeAtCorrectId(chapter, "Chapter " + str(chapter), self._branchRoot)
     
+    # TODO - Internalize these to make adding faster
+    def addTrackedConditionalEvent(self, chapter : int, eventId : int):
+        flagRoot = self.getCorrespondingItem(chapter)
+        if flagRoot == None:
+            logSevere("ManagerChapter: Failed to find chapter for conditional event!")
+            return
+
+        if self.canItemHaveMoreConditions(flagRoot):
+            self._treeCtrl.AppendItem(flagRoot, "Play event " + getNameForEvent(self._state, eventId))
+        else:
+            logSevere("ManagerChapter: Desynchronized from StoryFlags! Failed to add conditional event.")
+    
+    def addTrackedConditionalPuzzle(self, chapter : int, internalPuzzleId : int):
+        flagRoot = self.getCorrespondingItem(chapter)
+        if flagRoot == None:
+            logSevere("ManagerChapter: Failed to find chapter for conditional event!")
+            return
+
+        if self.canItemHaveMoreConditions(flagRoot):
+            nzLstEntry = self._state.getNazoListEntry(internalPuzzleId)
+            if nzLstEntry != None:
+                self._treeCtrl.AppendItem(flagRoot, 'Solve "%03i - %s"' % (nzLstEntry.idExternal, nzLstEntry.name))
+            else:
+                self._treeCtrl.AppendItem(flagRoot, "Progression blocker - illegal puzzle")
+        else:
+            logSevere("ManagerChapter: Desynchronized from StoryFlags! Failed to add conditional puzzle.")
+
     def deleteTrackedChapter(self, chapter : int) -> bool:
         # NOTE - This doesn't match deletion behaviour on zero for original, be careful!
         item = self.getCorrespondingItem(chapter)

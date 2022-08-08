@@ -368,7 +368,7 @@ class FramePlaceEditor(editorRoom):
         
         baseBg = getImageFromPath(self._state, PATH_PLACE_BG % dataPlace.bgMainId)
         if (baseBg == None):
-            baseBg = self.__invalidSurface
+            baseBg = self.__invalidSurface.copy()
 
         surfColorBackground.blit(baseBg, (0,0))
         
@@ -497,7 +497,7 @@ class FramePlaceEditor(editorRoom):
         pathBgSub = PATH_PLACE_MAP % self._getActiveState().bgMapId
         bgBase = getImageFromPath(self._state, pathBgSub)
         if bgBase == None:
-            bgBase = self.__invalidSurface
+            bgBase = self.__invalidSurface.copy()
         
         POS_CENTER_TEXT_ROOM_TITLE  = (170,7)
         POS_CENTER_TEXT_OBJECTIVE   = (128,172)

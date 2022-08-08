@@ -1,16 +1,20 @@
 from typing import Dict, List, Optional
-from editor.asset_management.chapter import createChapter
-from editor.asset_management.event import PuzzleExecutionGroup, createBlankEvent, createBlankPuzzleEventChain, createConditionalRevisit, createConditionalRevisitAndPuzzleLimit, getFreeEventViewedFlags
+from editor.asset_management.chapter import addChapterCondition, createChapter, deleteChapter
+from editor.asset_management.event import PuzzleExecutionGroup, createBlankEvent, createBlankPuzzleEventChain, createConditionalRevisit, createConditionalRevisitAndPuzzleLimit, ensureEventInDatabase, getFreeEventViewedFlags, getFreeStoryFlags, giveEventStoryFlag
 from editor.asset_management.puzzle import PuzzleEntry
+from editor.asset_management.room import PlaceGroup, createRoomAsFirstFree, deleteRoom
 from editor.d_operandMultichoice import DialogMultipleChoice
+from editor.d_pickerEvent import DialogEvent
+from editor.d_pickerPuzzle import DialogSelectPuzzle
 from editor.e_script.get_input_popup import VerifiedDialog, rangeIntCheckFunction
 from editor.gui.command_annotator.bank import ScriptVerificationBank
 from widebrim.engine.state.manager.state import Layton2GameState
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
 from widebrim.madhatter.common import logSevere
+from widebrim.madhatter.hat_io.asset_storyflag import FlagGroup, StoryFlag
 from .creation import FrameOverviewTreeGen
 import wx
-from wx import OK, ICON_WARNING, MessageDialog, TextEntryDialog, TreeItemId
+from wx import OK, ICON_WARNING, MessageDialog, TextEntryDialog, TreeItemId, ID_OK
 
 class FrameOverview(FrameOverviewTreeGen):
 
@@ -233,7 +237,21 @@ class FrameOverview(FrameOverviewTreeGen):
             pass
 
         def handleDeleteChapter(item : TreeItemId):
-            pass
+            if item != self._treeItemChapter:
+                chapter = self._chapterManager.getCorrespondingChapter(item)
+                if chapter != None:
+                    if deleteChapter(self._state, chapter):
+                        self._chapterManager.deleteTrackedChapter(chapter)
+        
+        def handleDeleteRoom(item : TreeItemId):
+            if item != self._treeItemPlace:
+                groupRoom = self.treeOverview.GetItemData(item)
+                if groupRoom == None:
+                    logSevere("DeleteRoom: Failed, no group attached.")
+                    return
+                groupRoom : PlaceGroup
+                if deleteRoom(self._state, groupRoom.indexPlace):
+                    self.treeOverview.Delete(item)
 
         if not(self.treeOverview):
             return super().btnDeleteOnButtonClick(event)
@@ -243,15 +261,16 @@ class FrameOverview(FrameOverviewTreeGen):
             handleDeleteEvent(item)
         elif self._isItemWithinPathToItem(item, self._treeItemChapter):
             handleDeleteChapter(item)
+        elif self._isItemWithinPathToItem(item, self._treeItemPlace):
+            handleDeleteRoom(item)
         else:
             pass
-
 
         return super().btnDeleteOnButtonClick(event)
     
     def btnCreateNewOnButtonClick(self, event):
 
-        def handleCreateNewEvent(item):
+        def handleCreateNewEvent(item : TreeItemId):
             # TODO - Find branch (standard branch, puzzle branch, tea branch, etc)
             #        Could skip a popup, maybe...
 
@@ -329,7 +348,7 @@ class FrameOverview(FrameOverviewTreeGen):
                     idEvent = self.__doEventIdDialog(30,30)
 
         # TODO - Do not show this button on 256 chapter entries (not permitted...)
-        def handleCreateNewChapter(item):
+        def handleCreateNewChapter(item : TreeItemId):
             # TODO - New button has been added to add conditional. Use that instead!
             def createNewChapter():
 
@@ -365,17 +384,85 @@ class FrameOverview(FrameOverviewTreeGen):
             else:
                 createNewCondition()
 
+        def handleCreateNewRoom(item : TreeItemId):
+            # TODO - Prevent if cannot create (out of free good rooms)
+            placeGroup = createRoomAsFirstFree(self._state)
+            if placeGroup == None:
+                logSevere("Failed to create new room!")
+                return
+            print(placeGroup.indexPlace, placeGroup.indicesStates)
+            # TODO - Not great...
+            self.treeOverview.AppendItem(self._treeItemPlace, "Room " + str(placeGroup.indexPlace), data=placeGroup)
+
         item = self.treeOverview.GetFocusedItem()
         if self._isItemWithinPathToItem(item, self._treeItemEvent):
             handleCreateNewEvent(item)
         elif self._isItemWithinPathToItem(item, self._treeItemChapter):
             handleCreateNewChapter(item)
+        elif self._isItemWithinPathToItem(item, self._treeItemPlace):
+            handleCreateNewRoom(item)
         else:
             pass
 
         # TODO - Select new item
         return super().btnCreateNewOnButtonClick(event)
     
+    def btnNewConditionOnButtonClick(self, event):
+        if not(self.treeOverview):
+            return super().btnNewConditionOnButtonClick(event)
+
+        def handleChapter(item : TreeItemId):
+            if item == self._treeItemChapter:
+                pass
+            else:
+                chapter = self._chapterManager.getCorrespondingChapter(item)
+                rootItem = self._chapterManager.getCorrespondingItem(chapter)
+                if self.treeOverview.GetChildrenCount(rootItem, False) < FlagGroup.COUNT_FLAGS_PER_GROUP:
+                    if len(getFreeStoryFlags(self._state)) == 0:
+                        # TODO - Warning to cleanup events (not enough free story flags)
+                        return
+                    # TODO - Warning to delete conditions (too many)
+                    choices = {"Trigger on event completion":"Condition will be met as soon as the event has been played. Results will be visible once room is reloaded.",
+                               "Trigger on puzzle completion":"Condition will be met when the puzzle has been solved. Results will be visible once room is reloaded."}
+                    dlg = DialogMultipleChoice(self, choices, "Change Trigger Condition")
+                    if dlg.ShowModal() == ID_OK:
+
+                        # Handling event case - so get some valid storyflag and use it
+                        if dlg.GetSelection() == list(choices.keys())[0]:
+                            extraDlg = DialogEvent(self, self._state)
+                            if extraDlg.ShowModal() == ID_OK:
+                                idEvent = extraDlg.GetSelection()
+                                idStoryFlag = giveEventStoryFlag(self._state, idEvent)
+                                if idStoryFlag == None:
+                                    logSevere("AddStoryFlagConditional: Failed creating event flag!")
+                                
+                                if addChapterCondition(self._state, chapter, True, idStoryFlag):
+                                    self._chapterManager.addTrackedConditionalEvent(chapter, idEvent)
+                                else:
+                                    logSevere("AddStoryFlagConditional: Failed adding event conditional!")
+                            else:
+                                return
+
+                        # Handling puzzle case - get internal puzzle ID and use it
+                        else:
+                            extraDlg = DialogSelectPuzzle(self, self._state)
+                            if extraDlg.ShowModal() == ID_OK:
+                                idPuzzle = extraDlg.GetSelection()
+                                if addChapterCondition(self._state, chapter, False, idPuzzle):
+                                    self._chapterManager.addTrackedConditionalPuzzle(chapter, idPuzzle)
+                                else:
+                                    logSevere("AddStoryFlagCondition: Failed adding puzzle condition!")
+                            else:
+                                return
+                    return
+
+        item : TreeItemId = self.treeOverview.GetSelection()
+
+        if self._isItemWithinPathToItem(item, self._treeItemChapter):
+            handleChapter(item)
+
+        return super().btnNewConditionOnButtonClick(event)
+
     def btnDuplicateOnButtonClick(self, event):
         return super().btnDuplicateOnButtonClick(event)
     
