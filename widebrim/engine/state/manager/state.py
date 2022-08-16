@@ -115,6 +115,9 @@ class Layton2GameState():
         except:
             raise FileInvalidCritical()
 
+        # Accuracy changes - SoundSet, EventBase, EventInfo, PuzzleInfo and Herbtea persistent from init
+        self.loadEventInfoDb()
+
         self.entryEvInfo : Optional[DlzEntryEvInf2] = None
         self.entryNzList    = None
         self._entryNzData    = None
@@ -142,6 +145,13 @@ class Layton2GameState():
         self._roomLoadBehaviour     = 0
         self._idExternalLastFavouritePuzzle = 0
         self._idExternalLastWiFiPuzzle      = 0
+
+        self.unloadChapterInfoDb()
+        self.unloadCurrentNazoData()
+        self.unloadEventInfoDb()
+        self.unloadSubmapInfo()
+        self.unloadGoalInfoDb()
+
         self.timeStartTimer()
 
     def timeGetStartedState(self):
@@ -201,7 +211,7 @@ class Layton2GameState():
     def getEventInfoEntry(self, idEvent) -> Optional[DlzEntryEvInf2]:
         if self._dbEventInfo == None:
             # TODO : Load event info
-            print("Bad: Event Info should have been loaded sooner!")
+            logSevere("Event Info unloaded too early!", name="StateLowAcc")
             self.loadEventInfoDb()
 
         return self._dbEventInfo.searchForEntry(idEvent)
@@ -285,7 +295,7 @@ class Layton2GameState():
         # Load nz info entry, set id
         self.entryNzList = self.getNazoListEntry(idInternal)
         if self.entryNzList == None:
-            logSevere("Failed to update entry!")
+            logSevere("Failed to update entry!", name="StateNazo")
 
     def getCurrentNazoListEntry(self) -> Optional[DlzEntryNzLst]:
         return self.entryNzList
@@ -340,7 +350,7 @@ class Layton2GameState():
 
     def getChapterInfEntry(self):
         if self._dbChapterInfo == None:
-            print("Bad: Chapter Info should have been loaded sooner!")
+            logSevere("Chapter Info was unloaded too early!", name="StateLowAcc")
             self.loadChapterInfoDb()
 
         for indexEntry in range(self._dbChapterInfo.getCountEntries()):
@@ -349,18 +359,22 @@ class Layton2GameState():
                 return entry
         return None
 
-    def getGoalInfEntry(self, id):
-        if self._dbGoalInfo == None:
-             # TODO : Load goal info
-            print("Bad: Goal Info should have been loaded sooner!")
-            self._dbGoalInfo = GoalInfo()
-
-            # Temporary workaround
-            tempFile = File(data=self.__fileInterface.getData(PATH_DB_RC_ROOT % PATH_DB_GOAL_INF))
+    def loadGoalInfoDb(self):
+        self._dbGoalInfo = GoalInfo()
+        # HACK - Temporary workaround
+        if (data := self.__fileInterface.getData(PATH_DB_RC_ROOT % PATH_DB_GOAL_INF)) != None:
+            tempFile = File(data=data)
             tempFile.decompressLz10()
-
             self._dbGoalInfo.load(tempFile.data)
+    
+    def unloadGoalInfoDb(self):
+        del self._dbGoalInfo
+        self._dbGoalInfo = None
 
+    def getGoalInfEntry(self, id : int):
+        if self._dbGoalInfo == None:
+            logSevere("Goal Info was unloaded too early!", name="StateLowAcc")
+            self.loadGoalInfoDb()
         return self._dbGoalInfo.searchForEntry(id)
     
     def loadSubmapInfo(self):
@@ -379,7 +393,7 @@ class Layton2GameState():
         if indexEventViewed == 0 or self.saveSlot.eventViewed.getSlot(indexEventViewed):
             if self._dbSubmapInfo == None:
                 self.loadSubmapInfo()
-                print("Bad: Goal Info should have been loaded sooner!")
+                logSevere("Submap Info was unloaded too early!", name="StateLowAcc")
 
             if self._dbSubmapInfo != None:
                 return self._dbSubmapInfo.searchForEntry(indexEventViewed, self.saveSlot.roomIndex, self.saveSlot.chapter)

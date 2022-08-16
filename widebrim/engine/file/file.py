@@ -16,6 +16,8 @@ from widebrim.engine.const import ADDRESS_ARM9_POINTER_FUNC_LANGUAGE, DICT_ID_TO
 
 class NativeRomFileInterface(ReadOnlyFileInterface):
 
+    LOG_MODULE_NAME = "FsNative"
+
     def __init__(self):
         super().__init__()
         self._rom = None
@@ -45,9 +47,9 @@ class NativeRomFileInterface(ReadOnlyFileInterface):
         if self.doesFileExist(filepath):
             testFile = File(data=self._rom.getFileByName(filepath))
             testFile.decompress()
-            log("RomGrab", filepath)
+            log("RomGrab", filepath, name=NativeRomFileInterface.LOG_MODULE_NAME)
             return testFile.data
-        logSevere("RomGrabFailed", filepath)
+        logSevere("RomGrabFailed", filepath, name=NativeRomFileInterface.LOG_MODULE_NAME)
         return None
 
     def getPack(self, filepath : str) -> LaytonPack:
@@ -98,8 +100,8 @@ class NativeRomFileInterface(ReadOnlyFileInterface):
                         if languageInstruction & 0xffffff00 == 0xe3a00000:  # Check for proper MOV instruction to r0 with immediate language operand
                             languageInstruction = languageInstruction & 0x000000ff
                             if languageInstruction in DICT_ID_TO_LANGUAGE:
-                                log("Detected language", DICT_ID_TO_LANGUAGE[languageInstruction].value)
+                                log("Detected language", DICT_ID_TO_LANGUAGE[languageInstruction].value, name=NativeRomFileInterface.LOG_MODULE_NAME)
                                 self._romLanguage = DICT_ID_TO_LANGUAGE[languageInstruction]
                                 return self._romLanguage
-        logSevere("Failed to detect language!")
+        logSevere("Failed to detect language!", name=NativeRomFileInterface.LOG_MODULE_NAME)
         return None

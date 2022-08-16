@@ -6,6 +6,7 @@ from widebrim.engine.state.enum_mode import GAMEMODES
 from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getButtonFromPath, getStaticButtonFromAnim, getTxtString, offsetVectorToSecondScreen
 from widebrim.engine.anim.image_anim.imageAsNumber import StaticImageAsNumericalFont
 from widebrim.engine.anim.font.staticFormatted import StaticTextHelper
+from widebrim.madhatter.common import logSevere
 
 from .const import *
 
@@ -64,7 +65,7 @@ class ArtModePlayer(ScreenLayerNonBlocking):
             self.__textRendererDescription.setText(getTxtString(self.__laytonState, PATH_TEXT_DESC % index))
 
             if not(0 <= index < len(MAP_BG_TO_INDEX)):
-                print("Missing art BG mapping, index %i out of range!" % index)
+                logSevere("Missing art BG mapping, index %i out of range!" % index, name="ArtMode")
             self.__screenController.setBgSub(PATH_BG_ART % MAP_BG_TO_INDEX[index])
 
     def __callbackOnBack(self):

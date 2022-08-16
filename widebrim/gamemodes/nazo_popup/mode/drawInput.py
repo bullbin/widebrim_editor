@@ -23,6 +23,7 @@
 # TODO - Skip if tesseract unusable
 
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
+from widebrim.madhatter.common import log
 from ....engine_ext.utils import getButtonFromPath
 from .base import BaseQuestionObject
 from .const import PATH_BG_DRAWINPUT
@@ -116,7 +117,7 @@ class DrawInputBox():
     def _queueHandwritingRecognition(self):
 
         def startTesseractLoading(imageCopy):
-            print("Performing handwriting recognition...")
+            log("Performing handwriting recognition...", name="TssrctOCR")
             im = Image.frombytes("RGBA",(imageCopy.get_width(), imageCopy.get_height()),
                                          tostring(imageCopy,"RGBA",False))
             self._handwritingSymbol = pytesseract.image_to_string(im,config="--psm 10 -c tessedit_char_whitelist=" + self.charFilter)
@@ -130,7 +131,7 @@ class DrawInputBox():
                 self._handwritingSymbol = "?"
 
             # TODO - Adjust character type based on handler
-            print(self._handwritingSymbol)
+            log(self._handwritingSymbol, name="TssrctOCR")
             self._isSymbolReady = True
 
         # Make copy of surface to keep thread-safe, and lock the handwriting symbol until thread finished
@@ -262,7 +263,7 @@ class DrawInputAnswer():
                 if answerChar == None:
                     answerChar = " "
                 answer += answerChar
-            print(self.answer, "got", answer)
+            log(self.answer, "got", answer, name="DrawInput")
 
             if self.isAlphabetical:
                 # TODO - Is this stripped?
@@ -382,10 +383,10 @@ class HandlerDrawInput(BaseQuestionObject):
             if hasNonEmptyAnswer:
                 self._startJudgement()
             else:
-                print("Answer is empty!")
+                log("Answer is empty!", name="DrawInput")
         else:
             # Do valid answer screen
-            print("No valid answer available!")
+            log("No valid answer available!", name="DrawInput")
 
     def _doOnClearAnswer(self):
         for answer in self._answers:

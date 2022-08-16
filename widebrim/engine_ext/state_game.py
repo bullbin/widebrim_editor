@@ -1,4 +1,5 @@
 from widebrim.engine_ext.const import SHAKE_PIX
+from widebrim.madhatter.common import logSevere
 from ..engine.state.layer import ScreenCollection, ScreenLayerNonBlocking
 from ..engine.state.enum_mode import GAMEMODES
 from ..engine.const import RESOLUTION_NINTENDO_DS
@@ -334,7 +335,7 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
             if gameMode == GAMEMODES.INVALID:
                 self._voidGameMode()
             else:
-                print("Missing implementation for mode", gameMode.name)
+                logSevere("Missing implementation for mode", gameMode.name, name="GamemodeErr")
                 self._currentActiveGameModeObject = None
 
             self.addToCollection(layerFader)
@@ -381,7 +382,7 @@ class ScreenCollectionGameModeSpawner(ScreenCollection):
                     readyGameModeSwitch(self.laytonState.getGameMode())
                 elif self.laytonState.getGameModeNext() != self.laytonState.getGameMode():
                     # Hack: If there is an unimplemented (or invalid) state loaded, attempt to load the next gamemode instead.
-                    print("Hack: Skip gamemode to", self.laytonState.getGameModeNext())
+                    logSevere("Hack: Skip gamemode to", self.laytonState.getGameModeNext(), name="GamemodeErr")
                     readyGameModeSwitch(self.laytonState.getGameModeNext())
                 else:
                     # If neither the current or next gamemode spawned a handler, terminate the game.

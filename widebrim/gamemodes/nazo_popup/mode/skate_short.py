@@ -2,6 +2,7 @@ from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
 from widebrim.engine.anim.fader import Fader
 from widebrim.engine.anim.button import StaticButton
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
+from widebrim.madhatter.common import logSevere
 from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
 
 from .rose_short import RoseWall
@@ -188,7 +189,7 @@ class HandlerShortbrimSkate(BaseQuestionObject):
             elif operands[1].value == operands[3].value:
                 self.wallsHorizontal.append(RoseWall((operands[0].value, operands[1].value), (operands[2].value, operands[3].value)))
             else:
-                print("ErrIceSkateUnsupportedLine: Wall from", (operands[0].value, operands[1].value), "to", (operands[2].value, operands[3].value), "isn't vertical or horizontal!")
+                logSevere("Unsupported line: Wall from", (operands[0].value, operands[1].value), "to", (operands[2].value, operands[3].value), "isn't vertical or horizontal!", name="NazoIceSkate")
                 return False
         else:
             return super()._doUnpackedCommand(opcode, operands)

@@ -1,5 +1,7 @@
 from typing import List
 
+from widebrim.madhatter.common import log
+
 from ...engine.anim.font.static import generateImageFromString
 from ...engine.anim.button import NullButton
 from ...engine.config import PATH_SAVE
@@ -88,7 +90,7 @@ class SaveLoadScreenPopup(MainScreenPopup):
                 self.saveData.setWiFiData(laytonState.wiFiData)
                 writeSaveData()
                 generateGraphicsForIndex(self.slotActive)
-                print("Overwrote save slot " + str(self.slotActive) + "!")
+                log("Overwrote save slot " + str(self.slotActive) + "!", name="FsSave")
 
                 # TODO - Draw save logo like game before starting write operation
 

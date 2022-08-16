@@ -1,3 +1,4 @@
+from widebrim.madhatter.common import logSevere
 from .const import DECODE_MAP
 
 # TODO - Enforce cp1252 encoding
@@ -23,7 +24,7 @@ def getSubstitutedString(inString):
             if stringKey in DECODE_MAP:
                 output += DECODE_MAP[stringKey]
             else:
-                print("Did not have substitution for", stringKey)
+                logSevere("Did not have substitution for", stringKey, name="TextSubs")
         else:
             output += inString[indexChar]
         

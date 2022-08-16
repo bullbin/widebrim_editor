@@ -5,6 +5,7 @@ from typing import List, Optional, TYPE_CHECKING, Tuple, Union
 from widebrim.engine.anim.image_anim.imageAsNumber import StaticImageAsNumericalFont
 from widebrim.engine.anim.button import NullButton
 from pygame.constants import BLEND_RGB_SUB, MOUSEBUTTONDOWN, MOUSEBUTTONUP
+from widebrim.madhatter.common import logVerbose
 from widebrim.madhatter.hat_io.asset_dat.place import Exit, PlaceDataNds
 from widebrim.madhatter.hat_io.asset_placeflag import PlaceFlagCounterFlagEntry
 
@@ -353,7 +354,7 @@ class RoomPlayer(ScreenLayerNonBlocking):
                                     # TODO - Coin flip anim, this is just ported from old room handler
                                     self.laytonState.saveSlot.hintCoinEncountered += 1
                                     self.laytonState.saveSlot.hintCoinAvailable += 1
-                                    print("Found a hint coin!")
+                                    logVerbose("Found a hint coin!", name="DramaEvent")
 
                                     if indexHint == 0 and self.laytonState.getPlaceNum() == 3:
                                         # Hardcoded behaviour to force the event after encountering first hint coin to play out

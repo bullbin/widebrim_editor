@@ -1,6 +1,8 @@
 from typing import Callable, List, Optional, Tuple
 from widebrim.engine.string.cmp import strCmp
 from pygame import Surface, BLEND_RGB_MULT
+
+from widebrim.madhatter.common import logSevere
 from ...const import RESOLUTION_NINTENDO_DS, TIME_FRAMECOUNT_TO_MILLISECONDS
 from .const import BLEND_MAP
 from ...string import getSubstitutedString
@@ -203,7 +205,7 @@ class ScrollingFontHelper():
                             if self._funcModifyVoice != None:
                                 self._funcModifyVoice(int(nextChar[2]))
                         except Exception as e:
-                            print(e)
+                            logSevere("Pitch modification failed!\n", e, name="ScrollRend")
                 
                 elif nextChar[0] == "#":
                     # Color character
@@ -225,7 +227,7 @@ class ScrollingFontHelper():
                             if self._funcSetAnimation != None:
                                 self._funcSetAnimation(idChar, nameAnim)
                         except Exception as e:
-                            print(e)
+                            logSevere("Set animation failed!\n", e, name="ScrollRend")
 
             return False
 

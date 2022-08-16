@@ -205,7 +205,7 @@ def _getAnimFromPath(laytonState : Layton2GameState, inPath : str, spawnAnimInde
             else:
                 tempImage = AnimatedImage.fromBytesArj(tempAsset, functionGetFileByName=functionGetAnimationFromName)
         except:
-            logSevere("Failed to parse image at", inPath)
+            logSevere("Failed to parse image at", inPath, name="UtilAnimDec")
             return AnimatedImageObject()
 
         if enableSubAnimation:
@@ -229,7 +229,7 @@ def _getAnimFromPath(laytonState : Layton2GameState, inPath : str, spawnAnimInde
         
         return tempImage
     
-    logSevere("Could not fetch image for", inPath)
+    logSevere("Could not fetch image for", inPath, name="UtilAnimMiss")
     return AnimatedImageObject()
 
 def decodeStringFromPack(pack : LaytonPack, filename : str) -> str:

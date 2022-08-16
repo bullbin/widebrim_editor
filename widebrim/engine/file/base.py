@@ -5,7 +5,7 @@ from ndspy.rom import NintendoDSRom
 
 class ReadOnlyFileInterface():
     
-    def doesFileExist(filepath : str) -> bool:
+    def doesFileExist(self, filepath : str) -> bool:
         """Checks if there is a file available for given filepath. Does not ensure file is valid or readable.
 
         Args:

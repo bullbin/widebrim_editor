@@ -33,6 +33,9 @@ if TYPE_CHECKING:
 
 # TODO - Implement drawable
 class MovieSurface():
+
+    LOG_MODULE_NAME = "MovieSurf"
+
     def __init__(self, fileAccessor : ReadOnlyFileInterface, indexMovie : int, callback : Optional[callable], framerate : float = 23.98):
         width, height               = RESOLUTION_NINTENDO_DS
         self.__pathMovieFile        = None
@@ -90,7 +93,7 @@ class MovieSurface():
             try:
                 self.__procConv = Popen(command, stdout=PIPE, bufsize=self.__bufferSize * bufferFrameCount)
             except:
-                logSevere("Error starting FFMPEG decoder!")
+                logSevere("Error starting FFMPEG decoder!", name=MovieSurface.LOG_MODULE_NAME)
                 self.cleanup()
         else:
             self.cleanup()
@@ -222,7 +225,7 @@ class MoviePlayer(ScriptPlayer):
             if len(self.__subtitles) < COUNT_MAX_SUBTITLES:
                 self.__subtitles.append(SubtitleCommand(self.__packTxt, self.laytonState.getMovieNum(), operands[0].value, operands[1].value, operands[2].value))
             else:
-                print("MOVIE: Bad: Prevented overflow from excessive subtitles.")
+                logSevere("Prevented overflow from excessive subtitles!", name="MovieWarn")
             return True
         return super()._doUnpackedCommand(opcode, operands)
 

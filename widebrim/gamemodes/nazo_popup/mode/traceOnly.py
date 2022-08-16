@@ -1,3 +1,4 @@
+from widebrim.madhatter.common import logSevere
 from ....engine.const import RESOLUTION_NINTENDO_DS
 from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
 
@@ -155,7 +156,7 @@ class HandlerTraceOnly(BaseQuestionObject):
         if self._surfaceSolution.get_at(self._posFill) != (0,0,0):
             # Have to swap answer regions
             # TODO - Would involve inverting this surface or NOT the check (which is only used for points) and adjusting bounds check for line
-            print("Bad: Inversion not supported!")
+            logSevere("Inversion not supported!", name="NazoTrceOnly")
 
         self._penSurface = Surface(RESOLUTION_NINTENDO_DS)
         while self._colourLine == self._colourKey:

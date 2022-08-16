@@ -311,7 +311,7 @@ class EventPlayer(ScriptPlayer):
         if spawnId == -1:
             self.doOnKill()
         else:
-            logVerbose("Loaded event", spawnId)
+            logVerbose("Started event", spawnId, name="DramaEvent")
             # Centralise this so it can be deleted when finished
             try:
                 packEventScript = self.laytonState.getFileAccessor().getPack(getEventScriptPath())
@@ -336,10 +336,10 @@ class EventPlayer(ScriptPlayer):
                 self._loadEventAndScriptData(packEventScript.getFile(PATH_PACK_EVENT_SCR % (self._idMain, self._idSub)), eventData)
 
             except TypeError:
-                logSevere("Failed to catch script data for event!")
+                logSevere("Failed to catch script data for event!", name="DramaEvent")
                 self.doOnKill()
             except FileInvalidCritical:
-                logSevere("Failed to fetch required data for event!")
+                logSevere("Failed to fetch required data for event!", name="DramaEvent")
                 self.doOnKill()
     
     def _loadEventAndScriptData(self, script : Union[GdScript, bytes], data : EventData):
@@ -389,7 +389,9 @@ class EventPlayer(ScriptPlayer):
 
     def doOnComplete(self):
         if self._doGoalSet:
+            self.laytonState.loadGoalInfoDb()
             goalInfoEntry = self.laytonState.getGoalInfEntry(self._id)
+            self.laytonState.unloadGoalInfoDb()
             if goalInfoEntry != None:
                 self._makeActive()
                 self.laytonState.saveSlot.goal = goalInfoEntry.goal
@@ -481,7 +483,7 @@ class EventPlayer(ScriptPlayer):
             else:
                 # Game will execute command regardless, but window will inherit bad string data from central buffer. Not feasible but can mostly replicate.
 
-                logSevere("\tTalk script missing!", PATH_PACK_TALK % (self._idMain, self._idSub, operands[0].value))
+                logSevere("\tTalk script missing!", PATH_PACK_TALK % (self._idMain, self._idSub, operands[0].value), name="DramaEvent")
             
             self._popup = TextWindow(self.laytonState, self.screenController, text, targetController, animNameOnSpawn=animNameOn, animNameOnExit=animNameOff, funcSetAni=self.__setAniCallback, callbackOnTerminate=self._makeActive)
             self._makeInactive()

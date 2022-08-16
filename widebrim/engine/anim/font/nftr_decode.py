@@ -143,6 +143,6 @@ class NftrTiles():
             if data != None and type(data) == bytearray:
                 loadGlyphs(data)
         except:
-            logSevere("NTFR decoding error!")
+            logSevere("NTFR decoding error!", name="NtfrTiles")
         
         buildGlyphMap()

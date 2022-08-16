@@ -1,6 +1,8 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+from widebrim.madhatter.common import logSevere
+
 if TYPE_CHECKING:
     from widebrim.engine.state.manager.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
@@ -49,11 +51,9 @@ class ScriptPlayer(ScreenLayerNonBlocking):
                     self._popup = None
             else:
                 while self._popup == None and self._isActive and self._indexScriptCommand < self._script.getInstructionCount():
-                    # print(self._indexScriptCommand, OPCODES_LT2(int.from_bytes(self._script.getInstruction(self._indexScriptCommand).opcode, byteorder = 'little')).name)
                     if not(self.executeCommand(self._script.getInstruction(self._indexScriptCommand))):
                         opcode = int.from_bytes(self._script.getInstruction(self._indexScriptCommand).opcode, byteorder = 'little')
-                        print("\nUnimplemented", OPCODES_LT2(opcode).name)
-                        print(self._script.getInstruction(self._indexScriptCommand))
+                        logSevere("Unimplemented", OPCODES_LT2(opcode).name + "\n" + str(self._script.getInstruction(self._indexScriptCommand)), name="GdsPlay")
 
                     self._indexScriptCommand += 1
                 
@@ -278,7 +278,7 @@ class ScriptPlayer(ScreenLayerNonBlocking):
                 self._faderWait.setCallback(self._makeActive)
                 self._faderWait.setDurationInFrames(timeEntry.countFrames)
             else:
-                print("Missing time definition information for ID", operands[0].value)
+                logSevere("Missing time definition information for ID", operands[0].value, name="GdsPlayErr")
 
         elif opcode == OPCODES_LT2.SetRepeatAutoEventID.value:
             self.laytonState.saveSlot.idHeldAutoEvent = operands[0].value

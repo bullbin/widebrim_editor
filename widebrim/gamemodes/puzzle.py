@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 from widebrim.engine.config import DEBUG_BYPASS_PUZZLE_INTRO
+from widebrim.madhatter.common import logVerbose
 if TYPE_CHECKING:
     from widebrim.engine.state.manager.state import Layton2GameState
     from widebrim.engine_ext.state_game import ScreenController
@@ -52,7 +53,7 @@ ID_TO_NAZO_HANDLER = {2:HandlerFreeButton,
 def getPuzzleHandler(laytonState, screenController, callbackOnTerminate):
     if laytonState.getNazoData() != None:
         try:
-            print("Handler", laytonState.getNazoData().idHandler)
+            logVerbose("Handler", laytonState.getNazoData().idHandler, name="NazoDispatch")
             handler = ID_TO_NAZO_HANDLER[laytonState.getNazoData().idHandler]
             if type(handler) != str:
                 return handler(laytonState, screenController, callbackOnTerminate)

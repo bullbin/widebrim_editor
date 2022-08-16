@@ -1,5 +1,6 @@
 from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
+from widebrim.madhatter.common import logSevere
 from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
 
 from .base import BaseQuestionObject
@@ -147,7 +148,7 @@ class HandlerShortbrimRose(BaseQuestionObject):
             elif operands[1].value == operands[3].value:
                 self.wallsHorizontal.append(RoseWall((operands[0].value, operands[1].value), (operands[2].value, operands[3].value)))
             else:
-                print("ErrRoseUnsupportedLine: Wall from", (operands[0].value, operands[1].value), "to", (operands[2].value, operands[3].value), "isn't vertical or horizontal!")
+                logSevere("Unsupported line: Wall from", (operands[0].value, operands[1].value), "to", (operands[2].value, operands[3].value), "isn't vertical or horizontal!", name="NazoRoseWall")
         else:
             return super()._doUnpackedCommand(opcode, operands)
         return True
