@@ -24,6 +24,8 @@ from re import match
 
 class FramePlaceConditionalEditor(FramePlaceEditor):
 
+    LOG_MODULE_NAME : str           = "PlaceDbEdit"
+
     TEXT_BTN_CONDITION_EXISTS       = "Remove condition..."
     TEXT_BTN_CONDITION_MISSING      = "New condition..."
     
@@ -222,7 +224,7 @@ class FramePlaceConditionalEditor(FramePlaceEditor):
 
                 newFlag = giveEventViewedFlag(self._state, dlg.GetSelection())
                 if newFlag == None:
-                    logSevere("AddAutoEvent: Failed to get EventViewed flag, glitches are likely!")
+                    logSevere("AddAutoEvent: Failed to get EventViewed flag, glitches are likely!", name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
                 self.treeStateProgression.SetItemData(item, dlg.GetSelection())
                 self.treeStateProgression.SetItemText(item, ("Chapter %i to %i: " % (chapterMin, chapterMax)) + getNameForEvent(self._state, dlg.GetSelection()))
         return super().treeStateProgressionOnTreeItemActivated(event)
@@ -299,7 +301,7 @@ class FramePlaceConditionalEditor(FramePlaceEditor):
         listStateIndices = self._groupPlace.indicesStates
         if listStateIndices != list(range(self._groupPlace.indicesStates[-1] + 1)):
             # TODO - Read off databases as well to detect "true maximum"
-            logSevere("Detected gaps in place details, extra place data will be generated!")
+            logSevere("Detected gaps in place details, extra place data will be generated!", name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
             listStateIndices = list(range(self._groupPlace.indicesStates[-1] + 1))
 
         for index in listStateIndices:
@@ -468,7 +470,7 @@ class FramePlaceConditionalEditor(FramePlaceEditor):
                 if type(idEvent) == int:
                     autoEventEntry.idEvent = idEvent
                 else:
-                    logSevere("AutoEvent: Wrong data type for exporting under room", self._groupPlace.indexPlace)
+                    logSevere("AutoEvent: Wrong data type for exporting under room", self._groupPlace.indexPlace, name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
 
                 rootChild = self.treeStateProgression.GetNextSibling(rootChild)
                 indexAutoEvent += 1
@@ -489,7 +491,7 @@ class FramePlaceConditionalEditor(FramePlaceEditor):
                     # Other states
                     chapters = self.__getChaptersFromItem(rootChild)
                     if chapters == None:
-                        logSevere("Failed to decode", nameItem)
+                        logSevere("Failed to decode", nameItem, name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
                     else:
                         chapterMin, chapterMax = chapters
                 
@@ -554,7 +556,7 @@ class FramePlaceConditionalEditor(FramePlaceEditor):
                 # Other states
                 chapters = self.__getChaptersFromItem(rootChild)
                 if chapters == None:
-                    logSevere("Failed to decode", nameItem)
+                    logSevere("Failed to decode", nameItem, name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
                     chapterMin = 0
                     chapterMax = 0
                 else:
@@ -570,7 +572,7 @@ class FramePlaceConditionalEditor(FramePlaceEditor):
         treeItems, treeData = self._getListPlaceData()
         if len(treeItems) < 16 and self.__rootTreeStates != None:
             if above not in treeItems:
-                logSevere("Failed to find correct sibling state!")
+                logSevere("Failed to find correct sibling state!", name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
                 return
 
             chapterMin = 999
@@ -580,7 +582,7 @@ class FramePlaceConditionalEditor(FramePlaceEditor):
                 if chapters != None:
                     chapterMin, chapterMax = chapters
                 else:
-                    logSevere("GetChapters called on incorrect item", self.treeStateProgression.GetItemText(above))
+                    logSevere("GetChapters called on incorrect item", self.treeStateProgression.GetItemText(above), name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
 
             newItem = self.treeStateProgression.InsertItem(self.__rootTreeStates, above, "State 255: Chapter %i to %i" % (chapterMin, chapterMax))
             newPlaceDataEntry = PlaceDataNds()
@@ -594,7 +596,7 @@ class FramePlaceConditionalEditor(FramePlaceEditor):
                         child, cookie = self.treeStateProgression.GetFirstChild(above)
                         self.treeStateProgression.AppendItem(newItem, self.treeStateProgression.GetItemText(child))
                 else:
-                    logSevere("Failed to copy", self.treeStateProgression.GetItemText(above))
+                    logSevere("Failed to copy", self.treeStateProgression.GetItemText(above), name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
             
             self.treeStateProgression.SetItemData(newItem, newPlaceDataEntry)
             self.__correctTreeItemIndices()
@@ -602,7 +604,7 @@ class FramePlaceConditionalEditor(FramePlaceEditor):
             # TODO - Optimize calls to this
             self.__reloadTitle()
         else:
-            logSevere("Cannot add another place data database entry!")
+            logSevere("Cannot add another place data database entry!", name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
 
     # Calling updateInterfaceButtons will ensure these are correct in context, but it doesn't hurt to check
     def btnAddConditionOnButtonClick(self, event):
@@ -617,7 +619,7 @@ class FramePlaceConditionalEditor(FramePlaceEditor):
                     self.__addBelow(target, False)
                     self.updateInterfaceButtons()
                 else:
-                    logSevere("Failed to find AddState target!")
+                    logSevere("Failed to find AddState target!", name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
 
         elif self.__isSelectedItemTypeAutoEvent() and len(self.__getAutoEventChildren()) < 8:
             textDup = ("Chapter %i to %i: " % (999, 999)) + "Configure event..."
@@ -636,7 +638,7 @@ class FramePlaceConditionalEditor(FramePlaceEditor):
             if (state := self._getActiveState()) != None and (indexState := self._getListPlaceData()[1].index(state)) > 0 and self.__rootTreeStates != None:
                 item = self.__getItemCorrespondingToState(state)
                 if item == None:
-                    logSevere("Delete called on bad item!")
+                    logSevere("Delete called on bad item!", name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
                 else:
                     self.treeStateProgression.DeleteChildren(item)
                     self.treeStateProgression.Delete(item)
@@ -659,7 +661,7 @@ class FramePlaceConditionalEditor(FramePlaceEditor):
                     self.__addBelow(target, True)
                     self.updateInterfaceButtons()
                 else:
-                    logSevere("Failed to find AddState target!")
+                    logSevere("Failed to find AddState target!", name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
 
         elif self.__isSelectedItemTypeAutoEvent() and len(self.__getAutoEventChildren()) < 8:
             idEvent = self.treeStateProgression.GetItemData(self.treeStateProgression.GetSelection())
@@ -707,7 +709,7 @@ class FramePlaceConditionalEditor(FramePlaceEditor):
                 originalString = ("Chapter %i to %i: " % (chapterMin, chapterMax)) + ": ".join(originalString.split(": ")[1:])
                 self.treeStateProgression.SetItemText(item, originalString)
             else:
-                logSevere("Couldn't modify autoevent chapters!")
+                logSevere("Couldn't modify autoevent chapters!", name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
         elif self.__isSelectedItemTypeState():
             # TODO - Add precautions to prevent modifying default state (but we're already not doing great with chapter 999...)
             chapters = self.__getChaptersFromItem(self.__getItemCorrespondingToState(self._getActiveState()))
@@ -716,7 +718,7 @@ class FramePlaceConditionalEditor(FramePlaceEditor):
                 self.treeStateProgression.SetItemText(item, "State %i: Chapter %i to %i" % (255, chapterMin, chapterMax))
                 self.__correctTreeItemIndices()
             else:
-                logSevere("Couldn't modify state chapters!")
+                logSevere("Couldn't modify state chapters!", name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
 
         return super().btnEditChapterOnButtonClick(event)
 

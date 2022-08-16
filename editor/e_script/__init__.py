@@ -1,1 +1,4 @@
-from .e_script import FrameScriptEditor
+from .e_script_generic import FrameScriptEditor
+from .e_script_event import FrameEventEditor
+from .e_script_generic_packed import FrameScriptEditorPackedEvent, FrameScriptEditorPackedEventNoBank
+from .e_script_generic_unpacked import FrameScriptEditorUnpackedEvent

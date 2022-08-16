@@ -3,9 +3,10 @@ from editor.asset_management.puzzle import PuzzleEntry, getPuzzles
 from editor.branch_management import EventBranchManager
 from editor.branch_management.branch_chapter.branch_chapter import ChapterBranchManager
 from editor.branch_management.branch_event.branch_event import EventBranchIcons
-from editor.e_script import FrameScriptEditor
 from editor.e_puzzle import FramePuzzleEditor
 from editor.e_room import FramePlaceConditionalEditor
+from editor.e_script.e_script_event import FrameEventEditor
+from editor.e_script.e_script_generic_unpacked import FrameScriptEditorUnpackedEvent
 from editor.gui.command_annotator.bank import ScriptVerificationBank
 from editor.asset_management.room import PlaceGroup, getPlaceGroups
 from editor.treeUtils import isItemOnPathToItem
@@ -25,7 +26,9 @@ from editor.icons.getIconFromRom import getImageAndSetVariable
 # TODO - Check if pages already open
 # TODO - Chapter progression needs to be reloaded after event changes
 
-class FrameOverviewTreeGen (pageOverview):
+class FrameOverviewTreeGen(pageOverview):
+
+    LOG_MODULE_NAME : str = "OverviewGen"
 
     SIZE_ICONS = (16,16)
 
@@ -113,11 +116,11 @@ class FrameOverviewTreeGen (pageOverview):
             response = self._eventManager.getCorrespondingEventActivatedItem(item)
             if not(response.isNothing):
                 if response.isEvent:
-                    self.GetParent().AddPage(FrameScriptEditor(self.GetParent(), self._filesystem, self._bankInstructions, response.getEventId(), self._state), response.getTabName(), bitmap=self.__icons.GetBitmap(self.__idImageEvent))
+                    self.GetParent().AddPage(FrameEventEditor(self.GetParent(), self._state, self._bankInstructions, response.getEventId()), response.getTabName(), bitmap=self.__icons.GetBitmap(self.__idImageEvent))
                 elif response.isPuzzle:
                     if not(response.isPuzzleInternalOnly()):
                         # TODO - Prevent user from spawning this until they have added a nazo list entry (should actually get nazo data...)
-                        logSevere("Crucial puzzle data missing!")
+                        logSevere("Crucial puzzle data missing!", name=FrameOverviewTreeGen.LOG_MODULE_NAME)
                     else:
                         self.GetParent().AddPage(FramePuzzleEditor(self.GetParent(), self._filesystem, response.getInternalPuzzleId(), self._state), response.getTabName(), bitmap=self.__icons.GetBitmap(self.__idImagePuzzle))
 
@@ -133,7 +136,15 @@ class FrameOverviewTreeGen (pageOverview):
         elif self._treeItemPlace != None and self._isItemWithinPathToItem(item, self._treeItemPlace):
             handlePlaceItem(item)
         else:
-            print("Unrecognised!")
+            wasHandled = False
+            if (data := self.treeOverview.GetItemData(item)) != None:
+                if type(data) == str:
+                    if len(data) > 4 and data[-4:] == ".gds":
+                        self.GetParent().AddPage(FrameScriptEditorUnpackedEvent(self.GetParent(), self._state, self._bankInstructions, data), "Intro Event", bitmap=self.__icons.GetBitmap(self.__idImageEvent))
+                        wasHandled = True
+            
+            if not(wasHandled):
+                logSevere("Unrecognised!", name=FrameOverviewTreeGen.LOG_MODULE_NAME)
         
         self.GetParent().Thaw()
             
@@ -198,7 +209,7 @@ class FrameOverviewTreeGen (pageOverview):
         def generateStoryflagBranch():
             self._treeItemChapter = self.treeOverview.AppendItem(rootItem, "Chapter Progression")
             self._chapterManager.createTreeBranches(self._treeItemChapter)
-        
+
         # TODO - Add way to access progression marker for room 0 (empty by default!)
         # TODO - Display progression markers per-room
 
@@ -207,5 +218,7 @@ class FrameOverviewTreeGen (pageOverview):
         generateCharacterBranch()
         generatePlaceBranch()
         generateStoryflagBranch()
+
+        self.treeOverview.AppendItem(rootItem, "Introduction Event", data="/data_lt2/script/logo.gds")
 
         # Generate branch for mysteries, journal, anton's diary

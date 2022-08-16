@@ -146,3 +146,6 @@ class DrawInputEditor(editorDrawInput):
 
     def drawInputSetAnswerOnText(self, event):
         return super().drawInputSetAnswerOnText(event)
+    
+    def syncChanges(self):
+        pass

@@ -143,9 +143,14 @@ class ScreenModeDialog(MultipleChoiceDialog):
 class EventIdDialog():
     def __init__(self, parent, state):
         # TODO - Pass default selection
-        self.__dlg = DialogEvent(parent, state)
+        self.__parent = parent
+        self.__state = state
+        self.__dlg : Optional[DialogEvent] = None
     
     def do(self, defaultValue : str) -> Optional[int]:
+        if self.__dlg == None:
+            self.__dlg = DialogEvent(self.__parent, self.__state)
+            
         confirmed = self.__dlg.ShowModal()
         if confirmed != ID_OK:
             return int(defaultValue)

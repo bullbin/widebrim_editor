@@ -2,6 +2,7 @@
 #        ordering for the embed to work without weird popup windows, etc.
 
 from typing import List, Optional
+from editor.e_script.e_script_generic_packed import FrameScriptEditorPackedEvent, FrameScriptEditorPackedEventNoBank
 
 from editor.puzzle.drawInput import DrawInputEditor
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
@@ -15,7 +16,7 @@ from widebrim.engine_ext.utils import decodeStringFromPack, getImageFromPath, su
 from widebrim.gamemodes.nazo_popup.mode.base.base import BaseQuestionObject
 from widebrim.gamemodes.nazo_popup.mode.base.const import PATH_BG_UNLOCKED, POS_HINTTEXT
 from widebrim.gamemodes.nazo_popup.outro.const import PATH_BG_ANSWER, PATH_BG_ANSWER_LANG, PATH_BG_FAIL, PATH_BG_PASS
-from widebrim.madhatter.common import logSevere
+from widebrim.madhatter.common import log, logSevere
 
 from widebrim.madhatter.hat_io.asset_dat import NazoDataNds
 from widebrim.madhatter.hat_io.asset_dlz.nz_lst import NazoListNds
@@ -61,6 +62,7 @@ class FramePuzzleEditor(editorPuzzle):
         self.__rewardChoices = []
         self.__choiceToIdMap = []
 
+        self._editor = None # TODO - Generic type with syncChanges method...
         self._loaded = False
 
     def ensureLoaded(self):
@@ -149,9 +151,14 @@ class FramePuzzleEditor(editorPuzzle):
                     break
         
         if self.__nazoData.idHandler in [16, 20, 21, 22, 28, 32, 35]:
-            editor = DrawInputEditor(self.paneGameplayEditor.GetPane(), self.__state, self.__nazoData, self.__nazoScript)
+            self._editor = DrawInputEditor(self.paneGameplayEditor.GetPane(), self.__state, self.__nazoData, self.__nazoScript)
             sizer = self.paneGameplayEditor.GetPane().GetSizer()
-            sizer.Add(editor, 0, wx.EXPAND)
+            sizer.Add(self._editor, 0, wx.EXPAND)
+        else:
+            self._editor = FrameScriptEditorPackedEventNoBank(self.paneGameplayEditor.GetPane(), self.__state, "/data_lt2/script/puzzle.plz", "q%i_param.gds" % self.__idInternal)
+            self._editor.ensureLoaded()
+            sizer = self.paneGameplayEditor.GetPane().GetSizer()
+            sizer.Add(self._editor, 0, wx.EXPAND)
 
         self._reloadActiveText()
         self._reloadBackgroundAnswer()
@@ -329,6 +336,10 @@ class FramePuzzleEditor(editorPuzzle):
         
         packNazo = self._filesystem.getPack(substituteLanguageString(self.__state, pathNazo))
         self.__nazoData.save()
+
+        if self._editor != None:
+            log("Writing editor changes...", name="PuzzSpecEdit")
+            self._editor.syncChanges()
 
         # TODO - Bugfix - this is old code
         packNazo.writeData(PATH_PACK_NAZO % self.__idInternal, self.__nazoData.data)

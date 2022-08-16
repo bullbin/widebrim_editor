@@ -52,7 +52,7 @@ from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesys
 from widebrim.filesystem.compatibility import WriteableFusedFileInterface
 
 from editor.e_puzzle import FramePuzzleEditor
-from editor.e_script import FrameScriptEditor
+from editor.e_script import FrameEventEditor
 from editor.e_overview import FrameOverview
 from editor.gui.command_annotator.baselineAnnotationGenerator import BaselineVerificationBank
 from editor.gui.command_annotator.bank import ScriptVerificationBank
@@ -280,7 +280,7 @@ class EditorWindow(Editor):
     
     def widebrimButtonRestartStateOnButtonClick(self, event):
         page = self.auiTabs.GetCurrentPage()
-        if type(page) == FramePuzzleEditor or type(page) == FrameScriptEditor:
+        if type(page) == FramePuzzleEditor or type(page) == FrameEventEditor:
             self.spawnHandler(page.prepareWidebrimState())
         return super().widebrimButtonRestartStateOnButtonClick(event)
 
@@ -305,7 +305,7 @@ class EditorWindow(Editor):
         else:
             self.auiTabs.SetWindowStyle(self.auiTabs.GetWindowStyle() | aui.AUI_NB_CLOSE_ON_ACTIVE_TAB)
 
-        if type(page) == FramePuzzleEditor or type(page) == FrameScriptEditor:
+        if type(page) == FramePuzzleEditor or type(page) == FrameEventEditor:
             # TODO - Not thread safe
             self.spawnHandler(page.prepareWidebrimState())
         event.Skip()

@@ -7,13 +7,10 @@ except ImportError:
 from os import getcwd, path
 from typing import Any, Dict, Optional, Union
 
-from widebrim.madhatter import common
+from widebrim.madhatter.common import NamedLogger
 
-def noLog(*args, **kwargs):
-    pass
-
-common.logVerbose = noLog
-common.log = noLog
+NamedLogger.SHOW_UNIMPORTANT = False
+NamedLogger.SHOW_IMPORTANT = True
 
 # TODO - Rework chapters! Not working as expected, since chapter starts at 5...
 

@@ -1,4 +1,3 @@
-from .chapter import loadStoryFlag
 from widebrim.engine.const import EVENT_ID_START_PUZZLE, EVENT_ID_START_TEA, PATH_DB_EV_INF2, PATH_DB_RC_ROOT, PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
 from widebrim.engine_ext.utils import substituteLanguageString
