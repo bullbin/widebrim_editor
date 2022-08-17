@@ -9,9 +9,10 @@ from widebrim.madhatter.hat_io.asset_image.image import AnimatedImage
 
 from pygame.image import tostring
 from pygame import Surface
-from wx import Bitmap, Timer, EVT_TIMER, NullBitmap
+from wx import Bitmap, Timer, EVT_TIMER, NullBitmap, EVT_CLOSE
 
 # TODO - Basic image import (really needs widebrim anim module rewrite...)
+# TODO - Will this crash on the close button? What is triggered?
 
 class DialogPickerLimitedAnim(DialogPickerBgx):
     def __init__(self, parent, state : Layton2GameState, fileAccessor : WriteableFilesystemCompatibilityLayer, pathRoot : str, reMatchString : Optional[str] = None, defaultPathRelative : Optional[str] = None, allowEmptyImage=False):
@@ -24,6 +25,8 @@ class DialogPickerLimitedAnim(DialogPickerBgx):
         self.timerAnimationLastUpdateTime   = 0
         self.timerAnimation                 = Timer(self)
         self.Bind(EVT_TIMER, self.__updateActiveAnimation, self.timerAnimation)
+        self.Bind(EVT_CLOSE, self.__onClose)
+
         self.activeAnimation                : Optional[AnimatedImageObject] = None
         self.activeAnimationFrame           : Optional[Surface]             = None
         
@@ -53,6 +56,10 @@ class DialogPickerLimitedAnim(DialogPickerBgx):
         
         if event != None:
             event.Skip()
+
+    def __onClose(self, event):
+        self.timerAnimation.Stop()
+        event.Skip()
 
     def _doOnSuccessfulImage(self):
         self.timerAnimation.Stop()

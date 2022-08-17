@@ -1,6 +1,6 @@
 from time import perf_counter
 from editor.d_pickerBoundary import DialogChangeBoundaryPygame
-from wx import Bitmap, BufferedPaintDC, NullBitmap, EVT_TIMER, Timer, Image, IMAGE_QUALITY_NEAREST, Rect, Point
+from wx import Bitmap, BufferedPaintDC, NullBitmap, EVT_TIMER, Timer, Image, IMAGE_QUALITY_NEAREST, Rect, Point, EVT_CLOSE
 from typing import Any, Optional, Tuple
 from pygame import Surface
 from pygame.image import tostring
@@ -24,12 +24,18 @@ class DialogChangeBoundaryWithSpritePositioning(DialogChangeBoundaryPygame):
 
         self.__timerAnimation                 = Timer(self)
         self.Bind(EVT_TIMER, self.__updateActiveAnimation, self.__timerAnimation)
+        self.Bind(EVT_CLOSE, self.__onClose)
+
         self._lastPaintedFrame : Optional[Surface] = None
         self._lastPaintedBitmap : Optional[Bitmap] = None
         self._bitmapCache = {}
         self.__timerAnimation.Start(1000//60, False)
         self.btnSetBoundaryFromAnim.Show()
         self.Layout()
+
+    def __onClose(self, event):
+        self.__timerAnimation.Stop()
+        event.Skip()
 
     def __updateActiveAnimation(self, event : Optional[Any]):
         currentTime = perf_counter()
