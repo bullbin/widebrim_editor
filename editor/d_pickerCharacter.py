@@ -16,7 +16,19 @@ from widebrim.madhatter.hat_io.asset_image.image import AnimatedImage
 
 class DialogPickerCharacter(PickerBgx):
 
-    def __init__(self, parent : Window, state : Layton2GameState, restrictChars : Optional[List[int]] = None, charNames : Optional[List[Optional[str]]] = None, skipCompute : bool = False, allowNone : bool = False, defaultSelection : Optional[int] = None):
+    def __init__(self, parent : Window, state : Layton2GameState, characters : Optional[List[CharacterEntry]] = None, charNames : Optional[List[Optional[str]]] = None, restrictChars : Optional[List[int]] = None, skipCompute : bool = False, allowNone : bool = False, defaultSelection : Optional[int] = None):
+        """Dialog to change the selected character.
+
+        Args:
+            parent (Window): Dialog parent.
+            state (Layton2GameState): State for filesystem access.
+            characters (Optional[List[CharacterEntry]], optional): Cached output to getCharacters. If None, getCharacters will be called which is slower. Defaults to None.
+            charNames (Optional[List[Optional[str]]], optional): Cached output to computeCharacterNames. Length should match characters. If None, computeCharacterNames will be called which is really slow. Defaults to None.
+            restrictChars (Optional[List[int]], optional): Reduces shown characters to only the given IDs. Will not affect input lists. Defaults to None.
+            skipCompute (bool, optional): If True and no names were provided, placeholder names will be given instead of computing them. Defaults to False.
+            allowNone (bool, optional): Allows a null character to be output. Defaults to False.
+            defaultSelection (Optional[int], optional): Sets the selected character to the given ID. If not available, nothing will be selected. Defaults to None.
+        """
         super().__init__(parent)
         self.SetTitle("Change Character")
         self.timerAnimationLastUpdateTime   = 0
@@ -32,7 +44,12 @@ class DialogPickerCharacter(PickerBgx):
         self.btnConfirmSelected.Disable()
 
         self._state : Layton2GameState = state
-        self._characters = getCharacters(state)
+
+        if characters == None:
+            self._characters = getCharacters(state)
+        else:
+            self._characters = list(characters)
+
         self._output : Optional[int] = None
         self.__selectionMap : Dict[int, TreeItemId] = {}
 
@@ -93,7 +110,18 @@ class DialogPickerCharacter(PickerBgx):
         self.EndModal(ID_CANCEL)
         return super().btnCancelOnButtonClick(event)
 
-    def GetSelection(self) -> int:
+    def btnRemoveImageOnButtonClick(self, event):
+        # TODO - Ensure against broken behaviour if this is reshown (probably not a big deal)
+        self._output = None
+        self.EndModal(ID_OK)
+        return super().btnRemoveImageOnButtonClick(event)
+
+    def GetSelection(self) -> Optional[int]:
+        """Returns the selected character ID.
+
+        Returns:
+            Optional[int]: Character ID (not necessarily index) or None if no character was selected.
+        """
         return self._output
 
     def treeFilesystemOnTreeItemActivated(self, event):

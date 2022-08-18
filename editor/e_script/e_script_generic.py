@@ -1,16 +1,9 @@
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 from editor.e_script.get_input_popup import getDialogForType
-from editor.e_script.virtual.custom_instructions.dialogue import DialogueInstructionGenerator
 from editor.gui.command_annotator.default_value import getDefaultValue
-from widebrim.engine.anim.image_anim.image import AnimatedImageObject
-from widebrim.engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C, PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR
-from widebrim.engine.state.enum_mode import GAMEMODES
 from widebrim.engine.state.manager import Layton2GameState
 
-from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
-
 from widebrim.madhatter.common import logSevere, logVerbose
-from widebrim.madhatter.hat_io.asset_dat.event import EventData
 from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
 
 from ..nopush_editor import editorScript
@@ -21,9 +14,6 @@ from editor.gui.command_annotator.bank import Context, OperandCompatibility, Ope
 from wx import TreeEvent, TreeItemId, SingleChoiceDialog, ID_OK, Window
 
 # TODO - Bugfix, scrollbar not resizing on minimize
-
-def getOperandName(opcode : bytes, operand : Operand) -> str:
-    return str(operand.value)
 
 # TODO - Eventually build into vfs by modifying script editing to generate build commands instead of modifying file
 # TODO - Prevent interaction with widebrim while event is being edited - can lead to major desync!
@@ -120,11 +110,25 @@ class FrameScriptEditor(editorScript):
                 self.treeScript.Delete(self.treeScript.GetItemParent(itemId))
         return super().buttonDeleteInstructionOnButtonClick(event)
 
+    def getNameForOperandType(self, operandType : OperandType, operand : Operand) -> Optional[str]:
+        """Called unless getOperandTreeValue was overridden. Should return the tree label given for an operand of a particular type.
+
+        Args:
+            operandType (OperandType): Operand type for filtering.
+            operand (Operand): Operand storing type and value.
+
+        Returns:
+            Optional[str]: String representing operand, or None if not available.
+        """
+        return str(operandType) + ": " + str(operand.value)
+
     def getOperandTreeValue(self, instruction : Instruction, idxOperand : int) -> str:
         definition = self._bankInstructions.getInstructionByOpcode(int.from_bytes(instruction.opcode, byteorder='little'))
         operand = instruction.operands[idxOperand]
         if definition != None:
             if (operandDef := definition.getOperand(idxOperand)) != None:
+                if (name := self.getNameForOperandType(operandDef.operandType, operand)) != None:
+                    return name 
                 return str(operandDef.operandType) + ": " + str(operand.value)
         try:
             return str(FrameScriptEditor.CONVERSION_OPERAND_TO_COMPATIBILITY[operand.type]) + ": " + str(operand.value)
@@ -132,9 +136,6 @@ class FrameScriptEditor(editorScript):
             if operand.type == 0xc:
                 return "Breakpoint - end execution after this instruction"
             return "Unknown: " + str(operand.value)
-
-    def getOperandDescription(self, instruction : Instruction, idxOperand):
-        pass
 
     def __getPopupForOperandType(self, instruction : Instruction, idxOperand : int, treeItem : TreeItemId) -> None:
 

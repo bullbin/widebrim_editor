@@ -1,4 +1,5 @@
 from typing import Dict, List, Optional
+from editor.asset_management.character import CharacterEntry, computeCharacterNames
 from editor.asset_management.puzzle import PuzzleEntry, getPuzzles
 from editor.branch_management import EventBranchManager
 from editor.branch_management.branch_chapter.branch_chapter import ChapterBranchManager
@@ -38,7 +39,8 @@ class FrameOverviewTreeGen(pageOverview):
         self._filesystem = filesystem
         self._state = state
 
-        self._characters = []
+        self._characters : List[CharacterEntry] = []
+        self._characterNames : List[str] = []
         self._eventsLoose = ([], [])
         self._eventsGrouped = []
 
@@ -116,7 +118,7 @@ class FrameOverviewTreeGen(pageOverview):
             response = self._eventManager.getCorrespondingEventActivatedItem(item)
             if not(response.isNothing):
                 if response.isEvent:
-                    self.GetParent().AddPage(FrameEventEditor(self.GetParent(), self._state, self._bankInstructions, response.getEventId()), response.getTabName(), bitmap=self.__icons.GetBitmap(self.__idImageEvent))
+                    self.GetParent().AddPage(FrameEventEditor(self.GetParent(), self._state, self._bankInstructions, response.getEventId(), self._characters, self._characterNames), response.getTabName(), bitmap=self.__icons.GetBitmap(self.__idImageEvent))
                 elif response.isPuzzle:
                     if not(response.isPuzzleInternalOnly()):
                         # TODO - Prevent user from spawning this until they have added a nazo list entry (should actually get nazo data...)
@@ -153,6 +155,7 @@ class FrameOverviewTreeGen(pageOverview):
     def _refresh(self):
         # TODO - Don't want to reload this every time!
         self._characters = getCharacters(self._state)
+        self._characterNames = computeCharacterNames(self._state, self._characters)
 
         # TODO - Compile this database when needed. Ideally should not be loaded here...
         evLch = EventDescriptorBankNds()

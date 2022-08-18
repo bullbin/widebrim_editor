@@ -58,7 +58,8 @@ class OperandType(int, Enum):
     InternalMovieId     = 12
     InternalEventId     = 13
     InternalSoundId     = 14
-    PuzzleGroupId       = 15
+    InternalCharacterId = 15
+    PuzzleGroupId       = 16
 
     StringGamemode      = 20
     StringAnimAsset     = 21
@@ -120,6 +121,7 @@ class OperandCompatibility(int, Enum):
     InternalMovieId     = OperandType.StandardS32.value
     InternalEventId     = OperandType.StandardS32.value
     InternalSoundId     = OperandType.StandardS32.value
+    InternalCharacterId = OperandType.StandardS32.value
     PuzzleGroupId       = OperandType.StandardS32.value
 
     StringGamemode      = OperandType.StandardString.value

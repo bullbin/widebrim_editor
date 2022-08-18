@@ -20,7 +20,7 @@ class DialogueInstructionDescription(InstructionDescription):
         self.description    = "Virtual Instruction\nBrings up the text box for dialogue in events. Script execution is paused while dialogue is playing back."
         self.contextValid   = [Context.DramaEvent]
         self.isUsed         = True
-        self.permittedOperandTypes = [OperandDescription(OperandType.IndexEventDataCharacter, "Character index from event data, starting at 0 and reading top to bottom."),
+        self.permittedOperandTypes = [OperandDescription(OperandType.InternalCharacterId, "Character index from event data, starting at 0 and reading top to bottom."),
                                       OperandDescription(OperandType.StringTalkScript, "Spoken dialogue sequence."),
                                       OperandDescription(OperandType.StringCharAnim, "Animation called on the character when dialogue starts. 'NONE' will leave the character alone."),
                                       OperandDescription(OperandType.StringCharAnim, "Animation called on the character when dialogue ends. 'NONE' will leave the character alone."),

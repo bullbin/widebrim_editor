@@ -1,12 +1,14 @@
-from typing import List, Optional
+from typing import Dict, List, Optional
+from editor.asset_management.character import CharacterEntry
 from editor.e_script.virtual.custom_instructions.dialogue import DialogueInstructionDescription, DialogueInstructionGenerator
-from editor.gui.command_annotator.bank import Context, ScriptVerificationBank
+from editor.gui.command_annotator.bank import Context, OperandType, ScriptVerificationBank
 from widebrim.engine.anim.image_anim.image import AnimatedImageObject
 from widebrim.engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C, PATH_PACK_EVENT_SCR, RESOLUTION_NINTENDO_DS, PATH_PACK_EVENT_DAT
 from widebrim.engine.state.enum_mode import GAMEMODES
 from widebrim.engine.state.manager.state import Layton2GameState
+from widebrim.madhatter.common import logSevere
 from widebrim.madhatter.hat_io.asset_dat.event import EventData
-from widebrim.madhatter.hat_io.asset_script import GdScript
+from widebrim.madhatter.hat_io.asset_script import GdScript, Operand
 from .e_script_generic import FrameScriptEditor
 from wx import Bitmap, NOT_FOUND, Window
 from pygame import Surface
@@ -32,9 +34,6 @@ MAP_INGAME_TO_POS = {0:0,
                      5:5,
                      6:6,
                      7:7}
-MAP_CHAR_ID_TO_NAME = {1:"Layton",
-                       2:"Luke",
-                       3:"Dr. Schrader"}
 
 class FrameEventEditor(FrameScriptEditor):
 
@@ -44,14 +43,18 @@ class FrameEventEditor(FrameScriptEditor):
                    6:0xe0}
     SLOT_LEFT  = [0,3,4]    # Left side characters need flipping
 
-    def __init__(self, parent : Window, state: Layton2GameState, bankInstructions: ScriptVerificationBank, idEvent: int):
+    def __init__(self, parent : Window, state: Layton2GameState, bankInstructions: ScriptVerificationBank, idEvent: int, characters : List[CharacterEntry], characterNames : List[Optional[str]]):
 
         self._idEvent = idEvent
         self._idMain = idEvent // 1000
         self._idSub = idEvent % 1000
 
-        self.__eventData : Optional[EventData] = None
-        self.__eventCharacters : List[AnimatedImageObject] = []
+        self.__eventData        : Optional[EventData] = None
+        self.__eventCharacters  : List[AnimatedImageObject] = []
+
+        self.__idToCharacter : Dict[int, Optional[str]] = {}
+        for char, name in zip(characters, characterNames):
+            self.__idToCharacter[char.getIndex()] = name
 
         self.__backgroundWidebrim = Surface(RESOLUTION_NINTENDO_DS).convert_alpha()
         self.__backgroundWidebrim.fill((0,0,0,1))
@@ -102,6 +105,27 @@ class FrameEventEditor(FrameScriptEditor):
         generator.convertToOriginal(exportScript)
         return exportScript
     
+    def _getCharacterName(self, idChar : int) -> str:
+        if idChar in self.__idToCharacter:
+            if self.__idToCharacter[idChar] == None:
+                return "%i" % idChar
+            return "%s" % self.__idToCharacter[idChar]
+        if idChar == 0:
+            return "Hidden"
+        return "Unrecognized, %i" % idChar
+
+    def getNameForOperandType(self, operandType: OperandType, operand: Operand) -> Optional[str]:
+        if operandType == OperandType.InternalCharacterId:
+            idChar = operand.value
+            return "Character: %s" % self._getCharacterName(idChar)
+        elif operandType == OperandType.IndexEventDataCharacter:
+            value = operand.value
+            if 0 <= value < len(self.__eventData.characters):
+                idChar = self.__eventData.characters[value]
+                return "Character: %s" % self._getCharacterName(idChar)
+            return "Character: Affects invalid character slot!"
+        return super().getNameForOperandType(operandType, operand)
+
     def __getCharacterAnim(self, indexChar : int) -> Optional[AnimatedImageObject]:
         if indexChar == 86 or indexChar == 87:
             return getBottomScreenAnimFromPath(self._state, (PATH_BODY_ROOT_LANG_DEP % indexChar), enableSubAnimation=True)
@@ -128,10 +152,7 @@ class FrameEventEditor(FrameScriptEditor):
                 eventData.load(data)
                 newItems = []
                 for character in eventData.characters:
-                    if character in MAP_CHAR_ID_TO_NAME:
-                        newItems.append(MAP_CHAR_ID_TO_NAME[character])
-                    else:
-                        newItems.append(str(character))
+                    newItems.append(self._getCharacterName(character))
                     self.__eventCharacters.append(self.__getCharacterAnim(character))
                     self.__eventCharacters[-1].setPos((0,0))
                 self.listAllCharacters.AppendItems(newItems)
@@ -284,14 +305,48 @@ class FrameEventEditor(FrameScriptEditor):
         
         self.bitmapRenderCharacterPreview.SetBitmap(Bitmap.FromBufferRGBA(RESOLUTION_NINTENDO_DS[0], RESOLUTION_NINTENDO_DS[1], tostring(self.__backgroundWidebrim, "RGBA")))
 
+    def __shiftEventData(self, newId : int):
+        idChar = self.__eventData.characters[self.__selectedCharacterIndex]
+
+        remapIndices : List[int] = []
+        for indexChar, char in enumerate(self.__eventData.characters):
+            remapIndices.append(indexChar)
+
+        # Shift related components down
+        remapIndices.insert(newId, remapIndices.pop(self.__selectedCharacterIndex))
+        self.__eventData.characters.insert(newId, self.__eventData.characters.pop(self.__selectedCharacterIndex))
+        self.__eventData.charactersPosition.insert(newId, self.__eventData.charactersPosition.pop(self.__selectedCharacterIndex))
+        self.__eventData.charactersInitialAnimationIndex.insert(newId, self.__eventData.charactersInitialAnimationIndex.pop(self.__selectedCharacterIndex))
+        self.__eventData.charactersShown.insert(newId, self.__eventData.charactersShown.pop(self.__selectedCharacterIndex))
+        self.__eventCharacters.insert(newId, self.__eventCharacters.pop(self.__selectedCharacterIndex))
+
+        self.listAllCharacters.Delete(self.__selectedCharacterIndex)
+        self.listAllCharacters.Insert(self._getCharacterName(idChar), newId)
+
+        self.__selectedCharacterIndex = newId
+        self.listAllCharacters.SetSelection(self.__selectedCharacterIndex)
+
+        for idxInstruction in range(self._eventScript.getInstructionCount()):
+            instruction = self._eventScript.getInstruction(idxInstruction)
+            definition = self._bankInstructions.getInstructionByOpcode(int.from_bytes(instruction.opcode, byteorder='little'))
+            if definition != None:
+                for idxOperand, operand in enumerate(instruction.getFilteredOperands()):
+                    if (operandDef := definition.getOperand(idxOperand)) != None:
+                        if operandDef.operandType == OperandType.IndexEventDataCharacter:
+                            operand : Operand
+                            if 0 <= operand.value < len(remapIndices):
+                                operand.value = remapIndices[operand.value]
+                            else:
+                                logSevere("Failed to remap index", operand.value, name=FrameEventEditor.LOG_MODULE_NAME)
+
     def btnCharMoveUpOnButtonClick(self, event):
         if self.__selectedCharacterIndex != None and self.__selectedCharacterIndex > 0:
-            pass
+            self.__shiftEventData(self.__selectedCharacterIndex - 1)
         return super().btnCharMoveUpOnButtonClick(event)
     
     def btnCharMoveDownOnButtonClick(self, event):
         if self.__selectedCharacterIndex != None and self.__selectedCharacterIndex < len(self.__eventCharacters) - 1:
-            pass
+            self.__shiftEventData(self.__selectedCharacterIndex + 1)
         return super().btnCharMoveDownOnButtonClick(event)
 
     def choiceCharacterSlotOnChoice(self, event):
