@@ -63,18 +63,20 @@ class DialogPickerCharacter(PickerBgx):
         
         self.Layout()
 
+        if charNames == None:
+            if skipCompute:
+                charNames : List[Optional[str]] = [None] * len(self._characters)
+            else:
+                charNames : List[Optional[str]] = computeCharacterNames(state, self._characters)
+        else:
+            charNames = list(charNames)
+
         if restrictChars != None:
             for idxChar in reversed(range(len(self._characters))):
                 if not(self._characters[idxChar].getIndex() in restrictChars):
                     self._characters.pop(idxChar)
                     if charNames != None:
                         charNames.pop(idxChar)
-
-        if charNames == None:
-            if skipCompute:
-                charNames : List[Optional[str]] = [None] * len(self._characters)
-            else:
-                charNames : List[Optional[str]] = computeCharacterNames(state, self._characters)
 
         storedNames : List[str] = []
 

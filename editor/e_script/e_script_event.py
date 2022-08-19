@@ -1,7 +1,8 @@
 from typing import Dict, List, Optional
 from editor.asset_management.character import CharacterEntry
+from editor.d_pickerCharacter import DialogPickerCharacter
 from editor.e_script.virtual.custom_instructions.dialogue import DialogueInstructionDescription, DialogueInstructionGenerator
-from editor.gui.command_annotator.bank import Context, OperandType, ScriptVerificationBank
+from editor.gui.command_annotator.bank import Context, OperandCompatibility, OperandType, ScriptVerificationBank
 from widebrim.engine.anim.image_anim.image import AnimatedImageObject
 from widebrim.engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C, PATH_PACK_EVENT_SCR, RESOLUTION_NINTENDO_DS, PATH_PACK_EVENT_DAT
 from widebrim.engine.state.enum_mode import GAMEMODES
@@ -10,10 +11,10 @@ from widebrim.madhatter.common import logSevere
 from widebrim.madhatter.hat_io.asset_dat.event import EventData
 from widebrim.madhatter.hat_io.asset_script import GdScript, Operand
 from .e_script_generic import FrameScriptEditor
-from wx import Bitmap, NOT_FOUND, Window
+from wx import Bitmap, NOT_FOUND, Window, ID_OK
 from pygame import Surface
 from pygame.transform import flip
-from pygame.image import tostring
+from pygame.image import tostring, save
 
 from widebrim.gamemodes.dramaevent.const import PATH_BODY_ROOT, PATH_BODY_ROOT_LANG_DEP
 from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
@@ -55,6 +56,9 @@ class FrameEventEditor(FrameScriptEditor):
         self.__idToCharacter : Dict[int, Optional[str]] = {}
         for char, name in zip(characters, characterNames):
             self.__idToCharacter[char.getIndex()] = name
+
+        self.__characters = characters
+        self.__characterNames = characterNames
 
         self.__backgroundWidebrim = Surface(RESOLUTION_NINTENDO_DS).convert_alpha()
         self.__backgroundWidebrim.fill((0,0,0,1))
@@ -127,9 +131,15 @@ class FrameEventEditor(FrameScriptEditor):
         return super().getNameForOperandType(operandType, operand)
 
     def __getCharacterAnim(self, indexChar : int) -> Optional[AnimatedImageObject]:
-        if indexChar == 86 or indexChar == 87:
-            return getBottomScreenAnimFromPath(self._state, (PATH_BODY_ROOT_LANG_DEP % indexChar), enableSubAnimation=True)
-        return getBottomScreenAnimFromPath(self._state, PATH_BODY_ROOT % indexChar, enableSubAnimation=True)
+        def getAnim():
+            if indexChar == 86 or indexChar == 87:
+                return getBottomScreenAnimFromPath(self._state, (PATH_BODY_ROOT_LANG_DEP % indexChar), enableSubAnimation=True)
+            return getBottomScreenAnimFromPath(self._state, PATH_BODY_ROOT % indexChar, enableSubAnimation=True)
+        
+        anim = getAnim()
+        if anim != None:
+            anim.setPos((0,0))
+        return anim
 
     def _refresh(self):
 
@@ -154,7 +164,6 @@ class FrameEventEditor(FrameScriptEditor):
                 for character in eventData.characters:
                     newItems.append(self._getCharacterName(character))
                     self.__eventCharacters.append(self.__getCharacterAnim(character))
-                    self.__eventCharacters[-1].setPos((0,0))
                 self.listAllCharacters.AppendItems(newItems)
                 if len(eventData.characters) > 0:
                     self.listAllCharacters.SetSelection(0)
@@ -203,9 +212,8 @@ class FrameEventEditor(FrameScriptEditor):
         selection = self.listAllCharacters.GetSelection()
         if selection == NOT_FOUND:
             return
-        else:
-            self.__selectedCharacterIndex = selection
 
+        self.__selectedCharacterIndex = selection
         character = self.__eventCharacters[selection]
         
         if character != None:
@@ -273,11 +281,7 @@ class FrameEventEditor(FrameScriptEditor):
                 return (0,0)
 
         self.__backgroundWidebrim.fill((0,0,0,1))
-        if self.__activeCharacterImage == None:
-            self.__backgroundWidebrim.fill((0,0,0,1))
         if self.__eventData.charactersShown[self.__selectedCharacterIndex]:
-
-            self.__activeCharacterImage.setAnimationFromIndex(self.__eventData.charactersInitialAnimationIndex[self.__selectedCharacterIndex])
             slot = self.__eventData.charactersPosition[self.__selectedCharacterIndex]
             if slot in FrameEventEditor.SLOT_OFFSET:
                 offset = FrameEventEditor.SLOT_OFFSET[slot]
@@ -305,6 +309,23 @@ class FrameEventEditor(FrameScriptEditor):
         
         self.bitmapRenderCharacterPreview.SetBitmap(Bitmap.FromBufferRGBA(RESOLUTION_NINTENDO_DS[0], RESOLUTION_NINTENDO_DS[1], tostring(self.__backgroundWidebrim, "RGBA")))
 
+
+
+
+    def __remapCharacterIndices(self, transformation : Dict[int,int]):
+        for idxInstruction in range(self._eventScript.getInstructionCount()):
+            instruction = self._eventScript.getInstruction(idxInstruction)
+            definition = self._bankInstructions.getInstructionByOpcode(int.from_bytes(instruction.opcode, byteorder='little'))
+            if definition != None:
+                for idxOperand, operand in enumerate(instruction.getFilteredOperands()):
+                    if (operandDef := definition.getOperand(idxOperand)) != None:
+                        if operandDef.operandType == OperandType.IndexEventDataCharacter:
+                            operand : Operand
+                            if operand.value in transformation:
+                                operand.value = transformation[operand.value]
+                            else:
+                                logSevere("Failed to remap index", operand.value, name=FrameEventEditor.LOG_MODULE_NAME)
+
     def __shiftEventData(self, newId : int):
         idChar = self.__eventData.characters[self.__selectedCharacterIndex]
 
@@ -326,28 +347,236 @@ class FrameEventEditor(FrameScriptEditor):
         self.__selectedCharacterIndex = newId
         self.listAllCharacters.SetSelection(self.__selectedCharacterIndex)
 
-        for idxInstruction in range(self._eventScript.getInstructionCount()):
-            instruction = self._eventScript.getInstruction(idxInstruction)
-            definition = self._bankInstructions.getInstructionByOpcode(int.from_bytes(instruction.opcode, byteorder='little'))
-            if definition != None:
-                for idxOperand, operand in enumerate(instruction.getFilteredOperands()):
-                    if (operandDef := definition.getOperand(idxOperand)) != None:
-                        if operandDef.operandType == OperandType.IndexEventDataCharacter:
-                            operand : Operand
-                            if 0 <= operand.value < len(remapIndices):
-                                operand.value = remapIndices[operand.value]
-                            else:
-                                logSevere("Failed to remap index", operand.value, name=FrameEventEditor.LOG_MODULE_NAME)
+        # TODO - indexing not needed...
+        remapDict = {}
+        for indexShift, idShiftChar in enumerate(remapIndices):
+            remapDict[indexShift] = remapIndices.index(indexShift)
+        
+        self.__remapCharacterIndices(remapDict)
 
+    # Buttons to move characters
     def btnCharMoveUpOnButtonClick(self, event):
         if self.__selectedCharacterIndex != None and self.__selectedCharacterIndex > 0:
             self.__shiftEventData(self.__selectedCharacterIndex - 1)
+            self.__updateCharacterSelection()
         return super().btnCharMoveUpOnButtonClick(event)
     
     def btnCharMoveDownOnButtonClick(self, event):
         if self.__selectedCharacterIndex != None and self.__selectedCharacterIndex < len(self.__eventCharacters) - 1:
             self.__shiftEventData(self.__selectedCharacterIndex + 1)
+            self.__updateCharacterSelection()
         return super().btnCharMoveDownOnButtonClick(event)
+    
+    def __insertNewCharacter(self, idChar : int):
+        remapIndices : List[int] = []
+        for indexChar, char in enumerate(self.__eventData.characters):
+            remapIndices.append(indexChar)
+
+        if self.__selectedCharacterIndex == None:
+            # Add to end
+            newId = len(self.__eventCharacters)
+            remapIndices.append(newId)
+            self.__eventData.characters.append(idChar)
+            self.__eventData.charactersPosition[newId] = 0
+            self.__eventData.charactersInitialAnimationIndex[newId] = 1
+            self.__eventData.charactersShown[newId] = True
+            self.__eventCharacters.append(self.__getCharacterAnim(idChar))
+            # No need to remap in this case
+        else:
+            # Add below selected...?
+            newId = self.__selectedCharacterIndex + 1
+            remapIndices.insert(newId, len(self.__eventCharacters))
+            # TODO - Correct this since it's making things too long!
+            self.__eventData.characters.insert(newId, idChar)
+            self.__eventData.charactersPosition.insert(newId, 0)
+            self.__eventData.charactersPosition = self.__eventData.charactersPosition[:8]
+
+            self.__eventData.charactersInitialAnimationIndex.insert(newId, 1)
+            self.__eventData.charactersInitialAnimationIndex = self.__eventData.charactersInitialAnimationIndex[:8]
+
+            self.__eventData.charactersShown.insert(newId, True)
+            self.__eventData.charactersShown = self.__eventData.charactersShown[:8]
+
+            self.__eventCharacters.insert(newId, self.__getCharacterAnim(idChar))
+
+        remapDict = {}
+        for indexShift, idShiftChar in enumerate(remapIndices):
+            remapDict[indexShift] = remapIndices.index(indexShift)
+
+        self.__remapCharacterIndices(remapDict)
+        self.listAllCharacters.Insert(self._getCharacterName(idChar), newId)
+        self.listAllCharacters.SetSelection(newId)
+        self.__updateCharacterSelection()
+
+    def __getNewCharacterId(self) -> Optional[int]:
+        allCharacters = []
+        for character in self.__characters:
+            idChar = character.getIndex()
+            if not(idChar in self.__eventData.characters):
+                allCharacters.append(idChar)
+
+        dlg = DialogPickerCharacter(self, self._state, self.__characters, self.__characterNames, restrictChars=allCharacters)
+        if dlg.ShowModal() == ID_OK:
+            newCharId = dlg.GetSelection()
+            return newCharId
+        return None
+
+    def btnAddNewCharacterOnButtonClick(self, event):
+        if len(self.__eventCharacters) < 8:
+            newCharId = self.__getNewCharacterId()
+            if newCharId != None:
+                self.__insertNewCharacter(newCharId)  
+        return super().btnAddNewCharacterOnButtonClick(event)
+
+    def btnDeleteSelectedCharacterOnButtonClick(self, event):
+        if self.__selectedCharacterIndex != None:
+            pass
+        return super().btnDeleteSelectedCharacterOnButtonClick(event)
+    
+    def btnReplaceCharacterOnButtonClick(self, event):
+        if self.__selectedCharacterIndex != None:
+            # TODO - Bugfix, names getting rmeoved!
+            newCharId = self.__getNewCharacterId()
+            if newCharId != None:
+                # TODO - Internal - SetAni, etc
+                # TODO - External - Dialogue
+                newChar = self.__getCharacterAnim(newCharId)
+
+                startingAnim = None
+                instructionsToCorrect : List[instruction] = []
+                oldAnimToNewAnimMap : Dict[str, Optional[str]] = {}
+
+                # Extract relevant character instructions
+                for idxInstruction in range(self._eventScript.getInstructionCount()):
+                    instruction = self._eventScript.getInstruction(idxInstruction)
+                    definition = self._bankInstructions.getInstructionByOpcode(int.from_bytes(instruction.opcode, byteorder='little'))
+                    if definition != None:
+                        for idxOperand, operand in enumerate(instruction.getFilteredOperands()):
+                            if (operandDef := definition.getOperand(idxOperand)) != None:
+                                if not(instruction in instructionsToCorrect) and operandDef.operandType == OperandType.InternalCharacterId:
+                                    if operand.value == self.__eventData.characters[self.__selectedCharacterIndex]:
+                                        instructionsToCorrect.append(instruction)
+
+                # TODO - Should probably check if animation is valid, since it would've been skipped otherwise
+                # Extract meaningful animations
+                if self.__eventCharacters[self.__selectedCharacterIndex] != None:
+                    for idxInstruction in range(self._eventScript.getInstructionCount()):
+                        instruction = self._eventScript.getInstruction(idxInstruction)
+                        definition = self._bankInstructions.getInstructionByOpcode(int.from_bytes(instruction.opcode, byteorder='little'))
+                        for idxOperand, operand in enumerate(instruction.getFilteredOperands()):
+                            if (operandDef := definition.getOperand(idxOperand)) != None:
+                                if operandDef.operandType == OperandType.StringCharAnim:
+                                    if operand.value != "NONE":
+                                        oldAnimToNewAnimMap[operand.value] = None
+                                elif operandDef.operandType == OperandType.StringAnimation:
+                                    oldAnimToNewAnimMap[operand.value] = None
+                                elif operandDef.operandType == OperandType.StringTalkScript:
+                                    # TODO - Remap SetAni command (complicated due to how command packets are separated)
+                                    pass
+                
+                # TODO - Initial animation index!
+                # TODO - Be careful about animations...
+                if self.__eventCharacters[self.__selectedCharacterIndex] != None:
+                    oldAnim = self.__eventCharacters[self.__selectedCharacterIndex]
+                    oldAnimStartIndex = self.__eventData.charactersInitialAnimationIndex[self.__selectedCharacterIndex]
+                    if oldAnimStartIndex != 0:
+                        if oldAnim.setAnimationFromIndex(oldAnimStartIndex):
+                            oldAnimToNewAnimMap[oldAnim.animActive.name] = None
+                            startingAnim = oldAnim.animActive.name
+                
+                if len(oldAnimToNewAnimMap) > 0:
+                    # TODO - strcmp?
+                    hasUnmapped = False
+                    x = 1
+                    names = []
+                    while True:
+                        if newChar.setAnimationFromIndex(x):
+                            names.append(newChar.animActive.name)
+                            x += 1
+                        else:
+                            break
+
+                    for nameAnim in list(oldAnimToNewAnimMap.keys()):
+                        # TODO - Bugfix, we can't be certain of names (indexing starts at 0 so can't return False)
+                        if nameAnim in names:
+                            oldAnimToNewAnimMap[nameAnim] = nameAnim
+                        else:
+                            oldAnimToNewAnimMap[nameAnim] = "NONE"
+                            hasUnmapped = True
+
+                    if hasUnmapped:
+                        # TODO - Get user to manually confirm mapping...
+                        print(oldAnimToNewAnimMap)
+                    
+                    # Replace the loaded character image with the new one and apply changes to event data
+                    self.__eventData.characters[self.__selectedCharacterIndex] = newCharId
+                    self.__eventCharacters[self.__selectedCharacterIndex] = newChar
+                    if self.__eventCharacters[self.__selectedCharacterIndex] != None:
+                        # Correct initial animation index
+                        self.__eventData.charactersInitialAnimationIndex[self.__selectedCharacterIndex] = 0
+                        if startingAnim != None:
+                            x = 0
+                            # Recover remapped starting animation index from name
+                            while True:
+                                if newChar.setAnimationFromIndex(x):
+                                    if newChar.animActive.name == oldAnimToNewAnimMap[startingAnim]:
+                                        self.__eventData.charactersInitialAnimationIndex[self.__selectedCharacterIndex] = x
+                                        break
+                                else:
+                                    break
+                                x += 1
+
+                    # Now correct instruction names
+                    scriptingChild = self.treeScript.GetRootItem()
+                    #print(self.treeScript.GetItemText(scriptingChild))
+                    treeItemScript, _cookie = self.treeScript.GetFirstChild(scriptingChild)
+                    while treeItemScript.IsOk():
+                        instruction = self.treeScript.GetItemData(treeItemScript)
+                        # At this point, all references should be corrected. Now apply
+                        definition = self._bankInstructions.getInstructionByOpcode(int.from_bytes(instruction.opcode, byteorder='little'))
+                        if definition != None:
+                            operandNode, _operandCookie = self.treeScript.GetFirstChild(treeItemScript)
+                            idxOperand = 0
+                            while operandNode.IsOk():
+                                operand = self.treeScript.GetItemData(operandNode)
+                                if operand != None:
+                                    if (operandDef := definition.getOperand(idxOperand)) != None:
+                                        # Reload character-related strings
+                                        if operandDef.operandType == OperandType.IndexEventDataCharacter:
+                                            self.treeScript.SetItemText(operandNode, self.getOperandTreeValue(instruction, idxOperand))
+
+                                        # Modify and reload replacement-related operands
+                                        if instruction in instructionsToCorrect:
+                                            if operandDef.operandType == OperandType.StringCharAnim:
+                                                if operand.value != "NONE":
+                                                    operand.value = oldAnimToNewAnimMap[operand.value]
+                                                    self.treeScript.SetItemText(operandNode, self.getOperandTreeValue(instruction, idxOperand))
+                                            elif operandDef.operandType == OperandType.StringAnimation:
+                                                operand.value = oldAnimToNewAnimMap[operand.value]
+                                                self.treeScript.SetItemText(operandNode, self.getOperandTreeValue(instruction, idxOperand))
+                                            elif operandDef.operandType == OperandType.InternalCharacterId:
+                                                operand.value = newCharId
+                                                self.treeScript.SetItemText(operandNode, self.getOperandTreeValue(instruction, idxOperand))
+                                else:
+                                    logSevere("Tree misformatted!", name=FrameEventEditor.LOG_MODULE_NAME)
+                                operandNode = self.treeScript.GetNextSibling(operandNode)
+                                idxOperand += 1
+                        
+                        treeItemScript = self.treeScript.GetNextSibling(treeItemScript)
+
+                # Update list string
+                for idxChar, character in enumerate(self.__characters):
+                    idChar = character.getIndex()
+                    if idChar == newCharId:
+                        self.listAllCharacters.SetString(self.__selectedCharacterIndex, self.__characterNames[idxChar])
+                        break
+
+                # Re-render character interface
+                self.__updateCharacterSelection()
+
+        return super().btnReplaceCharacterOnButtonClick(event)
+
+
 
     def choiceCharacterSlotOnChoice(self, event):
         if self.__selectedCharacterIndex != None:
@@ -363,7 +592,6 @@ class FrameEventEditor(FrameScriptEditor):
             self.__eventData.charactersInitialAnimationIndex[self.__selectedCharacterIndex] = indexAnim
             if self.__activeCharacterImage != None:
                 # TODO - Will probably fail with initial anim
-                # self.__activeCharacterImage.setAnimationFromIndex(indexAnim)
                 self.__generateCharacterPreview()
 
         return super().choiceCharacterAnimStartOnChoice(event)

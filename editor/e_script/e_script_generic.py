@@ -20,6 +20,8 @@ from wx import TreeEvent, TreeItemId, SingleChoiceDialog, ID_OK, Window
 
 # TODO - Add method for custom instruction (operand and name...)
 
+# TODO - Generate script from tree - this is really convoluted for no reason
+
 class FrameScriptEditor(editorScript):
 
     LOG_MODULE_NAME = "ScriptEdit"
@@ -181,7 +183,7 @@ class FrameScriptEditor(editorScript):
             rootId = self.treeScript.AddRoot("Root")
         for indexInstruction in range(script.getInstructionCount()):
             instruction = script.getInstruction(indexInstruction)
-            commandRoot = self.treeScript.AppendItem(parent=rootId, text=getInstructionName(instruction.opcode), data=instruction.opcode)
+            commandRoot = self.treeScript.AppendItem(parent=rootId, text=getInstructionName(instruction.opcode), data=instruction)
             for indexOperand in range(len(instruction.operands)):
                 self.treeScript.AppendItem(parent=commandRoot, text=self.getOperandTreeValue(instruction, indexOperand), data=instruction.operands[indexOperand])
 
