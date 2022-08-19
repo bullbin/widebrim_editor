@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional
 from editor.asset_management.character import CharacterEntry
 from editor.d_pickerCharacter import DialogPickerCharacter
+from editor.dialog.d_remapAnim import DialogRemapAnimation
 from editor.e_script.virtual.custom_instructions.dialogue import DialogueInstructionDescription, DialogueInstructionGenerator
 from editor.gui.command_annotator.bank import Context, OperandCompatibility, OperandType, ScriptVerificationBank
 from widebrim.engine.anim.image_anim.image import AnimatedImageObject
@@ -18,6 +19,8 @@ from pygame.image import tostring, save
 
 from widebrim.gamemodes.dramaevent.const import PATH_BODY_ROOT, PATH_BODY_ROOT_LANG_DEP
 from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
+
+# TODO - Is starting position graphically updated when changing character?
 
 MAP_POS_TO_INGAME = {0:0,
                      1:3,
@@ -453,26 +456,31 @@ class FrameEventEditor(FrameScriptEditor):
                     if definition != None:
                         for idxOperand, operand in enumerate(instruction.getFilteredOperands()):
                             if (operandDef := definition.getOperand(idxOperand)) != None:
-                                if not(instruction in instructionsToCorrect) and operandDef.operandType == OperandType.InternalCharacterId:
-                                    if operand.value == self.__eventData.characters[self.__selectedCharacterIndex]:
-                                        instructionsToCorrect.append(instruction)
+                                if not(instruction in instructionsToCorrect):
+                                    if operandDef.operandType == OperandType.InternalCharacterId:
+                                        if operand.value == self.__eventData.characters[self.__selectedCharacterIndex]:
+                                            instructionsToCorrect.append(instruction)
+                                    elif operandDef.operandType == OperandType.IndexEventDataCharacter:
+                                        if operand.value == self.__selectedCharacterIndex:
+                                            instructionsToCorrect.append(instruction)
 
                 # TODO - Should probably check if animation is valid, since it would've been skipped otherwise
                 # Extract meaningful animations
                 if self.__eventCharacters[self.__selectedCharacterIndex] != None:
                     for idxInstruction in range(self._eventScript.getInstructionCount()):
                         instruction = self._eventScript.getInstruction(idxInstruction)
-                        definition = self._bankInstructions.getInstructionByOpcode(int.from_bytes(instruction.opcode, byteorder='little'))
-                        for idxOperand, operand in enumerate(instruction.getFilteredOperands()):
-                            if (operandDef := definition.getOperand(idxOperand)) != None:
-                                if operandDef.operandType == OperandType.StringCharAnim:
-                                    if operand.value != "NONE":
+                        if instruction in instructionsToCorrect:
+                            definition = self._bankInstructions.getInstructionByOpcode(int.from_bytes(instruction.opcode, byteorder='little'))
+                            for idxOperand, operand in enumerate(instruction.getFilteredOperands()):
+                                if (operandDef := definition.getOperand(idxOperand)) != None:
+                                    if operandDef.operandType == OperandType.StringCharAnim:
+                                        if operand.value != "NONE":
+                                            oldAnimToNewAnimMap[operand.value] = None
+                                    elif operandDef.operandType == OperandType.StringAnimation:
                                         oldAnimToNewAnimMap[operand.value] = None
-                                elif operandDef.operandType == OperandType.StringAnimation:
-                                    oldAnimToNewAnimMap[operand.value] = None
-                                elif operandDef.operandType == OperandType.StringTalkScript:
-                                    # TODO - Remap SetAni command (complicated due to how command packets are separated)
-                                    pass
+                                    elif operandDef.operandType == OperandType.StringTalkScript:
+                                        # TODO - Remap SetAni command (complicated due to how command packets are separated)
+                                        pass
                 
                 # TODO - Initial animation index!
                 # TODO - Be careful about animations...
@@ -501,12 +509,17 @@ class FrameEventEditor(FrameScriptEditor):
                         if nameAnim in names:
                             oldAnimToNewAnimMap[nameAnim] = nameAnim
                         else:
-                            oldAnimToNewAnimMap[nameAnim] = "NONE"
                             hasUnmapped = True
 
                     if hasUnmapped:
-                        # TODO - Get user to manually confirm mapping...
-                        print(oldAnimToNewAnimMap)
+                        if self.__eventCharacters[self.__selectedCharacterIndex] != None and newChar != None:
+                            dlg = DialogRemapAnimation(self, self.__eventCharacters[self.__selectedCharacterIndex], newChar, oldAnimToNewAnimMap)
+                            if dlg.ShowModal() != ID_OK:
+                                return super().btnReplaceCharacterOnButtonClick(event)
+
+                        for key in oldAnimToNewAnimMap:
+                            if oldAnimToNewAnimMap[key] == None:
+                                oldAnimToNewAnimMap[key] = "NONE"
                     
                     # Replace the loaded character image with the new one and apply changes to event data
                     self.__eventData.characters[self.__selectedCharacterIndex] = newCharId
@@ -528,7 +541,6 @@ class FrameEventEditor(FrameScriptEditor):
 
                     # Now correct instruction names
                     scriptingChild = self.treeScript.GetRootItem()
-                    #print(self.treeScript.GetItemText(scriptingChild))
                     treeItemScript, _cookie = self.treeScript.GetFirstChild(scriptingChild)
                     while treeItemScript.IsOk():
                         instruction = self.treeScript.GetItemData(treeItemScript)
@@ -542,6 +554,7 @@ class FrameEventEditor(FrameScriptEditor):
                                 if operand != None:
                                     if (operandDef := definition.getOperand(idxOperand)) != None:
                                         # Reload character-related strings
+                                        # TODO - Can migrate this
                                         if operandDef.operandType == OperandType.IndexEventDataCharacter:
                                             self.treeScript.SetItemText(operandNode, self.getOperandTreeValue(instruction, idxOperand))
 

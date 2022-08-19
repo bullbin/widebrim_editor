@@ -199,8 +199,11 @@ class FrameOverviewTreeGen(pageOverview):
         def generateCharacterBranch():
             characterItem = self.treeOverview.AppendItem(rootItem, "Characters")
             self._treeItemCharacter = characterItem
-            for indexCharacter, character in enumerate(self._characters):
-                self.treeOverview.AppendItem(characterItem, "Character " + str(indexCharacter + 1))
+            for indexCharacter, characterName in enumerate(zip(self._characters, self._characterNames)):
+                character, name = characterName
+                if name == None:
+                    name = "Character %i" % character.getIndex()
+                self.treeOverview.AppendItem(characterItem, "%i - %s" % (character.getIndex(), name), data=character)
 
         def generatePlaceBranch():
             placeGroups = getPlaceGroups(self._filesystem)
