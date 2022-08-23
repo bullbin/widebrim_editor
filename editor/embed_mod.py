@@ -9,7 +9,6 @@
 
 # Force SDL to disable video output
 from os import environ
-
 environ["SDL_VIDEODRIVER"] = "dummy"
 
 # Disable high DPI behaviour on Windows, which causes blurriness
@@ -38,7 +37,7 @@ convenience.initDisplay = initDisplayEmbed
 
 # After this point, be careful only with conflicts. Patches completed on widebrim
 
-from typing import Callable, Optional, Tuple
+from typing import Callable, Optional
 from pygame import Surface
 import pygame
 from editor.nopush_editor import Editor
@@ -56,6 +55,7 @@ from editor.e_script import FrameEventEditor
 from editor.e_overview import FrameOverview
 from editor.gui.command_annotator.baselineAnnotationGenerator import BaselineVerificationBank
 from editor.gui.command_annotator.bank import ScriptVerificationBank
+from editor.asset_management.event import correctEvFixFromEvInf
 from widebrim.engine_ext.rom.banner import getBannerImageFromRom, getNameStringFromRom
 from threading import Thread, Lock
 from time import sleep, perf_counter
@@ -153,6 +153,7 @@ class EditorWindow(Editor):
                     return False
                 
                 filepath = dlg.GetPath()
+                correctEvFixFromEvInf(self._widebrimState)
                 try:
                     self._filesystem.getRom().saveToFile(filepath)
                     self._filesystem.writeableFs.resetModifiedFlag()

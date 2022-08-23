@@ -7,11 +7,16 @@ from widebrim.engine.state.manager import Layton2GameState
 from widebrim.madhatter.common import log, logSevere
 from widebrim.madhatter.hat_io.asset import LaytonPack
 from widebrim.madhatter.hat_io.asset_dat.event import EventData
+from widebrim.madhatter.hat_io.asset_dlz.ev_fix import DlzEntryEvFix, EventBaseList
 from widebrim.madhatter.hat_io.asset_dlz.ev_inf2 import DlzEntryEvInf2, EventInfoList
 
 from widebrim.engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C
 from widebrim.madhatter.hat_io.asset_dlz.ev_lch import DlzEntryEventDescriptorBank, DlzEntryEventDescriptorBankNds, EventDescriptorBankNds
 from widebrim.madhatter.hat_io.asset_script import GdScript
+
+# TODO - widebrim inaccuracy
+#        The game reads state information from ev_fix instead of ev_inf2. Are both loaded (if so why? Wasteful!)
+#        Sync changes to ev_fix (for now, they seem interchangable, the contents of ev_inf2 are mirrored in ev_fix)
 
 class EventExecutionGroup():
     def __init__(self, group : List[int]):
@@ -571,3 +576,36 @@ def giveEventViewedFlag(state : Layton2GameState, idEvent : int) -> Optional[int
         state.unloadEventInfoDb()
 
     return entry.indexEventViewedFlag
+
+def correctEvFixFromEvInf(state : Layton2GameState):
+
+    pathEvFix = "/data_lt2/rc/%s/ev_fix.dlz" % state.language.value
+
+    evInf = EventInfoList()
+    if (data := state.getFileAccessor().getData(PATH_DB_EV_INF2 % state.language.value)) != None:
+        evInf.load(data)
+    else:
+        return
+    
+    evFix = EventBaseList()
+    evFix.load(state.getFileAccessor().getData(pathEvFix))
+
+    for idxEntry in range(evInf.getCountEntries()):
+        entry = evInf.getEntry(idxEntry)
+        if (evFixEntry := evFix.searchForEntry(entry.idEvent)) == None:
+            idPuzzle = -1
+            idViewed = -1
+            if entry.dataPuzzle != None:
+                idPuzzle = entry.dataPuzzle
+            if entry.indexEventViewedFlag != None:
+                idViewed = entry.indexEventViewedFlag
+            newEntry = DlzEntryEvFix(entry.idEvent, idPuzzle, idViewed)
+            evFix.addEntry(newEntry)
+            logSevere("Generated missing", entry.idEvent, name="EventSync")
+        else:
+            # TODO - Resolve differing values
+            pass
+
+    evFix.save()
+    evFix.compressLz10()
+    state.getFileAccessor().writeableFs.replaceFile(pathEvFix, evFix.data)

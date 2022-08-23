@@ -11,7 +11,7 @@ from .opcode_translation import MAP_OPCODE_TO_FRIENDLY, getInstructionName
 
 from widebrim.madhatter.hat_io.asset_script import GdScript, Instruction, Operand
 from editor.gui.command_annotator.bank import Context, OperandCompatibility, OperandType, ScriptVerificationBank
-from wx import TreeEvent, TreeItemId, SingleChoiceDialog, ID_OK, Window
+from wx import TreeEvent, TreeItemId, SingleChoiceDialog, ID_OK, Window, Colour
 
 # TODO - Bugfix, scrollbar not resizing on minimize
 
@@ -25,6 +25,9 @@ from wx import TreeEvent, TreeItemId, SingleChoiceDialog, ID_OK, Window
 class FrameScriptEditor(editorScript):
 
     LOG_MODULE_NAME = "ScriptEdit"
+
+    COLOR_INSTRUCTION   = (255,255,255)
+    COLOR_OPERAND       = (240,240,240)
 
     CONVERSION_OPERAND_TO_COMPATIBILITY = {1:OperandType.StandardS32,
                                            2:OperandType.StandardF32,
@@ -167,13 +170,16 @@ class FrameScriptEditor(editorScript):
             if newVal != None:
                 operand.value = newVal
                 self.treeScript.SetItemText(treeItem, self.getOperandTreeValue(instruction, idxOperand))
-                
+    
+    def _onEditOperand(self, instruction : Instruction, idxOperand : int, treeItem : TreeItemId):
+        self.__getPopupForOperandType(instruction, idxOperand, treeItem)
+
     def treeScriptOnTreeItemActivated(self, event : TreeEvent):
         isInstruction, instructionDetails = self.__decodeTreeItem(event.GetItem())
         if isInstruction:
             return super().treeScriptOnTreeItemActivated(event)
         else:
-            self.__getPopupForOperandType(self._eventScript.getInstruction(instructionDetails[0]), instructionDetails[1], event.GetItem())
+            self._onEditOperand(self._eventScript.getInstruction(instructionDetails[0]), instructionDetails[1], event.GetItem())
             event.Skip()
 
     def __generateScriptingTree(self, script : GdScript):
@@ -184,8 +190,10 @@ class FrameScriptEditor(editorScript):
         for indexInstruction in range(script.getInstructionCount()):
             instruction = script.getInstruction(indexInstruction)
             commandRoot = self.treeScript.AppendItem(parent=rootId, text=getInstructionName(instruction.opcode), data=instruction)
+            self.treeScript.SetItemBackgroundColour(commandRoot, Colour(FrameScriptEditor.COLOR_INSTRUCTION))
             for indexOperand in range(len(instruction.operands)):
-                self.treeScript.AppendItem(parent=commandRoot, text=self.getOperandTreeValue(instruction, indexOperand), data=instruction.operands[indexOperand])
+                operandRoot = self.treeScript.AppendItem(parent=commandRoot, text=self.getOperandTreeValue(instruction, indexOperand), data=instruction.operands[indexOperand])
+                self.treeScript.SetItemBackgroundColour(operandRoot, Colour(FrameScriptEditor.COLOR_OPERAND))
 
     def __getNewInstruction(self) -> Optional[Instruction]:
 
@@ -246,19 +254,21 @@ class FrameScriptEditor(editorScript):
             # Tree item was not valid, so we are the first item
             operandRoot = self.treeScript.AppendItem(self.treeScript.GetRootItem(),
                                                      getInstructionName(command.opcode),
-                                                     data=command.opcode)
+                                                     data=command)
             self._eventScript.addInstruction(command)
         else:
             idxInstruction, idxOperand = instructionDetails
             operandRoot = self.treeScript.InsertItem(self.treeScript.GetRootItem(),
                                                      self.__getTreeItemForInstruction(idxInstruction),
                                                      getInstructionName(command.opcode),
-                                                     data=command.opcode)
+                                                     data=command)
             # TODO - why does this add before...?
             self._eventScript.insertInstruction(idxInstruction + 1, command)
 
+        self.treeScript.SetItemBackgroundColour(operandRoot, Colour(FrameScriptEditor.COLOR_INSTRUCTION))
         for indexOperand, operand in enumerate(command.operands):
-            self.treeScript.AppendItem(parent=operandRoot, text=self.getOperandTreeValue(command, indexOperand), data=operand)
+            treeItemOperand = self.treeScript.AppendItem(parent=operandRoot, text=self.getOperandTreeValue(command, indexOperand), data=operand)
+            self.treeScript.SetItemBackgroundColour(treeItemOperand, Colour(FrameScriptEditor.COLOR_OPERAND))
         return operandRoot
 
     def __insertAbove(self, command : Instruction, reference : TreeItemId) -> TreeItemId:
@@ -267,7 +277,7 @@ class FrameScriptEditor(editorScript):
             # Tree item was not valid, so we are the first item
             operandRoot = self.treeScript.AppendItem(self.treeScript.GetRootItem(),
                                                      getInstructionName(command.opcode),
-                                                     data=command.opcode)
+                                                     data=command)
             self._eventScript.addInstruction(command)
         else:
             idxInstruction, idxOperand = instructionDetails
@@ -275,18 +285,20 @@ class FrameScriptEditor(editorScript):
                 # If this is the topmost instruction, use prepend instead to add at top
                 operandRoot = self.treeScript.PrependItem(self.treeScript.GetRootItem(),
                                                           getInstructionName(command.opcode),
-                                                          data=command.opcode)
+                                                          data=command)
             else:
                 # Else we know there is an item above it which we can add below
                 operandRoot = self.treeScript.InsertItem(self.treeScript.GetRootItem(),
                                                          self.__getTreeItemForInstruction(idxInstruction - 1),
                                                          getInstructionName(command.opcode),
-                                                         data=command.opcode)
+                                                         data=command)
             # TODO - Insert below...
             self._eventScript.insertInstruction(idxInstruction, command)
-
+        
+        self.treeScript.SetItemBackgroundColour(operandRoot, Colour(FrameScriptEditor.COLOR_INSTRUCTION))
         for indexOperand, operand in enumerate(command.operands):
-            self.treeScript.AppendItem(parent=operandRoot, text=self.getOperandTreeValue(command, indexOperand), data=operand)
+            treeItemOperand = self.treeScript.AppendItem(parent=operandRoot, text=self.getOperandTreeValue(command, indexOperand), data=operand)
+            self.treeScript.SetItemBackgroundColour(treeItemOperand, Colour(FrameScriptEditor.COLOR_OPERAND))
         return operandRoot
 
     def buttonInsertBelowOnButtonClick(self, event):
@@ -297,8 +309,7 @@ class FrameScriptEditor(editorScript):
         if command == None:
             return super().buttonInsertBelowOnButtonClick(event)
 
-        self.__insertBelow(command, self.treeScript.GetFocusedItem())
-
+        self.treeScript.Expand(self.__insertBelow(command, self.treeScript.GetFocusedItem()))
         # TODO - Hook to script generator for file building
         # TODO - Write a subclass that manages this (redirects insert to custom command)
         return super().buttonInsertBelowOnButtonClick(event)
@@ -310,7 +321,7 @@ class FrameScriptEditor(editorScript):
         if command == None:
             return super().buttonInsertAboveOnButtonClick(event)
 
-        self.__insertAbove(command, self.treeScript.GetFocusedItem())
+        self.treeScript.Expand(self.__insertAbove(command, self.treeScript.GetFocusedItem()))
         return super().buttonInsertAboveOnButtonClick(event)
 
     def buttonMoveUpOnButtonClick(self, event):
@@ -370,7 +381,15 @@ class FrameScriptEditor(editorScript):
         idxInstruction, _idxOperand = instructionDetails
         treeRef = self.__getTreeItemForInstruction(idxInstruction)
         isExpanded = self.treeScript.IsExpanded(treeRef)
-        treeRef = self.__insertBelow(self._eventScript.getInstruction(idxInstruction), self.__getTreeItemForInstruction(idxInstruction))
+        treeRef = self.__insertBelow(self._eventScript.getInstruction(idxInstruction).copy(), self.__getTreeItemForInstruction(idxInstruction))
         if isExpanded:
             self.treeScript.Expand(treeRef)
         return super().buttonCopyOnButtonClick(event)
+    
+    def btnCollapseAllOnButtonClick(self, event):
+        self.treeScript.CollapseAllChildren(self.treeScript.GetRootItem())
+        return super().btnCollapseAllOnButtonClick(event)
+    
+    def btnExpandAllOnButtonClick(self, event):
+        self.treeScript.ExpandAllChildren(self.treeScript.GetRootItem())
+        return super().btnExpandAllOnButtonClick(event)

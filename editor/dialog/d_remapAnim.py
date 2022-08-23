@@ -2,7 +2,7 @@ from time import perf_counter
 from typing import Any, Dict, List, Optional
 from widebrim.engine.anim.image_anim.image import AnimatedImageObject
 from ..nopush_editor import PickerRemapAnim
-from wx import Window, Bitmap, Timer, EVT_TIMER, EVT_CLOSE, NOT_FOUND, ID_CANCEL, ID_OK
+from wx import Window, Bitmap, Timer, EVT_TIMER, EVT_CLOSE, NOT_FOUND, ID_CANCEL, ID_OK, Colour
 from pygame import Surface
 from pygame.image import tostring
 
@@ -117,7 +117,7 @@ class DialogRemapAnimation(PickerRemapAnim):
         self.Layout()
 
     def __verifyListboxIndex(self, idxEntry : int):
-        self.listboxSourceAnim.SetItemBackgroundColour(idxEntry, 'LightGreen')
+        self.listboxSourceAnim.SetItemBackgroundColour(idxEntry, Colour(0,255,0))
 
     def __updateActiveSelection(self):
         if self.listboxSourceAnim.GetSelection() != NOT_FOUND:

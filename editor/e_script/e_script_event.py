@@ -1,26 +1,30 @@
 from typing import Dict, List, Optional
 from editor.asset_management.character import CharacterEntry
+from editor.d_operandMultichoice import DialogMultipleChoice
 from editor.d_pickerCharacter import DialogPickerCharacter
 from editor.dialog.d_remapAnim import DialogRemapAnimation
+from editor.dialog.d_wip_talkscript import DialogTalkScriptTextEditor
+from editor.e_room.utils import getShortenedString
 from editor.e_script.virtual.custom_instructions.dialogue import DialogueInstructionDescription, DialogueInstructionGenerator
-from editor.gui.command_annotator.bank import Context, OperandCompatibility, OperandType, ScriptVerificationBank
+from editor.gui.command_annotator.bank import Context, OperandType, ScriptVerificationBank
 from widebrim.engine.anim.image_anim.image import AnimatedImageObject
 from widebrim.engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C, PATH_PACK_EVENT_SCR, RESOLUTION_NINTENDO_DS, PATH_PACK_EVENT_DAT
 from widebrim.engine.state.enum_mode import GAMEMODES
 from widebrim.engine.state.manager.state import Layton2GameState
 from widebrim.madhatter.common import logSevere
 from widebrim.madhatter.hat_io.asset_dat.event import EventData
-from widebrim.madhatter.hat_io.asset_script import GdScript, Operand
+from widebrim.madhatter.hat_io.asset_script import GdScript, Instruction, Operand
 from .e_script_generic import FrameScriptEditor
-from wx import Bitmap, NOT_FOUND, Window, ID_OK
+from wx import Bitmap, NOT_FOUND, Window, ID_OK, TreeItemId
 from pygame import Surface
 from pygame.transform import flip
-from pygame.image import tostring, save
+from pygame.image import tostring
 
 from widebrim.gamemodes.dramaevent.const import PATH_BODY_ROOT, PATH_BODY_ROOT_LANG_DEP
 from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
 
 # TODO - Is starting position graphically updated when changing character?
+# TODO - Only pull filtered operands when searching definitions!
 
 MAP_POS_TO_INGAME = {0:0,
                      1:3,
@@ -131,6 +135,8 @@ class FrameEventEditor(FrameScriptEditor):
                 idChar = self.__eventData.characters[value]
                 return "Character: %s" % self._getCharacterName(idChar)
             return "Character: Affects invalid character slot!"
+        elif operandType == OperandType.StringTalkScript:
+            return "Dialogue: %s" % getShortenedString(operand.value, maxChars=64)
         return super().getNameForOperandType(operandType, operand)
 
     def __getCharacterAnim(self, indexChar : int) -> Optional[AnimatedImageObject]:
@@ -312,6 +318,81 @@ class FrameEventEditor(FrameScriptEditor):
         
         self.bitmapRenderCharacterPreview.SetBitmap(Bitmap.FromBufferRGBA(RESOLUTION_NINTENDO_DS[0], RESOLUTION_NINTENDO_DS[1], tostring(self.__backgroundWidebrim, "RGBA")))
 
+
+    def _onEditOperand(self, instruction: Instruction, idxOperand: int, treeItem: TreeItemId):
+
+        def getNewCharacterId(allowNone : bool = False, originalCharId : Optional[int] = None) -> Optional[int]:
+
+            choices : Dict[str,str] = {}
+            choicesToIdMap : Dict[str, int] = {}
+            defaultSelection = None
+
+            if allowNone:
+                choices["None"] = "This instruction won't be applied to any character."
+                choicesToIdMap["None"] = 0
+                if originalCharId == 0:
+                    defaultSelection = "None"
+
+            for idChar in self.__eventData.characters:
+                nameChar = self._getCharacterName(idChar)
+                idxDup = 1
+                dupName = nameChar
+                while dupName in choices:
+                    dupName = nameChar + (" (%i)" % idxDup)
+                    idxDup += 1
+                
+                choices[dupName] = "This instruction will be applied to the character named %s." % nameChar
+                choicesToIdMap[dupName] = idChar
+                if originalCharId == idChar:
+                    defaultSelection = dupName
+
+            if len(choices) == 0:
+                # TODO - Warning box - no characters loaded
+                return None
+            
+            dlg = DialogMultipleChoice(self, choices, newTitle="Select Character")
+            if defaultSelection != None:
+                dlg.SetSelection(defaultSelection)
+
+            if dlg.ShowModal() != ID_OK or dlg.GetSelection() == None:
+                return None
+            return choicesToIdMap[dlg.GetSelection()]
+
+        def getTalkscriptEdit(value : str) -> Optional[str]:
+            dlg = DialogTalkScriptTextEditor(self, self._state, value)
+            if dlg.ShowModal() != ID_OK:
+                return None
+            return dlg.GetValue()
+
+        if (description := self._bankInstructions.getInstructionByOpcode(int.from_bytes(instruction.opcode, byteorder='little'))) != None:
+            if (operandDesc := description.getOperand(idxOperand)) != None:
+                operand : Operand = instruction.getFilteredOperands()[idxOperand]
+
+                # Modify character
+                if operandDesc.operandType == OperandType.IndexEventDataCharacter or operandDesc.operandType == OperandType.InternalCharacterId:
+                    if operandDesc.operandType == OperandType.InternalCharacterId:
+                        if (newId := getNewCharacterId(True, originalCharId=operand.value)) != None:
+                            operand.value = newId
+                    else:
+                        originalId = None
+                        if 0 <= operand.value < len(self.__eventData.characters):
+                            originalId = self.__eventData.characters[operand.value]
+                        if (newId := getNewCharacterId(False, originalCharId=originalId)) != None:
+                            operand.value = self.__eventData.characters.index(newId)
+                    
+                    self.treeScript.SetItemText(treeItem, self.getOperandTreeValue(instruction, idxOperand))
+                    return
+                
+                # Modify talkscript
+                elif operandDesc.operandType == OperandType.StringTalkScript:
+                    newValue = getTalkscriptEdit(operand.value)
+                    if newValue != None:
+                        operand.value = newValue
+                        self.treeScript.SetItemText(treeItem, self.getOperandTreeValue(instruction, idxOperand))
+                    return
+    
+        # Fallback to generic editor
+        return super()._onEditOperand(instruction, idxOperand, treeItem)
 
 
 

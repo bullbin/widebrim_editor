@@ -1,1 +1,2 @@
 from .d_remapAnim import PickerRemapAnim
+from .d_wip_talkscript import DialogTalkScriptTextEditor
