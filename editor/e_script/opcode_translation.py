@@ -1,4 +1,8 @@
 from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from editor.e_script.virtual.custom_instructions.dialogue import DialogueInstructionDescription
+from typing import Dict
+
+MAP_VIRTUAL_TO_FRIENDLY : Dict[int, str] = {DialogueInstructionDescription.TARGET_OPERAND : "Dialogue"}
 
 MAP_OPCODE_TO_FRIENDLY = {OPCODES_LT2.ExitScript : "Stop script execution",
                           OPCODES_LT2.TextWindow : "Dialogue",
@@ -192,13 +196,3 @@ MAP_OPCODE_TO_FRIENDLY = {OPCODES_LT2.ExitScript : "Stop script execution",
                           # Stubbed
                           OPCODES_LT2.SetAutoEventNum : "noop_0",
                           OPCODES_LT2.DoDiaryAddScreen : "noop_1"}
-
-def getInstructionName(opcode : bytes) -> str:
-    try:
-        opcode = OPCODES_LT2(int.from_bytes(opcode, 'little'))
-        if opcode in MAP_OPCODE_TO_FRIENDLY and MAP_OPCODE_TO_FRIENDLY[opcode] != None:
-            return MAP_OPCODE_TO_FRIENDLY[opcode]
-        return "MISSING :: " + opcode.name
-        return str(opcode.value)
-    except:
-        return str(opcode)

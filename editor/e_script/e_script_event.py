@@ -129,6 +129,16 @@ class FrameEventEditor(FrameScriptEditor):
         if operandType == OperandType.InternalCharacterId:
             idChar = operand.value
             return "Character: %s" % self._getCharacterName(idChar)
+        elif operandType == OperandType.IndexVoiceId:
+            value = operand.value
+            if value <= -1:
+                return "Voiceline: None"
+            return "Voiceline: %d" % value
+        elif operandType == OperandType.StringCharAnim:
+            value = operand.value
+            if value == "NONE":
+                return "Animation: None"
+            return "Animation: %s" % value
         elif operandType == OperandType.IndexEventDataCharacter:
             value = operand.value
             if 0 <= value < len(self.__eventData.characters):
@@ -136,7 +146,7 @@ class FrameEventEditor(FrameScriptEditor):
                 return "Character: %s" % self._getCharacterName(idChar)
             return "Character: Affects invalid character slot!"
         elif operandType == OperandType.StringTalkScript:
-            return "Dialogue: %s" % getShortenedString(operand.value, maxChars=64)
+            return "Text: %s" % getShortenedString(operand.value, maxChars=64)
         return super().getNameForOperandType(operandType, operand)
 
     def __getCharacterAnim(self, indexChar : int) -> Optional[AnimatedImageObject]:

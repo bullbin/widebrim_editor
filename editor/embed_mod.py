@@ -95,6 +95,7 @@ class EditorWindow(Editor):
         self.__instructionDescriptions.populateBankFromRom()
         self.__instructionDescriptions.applyDefaultInstructionHeuristics()
         self.__instructionDescriptions.applyExtendedOperandTypingHeuristics()
+        self.__instructionDescriptions.applyDefaultNames()
 
         # Bind drawing and timing events to pygame routines
         self.Bind(EVT_PAINT, self.__repaintWidebrim)
@@ -362,13 +363,14 @@ class EditorWindow(Editor):
         return super().menuDefinitionLoadOnMenuSelection(event)
     
     def menuDefinitionSaveOnMenuSelection(self, event):
-        return super().menuDefinitionLoad(event)
+        return super().menuDefinitionSaveOnMenuSelection(event)
     
     def menuDefinitionGenerateOnMenuSelection(self, event):
         self.__instructionDescriptions = BaselineVerificationBank(self._filesystem)
         self.__instructionDescriptions.populateBankFromRom()
         self.__instructionDescriptions.applyDefaultInstructionHeuristics()
         self.__instructionDescriptions.applyExtendedOperandTypingHeuristics()
+        self.__instructionDescriptions.applyDefaultNames()
         return super().menuDefinitionGenerateOnMenuSelection(event)
 
     # TODO - Pause, play, return to startup

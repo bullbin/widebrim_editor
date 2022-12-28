@@ -17,7 +17,8 @@ class DialogueInstructionDescription(InstructionDescription):
 
     def __init__(self):
         self.opcode         = DialogueInstructionDescription.TARGET_OPERAND
-        self.description    = "Virtual Instruction\nBrings up the text box for dialogue in events. Script execution is paused while dialogue is playing back."
+        self.name           = "Dialogue"
+        self.description    = "Virtual Instruction.\n\nBrings up the text box for dialogue in events. Script execution is paused while dialogue is playing back."
         self.contextValid   = [Context.DramaEvent]
         self.isUsed         = True
         self.permittedOperandTypes = [OperandDescription(OperandType.InternalCharacterId, "Character index from event data, starting at 0 and reading top to bottom."),
@@ -25,7 +26,7 @@ class DialogueInstructionDescription(InstructionDescription):
                                       OperandDescription(OperandType.StringCharAnim, "Animation called on the character when dialogue starts. 'NONE' will leave the character alone."),
                                       OperandDescription(OperandType.StringCharAnim, "Animation called on the character when dialogue ends. 'NONE' will leave the character alone."),
                                       OperandDescription(OperandType.IndexVoiceId, "ID for the sound of voiceline to play when this dialogue starts."),
-                                      OperandDescription(OperandType.Integer8, "Unvoiced speech sound effect pitch. 1 is lowest and default.")]
+                                      OperandDescription(OperandType.Pitch, "Unvoiced speech sound effect pitch. 1 is lowest and default.")]
 
 class InstructionTalkScriptContainer(Instruction):
     def __init__(self, idxTalkscript : Optional[int] = None):

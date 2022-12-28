@@ -9,6 +9,7 @@ from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
 from widebrim.madhatter.common import logVerbose
 
 from .bank import InstructionDescription, OperandType, Context, ScriptVerificationBank
+from .baseline_constants import MAP_OPCODE_TO_DESC, MAP_OPCODE_TO_FRIENDLY
 
 PATH_PACK_EVENT = "/data_lt2/event/ev_d%s.plz"
 
@@ -360,3 +361,25 @@ class BaselineVerificationBank(ScriptVerificationBank):
         confirmPuzzleContext()
         applyToRemaining(Context.PuzzleTraceButton)
         improveUnusedCoverage()
+    
+    def applyDefaultNames(self):
+        """Unsafe but recommended. Relies on an unmodified scripting engine, but will apply known good command names to opcodes.
+        """
+        opcodes = self.getAllInstructionOpcodes()
+        for opcode in opcodes:
+            definition : InstructionDescription = self.getInstructionByOpcode(opcode)
+            try:
+                enumOpcode = OPCODES_LT2(opcode)
+                if enumOpcode in MAP_OPCODE_TO_FRIENDLY:
+                    definition.name = MAP_OPCODE_TO_FRIENDLY[enumOpcode]
+                    if definition.name == None:
+                        definition.name = ""
+                if enumOpcode in MAP_OPCODE_TO_DESC:
+                    definition.description = MAP_OPCODE_TO_DESC[enumOpcode]
+                    if definition.description == None:
+                        definition.description = ""
+            except ValueError:
+                continue
+    
+    def applyVirtualDefinitions(self):
+        pass

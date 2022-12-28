@@ -7,7 +7,6 @@ from widebrim.madhatter.common import logSevere, logVerbose
 from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
 
 from ..nopush_editor import editorScript
-from .opcode_translation import MAP_OPCODE_TO_FRIENDLY, getInstructionName
 
 from widebrim.madhatter.hat_io.asset_script import GdScript, Instruction, Operand
 from editor.gui.command_annotator.bank import Context, OperandCompatibility, OperandType, ScriptVerificationBank
@@ -115,6 +114,25 @@ class FrameScriptEditor(editorScript):
                 self.treeScript.Delete(self.treeScript.GetItemParent(itemId))
         return super().buttonDeleteInstructionOnButtonClick(event)
 
+    def getNameForInstruction(self, instruction : Instruction) -> str:
+        opcode_raw = int.from_bytes(instruction.opcode, 'little')
+        definition = self._bankInstructions.getInstructionByOpcode(opcode_raw)
+        if definition == None:
+            try:
+                opcode = OPCODES_LT2(opcode_raw)
+                return "UNKNOWN :: %s" % opcode.name
+            except ValueError:
+                return "NO_DEF :: %d" % opcode_raw
+        else:
+            try:
+                infillName : str = OPCODES_LT2(opcode_raw)
+            except ValueError:
+                infillName : str = "(no_def) " + str(opcode_raw)
+            if definition.name == "":
+                return "NO_NAME :: %s" % infillName
+            else:
+                return definition.name
+
     def getNameForOperandType(self, operandType : OperandType, operand : Operand) -> Optional[str]:
         """Called unless getOperandTreeValue was overridden. Should return the tree label given for an operand of a particular type.
 
@@ -181,6 +199,17 @@ class FrameScriptEditor(editorScript):
         else:
             self._onEditOperand(self._eventScript.getInstruction(instructionDetails[0]), instructionDetails[1], event.GetItem())
             event.Skip()
+    
+    def treeScriptOnTreeSelChanged(self, event):
+        if self.treeScript:
+            isInstruction, instructionDetails = self.__decodeTreeItem(event.GetItem())
+            instruction = self._eventScript.getInstruction(instructionDetails[0])
+            description = self._bankInstructions.getInstructionByOpcode(int.from_bytes(instruction.opcode, byteorder='little'))
+            if description == None or description.description == "":
+                self.textDescription.SetValue("This instruction has no associated description.")
+            else:
+                self.textDescription.SetValue(description.description)
+        return super().treeScriptOnTreeSelChanged(event)
 
     def __generateScriptingTree(self, script : GdScript):
         self.treeScript.DeleteAllItems()
@@ -189,7 +218,7 @@ class FrameScriptEditor(editorScript):
             rootId = self.treeScript.AddRoot("Root")
         for indexInstruction in range(script.getInstructionCount()):
             instruction = script.getInstruction(indexInstruction)
-            commandRoot = self.treeScript.AppendItem(parent=rootId, text=getInstructionName(instruction.opcode), data=instruction)
+            commandRoot = self.treeScript.AppendItem(parent=rootId, text=self.getNameForInstruction(instruction), data=instruction)
             self.treeScript.SetItemBackgroundColour(commandRoot, Colour(FrameScriptEditor.COLOR_INSTRUCTION))
             for indexOperand in range(len(instruction.operands)):
                 operandRoot = self.treeScript.AppendItem(parent=commandRoot, text=self.getOperandTreeValue(instruction, indexOperand), data=instruction.operands[indexOperand])
@@ -204,13 +233,13 @@ class FrameScriptEditor(editorScript):
                 description = self._bankInstructions.getInstructionByOpcode(opcode)
                 if self.__context in description.contextValid or self.__context == None:
                     if Context.Stubbed not in description.contextValid:
-                        try:
-                            friendlyString = MAP_OPCODE_TO_FRIENDLY[OPCODES_LT2(opcode)]
-                            if friendlyString == None:
-                                friendlyString = "(No helper) " + OPCODES_LT2(opcode).name
-                            strings.append(friendlyString)
-                        except:
-                            strings.append("(No rename) Instruction " + str(opcode))
+                        if description.name != "":
+                            strings.append(description.name)
+                        else:
+                            try:
+                                strings.append("No helper :: " + OPCODES_LT2(opcode).name)
+                            except ValueError:
+                                strings.append("Unknown :: " + str(opcode))
                         filteredOpcodes.append(opcode)
 
             dlg = SingleChoiceDialog(self, "Select an instruction to add...", "Add New Instruction", strings)
@@ -253,14 +282,14 @@ class FrameScriptEditor(editorScript):
         if instructionDetails == None:
             # Tree item was not valid, so we are the first item
             operandRoot = self.treeScript.AppendItem(self.treeScript.GetRootItem(),
-                                                     getInstructionName(command.opcode),
+                                                     self.getNameForInstruction(command),
                                                      data=command)
             self._eventScript.addInstruction(command)
         else:
             idxInstruction, idxOperand = instructionDetails
             operandRoot = self.treeScript.InsertItem(self.treeScript.GetRootItem(),
                                                      self.__getTreeItemForInstruction(idxInstruction),
-                                                     getInstructionName(command.opcode),
+                                                     self.getNameForInstruction(command),
                                                      data=command)
             # TODO - why does this add before...?
             self._eventScript.insertInstruction(idxInstruction + 1, command)
@@ -276,7 +305,7 @@ class FrameScriptEditor(editorScript):
         if instructionDetails == None:
             # Tree item was not valid, so we are the first item
             operandRoot = self.treeScript.AppendItem(self.treeScript.GetRootItem(),
-                                                     getInstructionName(command.opcode),
+                                                     self.getNameForInstruction(command),
                                                      data=command)
             self._eventScript.addInstruction(command)
         else:
@@ -284,13 +313,13 @@ class FrameScriptEditor(editorScript):
             if idxInstruction == 0:
                 # If this is the topmost instruction, use prepend instead to add at top
                 operandRoot = self.treeScript.PrependItem(self.treeScript.GetRootItem(),
-                                                          getInstructionName(command.opcode),
+                                                          self.getNameForInstruction(command),
                                                           data=command)
             else:
                 # Else we know there is an item above it which we can add below
                 operandRoot = self.treeScript.InsertItem(self.treeScript.GetRootItem(),
                                                          self.__getTreeItemForInstruction(idxInstruction - 1),
-                                                         getInstructionName(command.opcode),
+                                                         self.getNameForInstruction(command),
                                                          data=command)
             # TODO - Insert below...
             self._eventScript.insertInstruction(idxInstruction, command)

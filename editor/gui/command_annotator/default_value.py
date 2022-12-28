@@ -8,7 +8,11 @@ _DEFAULT_VALUES : Dict[OperandType, Any] = {OperandType.StandardS32         : 0,
 
                                             OperandType.StringGamemode      : "drama event",
                                             OperandType.ModeBackground      : 3,
-                                            OperandType.IndexVoiceId        : -1}
+                                            OperandType.IndexVoiceId        : -1,
+                                            
+                                            OperandType.Pitch               : 1,
+                                            
+                                            OperandType.StringCharAnim      : "NONE"}
 
 def getDefaultValue(opType : OperandType) -> Optional[Any]:
     if opType in _DEFAULT_VALUES:

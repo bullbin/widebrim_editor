@@ -70,6 +70,7 @@ class OperandType(int, Enum):
     ColorComponent5     = 31
 
     Volume              = 35
+    Pitch               = 36
 
     ModeBackground      = 40
 
@@ -133,6 +134,7 @@ class OperandCompatibility(int, Enum):
     ColorComponent5     = OperandType.StandardS32.value
 
     Volume              = OperandType.StandardF32.value
+    Pitch               = OperandType.StandardS32.value
 
     ModeBackground      = OperandType.StandardS32.value
 
@@ -179,6 +181,7 @@ class InstructionDescription():
     # TODO - Scoping, but tbh this won't be used anywhere sensitive
     def __init__(self, opcode = None):
         self.opcode                 : Optional[int]             = opcode
+        self.name                   : str                       = ""
         self.description            : str                       = ""
         self.contextValid           : List[Context]             = []
         self.isUsed                 : bool                      = False
@@ -196,6 +199,7 @@ class InstructionDescription():
                 
         # TODO - Make non-essential fields non-breaking. Eg we can exclude descriptions and its still functionally equivalent
         if goodCandidate:
+            output.name = jsonObject["name"]
             output.opcode = jsonObject["opcode"]
             output.description = jsonObject["description"]
             output.isUsed = jsonObject["isUsed"]
@@ -215,7 +219,7 @@ class InstructionDescription():
     def mergeDefinition(self, definition : InstructionDescription):
         """Merges definition of two of the same instruction to improve robustness.
         Will likely throw exception if using two different instructions during merge.
-        Descriptions are not merged, so be careful not to lose data when merging.
+        Descriptions and names are not merged, so be careful not to lose data when merging.
 
         Args:
             definition (InstructionDescription): Definition of same operand.
@@ -290,7 +294,7 @@ class InstructionDescription():
 
 class ScriptVerificationBank():
     def __init__(self):
-        self.__version : float = 0.01
+        self.__version : float = 0.02
         self.__instructions : Dict[int, InstructionDescription] = {}
         self.__hasChanged = False
     
