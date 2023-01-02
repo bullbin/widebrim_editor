@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional
 from editor.asset_management.chapter import addChapterCondition, createChapter, deleteChapter
-from editor.asset_management.event import PuzzleExecutionGroup, createBlankEvent, createBlankPuzzleEventChain, createConditionalRevisit, createConditionalRevisitAndPuzzleLimit, ensureEventInDatabase, getFreeEventViewedFlags, getFreeStoryFlags, giveEventStoryFlag
+from editor.asset_management.event import PuzzleExecutionGroup, createBlankEvent, createBlankPuzzleEventChain, createConditionalRevisit, createConditionalRevisitAndPuzzleLimit, getFreeEventViewedFlags, getFreeStoryFlags, giveEventStoryFlag
 from editor.asset_management.puzzle import PuzzleEntry
 from editor.asset_management.room import PlaceGroup, createRoomAsFirstFree, deleteRoom
 from editor.d_operandMultichoice import DialogMultipleChoice
@@ -11,7 +11,7 @@ from editor.gui.command_annotator.bank import ScriptVerificationBank
 from widebrim.engine.state.manager.state import Layton2GameState
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
 from widebrim.madhatter.common import logSevere
-from widebrim.madhatter.hat_io.asset_storyflag import FlagGroup, StoryFlag
+from widebrim.madhatter.hat_io.asset_storyflag import FlagGroup
 from .creation import FrameOverviewTreeGen
 import wx
 from wx import OK, ICON_WARNING, MessageDialog, TextEntryDialog, TreeItemId, ID_OK

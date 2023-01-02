@@ -1,5 +1,6 @@
 from typing import Dict, List, Optional
 from editor.asset_management.character import CharacterEntry, computeCharacterNames
+from editor.asset_management.plz_txt.jiten import getUsedRoomNameTags
 from editor.asset_management.puzzle import PuzzleEntry, getPuzzles
 from editor.branch_management import EventBranchManager
 from editor.branch_management.branch_chapter.branch_chapter import ChapterBranchManager
@@ -206,11 +207,19 @@ class FrameOverviewTreeGen(pageOverview):
                 self.treeOverview.AppendItem(characterItem, "%i - %s" % (character.getIndex(), name), data=character)
 
         def generatePlaceBranch():
+            # TODO - Manage this better - we can do better...
+            nameTags : Dict[int, str] = getUsedRoomNameTags(self._state)
+
             placeGroups = getPlaceGroups(self._filesystem)
             self._treeItemPlace = self.treeOverview.AppendItem(rootItem, "Rooms")
             self.treeOverview.AppendItem(self._treeItemPlace, "Bootstrap Room")
             for group in placeGroups:
-                self.treeOverview.AppendItem(self._treeItemPlace, "Room " + str(group.indexPlace), data=group)
+                if group.indexPlace in nameTags:
+                    name : str = nameTags[group.indexPlace]
+                else:
+                    name : str = "Unknown"
+
+                self.treeOverview.AppendItem(self._treeItemPlace, "Room %i - %s" % (group.indexPlace, name), data=group)
 
         def generateStoryflagBranch():
             self._treeItemChapter = self.treeOverview.AppendItem(rootItem, "Chapter Progression")

@@ -1,7 +1,7 @@
 from pygame import Surface
 from ...string import getSubstitutedString
 
-def generateImageFromString(font, inString):
+def generateImageFromString(font, inString : str) -> Surface:
 
     chars = []
 
@@ -22,7 +22,7 @@ def generateImageFromString(font, inString):
 
     return output
 
-def generateImageFromStringStrided(font, inString, stride):
+def generateImageFromStringStrided(font, inString : str, stride : int) -> Surface:
 
     chars = []
 
