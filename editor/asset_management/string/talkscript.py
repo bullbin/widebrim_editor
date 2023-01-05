@@ -183,7 +183,7 @@ def convertTalkStringToSegments(talkString : str) -> List[Segment]:
                 return [segment]
 
             # There is a limit to length of the SetAni string (32 chars?) but if it doesn't fit, remove it anyways
-            matchString = "&([\s\S]*)&"
+            matchString = "&([\s\S]*?)&"
             setAniString = "[S/s][E/e][T/t][A/a][N/n][I/i]\s([0-9]+)\s([\S\s]+)"
 
             while (result := search(matchString, segment)) != None:
@@ -196,7 +196,6 @@ def convertTalkStringToSegments(talkString : str) -> List[Segment]:
                 # TODO - Check length limit
                 if (animNameMatch := search(setAniString, result.group(1))) != None and len(result.group(1)) <= 32:
                     sections.append(CommandSwitchAnimation(animNameMatch.group(2).replace("_", " "), int(animNameMatch.group(1))))
-
                 segment = segment[end:]
                 
             if segment != "":
