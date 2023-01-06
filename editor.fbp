@@ -7316,6 +7316,7 @@
                                 <property name="window_extra_style"></property>
                                 <property name="window_name"></property>
                                 <property name="window_style">wxVSCROLL|wxHSCROLL|wxNO_BORDER|wxWANTS_CHARS</property>
+                                <event name="OnLeftDown">rich_tsOnLeftDown</event>
                                 <event name="OnRichTextCharacter">rich_tsOnRichTextCharacter</event>
                             </object>
                         </object>

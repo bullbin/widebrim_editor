@@ -3,22 +3,59 @@ from widebrim.engine.state.manager import Layton2GameState
 from widebrim.engine.anim.font.const import BLEND_MAP
 from widebrim.engine.anim.font.static import generateImageFromString
 from typing import Optional, List, Dict, Tuple
-from wx import Window, Image, Bitmap
-from wx.richtext import RichTextImage, RichTextBuffer, RichTextParagraph, RichTextPlainText, RichTextRange
+from widebrim.madhatter.common import logSevere
+
+from wx import Window, Image, Bitmap, TEXT_ATTR_TEXT_COLOUR, Colour
+from wx.richtext import RichTextImage, RichTextBuffer, RichTextParagraph, RichTextObject, RichTextRange, RichTextPlainText, RichTextAttr
 from pygame import Surface, BLEND_SUB, BLEND_ADD, Rect
 from pygame.image import tostring
-from pygame.draw import circle, rect
+from pygame.draw import rect
+from pygame.gfxdraw import aacircle, filled_circle
 
 from editor.asset_management.string.talkscript import ENCODE_MAP, convertTalkStringToSegments, Segment, Command, CommandClear, CommandPause, CommandLineBreak, CommandSetPitch, CommandSwitchAnimation, CommandSwitchColor
 
-def createSquircle(width_visible : int, height : int, color : Tuple[int,int,int]) -> Surface:
-    output : Surface = Surface((width_visible + height, height)).convert_alpha()
-    output.fill((255,255,255,255))
-    circle_midpoint = height // 2
-    circle(output, color=color, radius=(height / 2), center=(circle_midpoint, circle_midpoint))
-    circle(output, color=color, radius=(height / 2), center=(width_visible + circle_midpoint, circle_midpoint))
-    rect(output, color=color, rect=Rect(circle_midpoint, 0, width_visible, height))
-    return output
+COLOR_ENCODE_MAP : Dict[str, str] = {}
+for k, v in BLEND_MAP.items():
+    if v not in COLOR_ENCODE_MAP:
+        COLOR_ENCODE_MAP[v] = k
+
+def createSquircle(width_visible : int, height : int, color : Tuple[int,int,int], outline_px : int = 2, outline_color : Tuple[int,int,int] = (0,0,0)) -> Surface:
+    
+    def squircle_main(width_visible : int, height : int, color : Tuple[int,int,int]) -> Surface:
+
+        def draw_aa_circle(dest : Surface, radius : int, center_x : int, center_y : int):
+            # TODO - With even radiuses, the center isn't on the grid so this breaks
+            # The fix below isn't amazing but it improves the result
+            if radius % 2 == 0:
+                aacircle(dest,      center_x, center_y - 1, radius - 1, color)
+                filled_circle(dest, center_x, center_y - 1, radius - 1, color)
+                aacircle(dest,      center_x, center_y,     radius - 1, color)
+                filled_circle(dest, center_x, center_y,     radius - 1, color)
+            else:
+                aacircle(dest, center_x, center_y, radius, color)
+                filled_circle(dest, center_x, center_y, radius, color)
+
+        output : Surface = Surface((width_visible + height, height)).convert_alpha()
+        output.fill((255,255,255,0))
+        circle_midpoint = (height // 2)
+        radius = circle_midpoint
+        draw_aa_circle(output, radius, circle_midpoint, circle_midpoint)
+        draw_aa_circle(output, radius, circle_midpoint + width_visible, circle_midpoint)
+        rect(output, color=color, rect=Rect(circle_midpoint, 0, width_visible, height))
+        return output
+
+    outline_px = min(height // 2, outline_px)
+    outline_px = max(outline_px, 0)
+
+    if outline_px == 0:
+        return squircle_main(width_visible, height, color)
+    
+    outline_backing = squircle_main(width_visible, height, outline_color)
+
+    height -= (2 * outline_px)
+    main_backing = squircle_main(width_visible, height, color)
+    outline_backing.blit(main_backing, (outline_px,outline_px))
+    return outline_backing
 
 def convertPygameToBitmap(surface : Surface, hasTransparency : bool = False) -> Bitmap:
     if hasTransparency:
@@ -28,11 +65,12 @@ def convertPygameToBitmap(surface : Surface, hasTransparency : bool = False) -> 
     return bitmap
 
 def createTagFromText(surface : Surface, fontHeight : int = 9, paddingXSym : int = 4, squircleHeight : int = 16, color : Tuple[int,int,int] = (255,0,0)) -> Image:
-    font_true_height = fontHeight * 2
+    # TODO - Figure out line spacing - this really isn't obvious enough...
+    line_height = 19
     
-    squircle_height : int = min(squircleHeight, font_true_height)
-    paddingY = (font_true_height - squircle_height) + 1 # TODO - Validate this...
-    
+    squircle_height : int = min(squircleHeight, fontHeight * 2)
+    paddingY = (line_height - squircle_height) // 2
+
     squircle = createSquircle(surface.get_width(), squircle_height, color)
 
     # Credit : https://en.wikipedia.org/wiki/Relative_luminance
@@ -49,6 +87,9 @@ def createTagFromText(surface : Surface, fontHeight : int = 9, paddingXSym : int
     return convertPygameToBitmap(padded, True).ConvertToImage()
 
 class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
+
+    LOG_MODULE_NAME = "TalkScriptEditorRich"
+
     def __init__(self, parent : Optional[Window], state : Layton2GameState, stringTalkscript : str = "", characters : List[str] = []):
         super().__init__(parent)
         self.__fontPointSize : int = self.rich_ts.GetBasicStyle().GetFont().GetPointSize()
@@ -82,16 +123,60 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         self.Layout()
         self.__formRichTextFromSegments()
 
+    def __remapStoredCommands(self):
+
+        newImages : List[RichTextImage] = []
+        remapBuffer : Dict[RichTextImage, Command] = {}
+
+        buffer : RichTextBuffer = self.rich_ts.GetBuffer()
+        objects : List[RichTextObject] = buffer.GetChildren()
+        for paragraph in objects:
+            if type(paragraph) != RichTextParagraph:
+                logSevere("Misformatted RichTextCtrl item", paragraph, name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
+                continue
+
+            paragraph : RichTextParagraph
+            # Under what we have so far, hopefully it should just be RichTextPlainText and RichTextImage...
+            for item in paragraph.GetChildren():
+                if type(item) == RichTextImage:
+                    newImages.append(item)
+
+        if len(newImages) == len(self.__mapImageToAttributes):
+            for image, key in zip(newImages, self.__mapImageToAttributes):
+                if image.GetRange() == key.GetRange():
+                    remapBuffer[image] = self.__mapImageToAttributes[key]
+                else:
+                    logSevere("Tracking for element", image, "has been lost. This dialog must be reopened.", name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
+        else:
+            logSevere("Image tracking has been corrupted. This dialog must be reopened.", name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
+        
+        self.__mapImageToAttributes = remapBuffer
+
+    def __applyColorToSelectedText(self, color : Tuple[int,int,int]):
+        if self.rich_ts.HasSelection():
+            attr = RichTextAttr()
+            attr.SetFlags(TEXT_ATTR_TEXT_COLOUR)
+            attr.SetTextColour(Colour(color[0], color[1], color[2]))   
+            selection = self.rich_ts.GetSelection()
+            for sel_range in selection.GetRanges():
+                sel_range : RichTextRange
+                self.rich_ts.SetStyle(sel_range, attr)
+            self.__remapStoredCommands()
+
     def btnColorBlackOnButtonClick(self, event):
+        self.__applyColorToSelectedText(BLEND_MAP["x"])
         return super().btnColorBlackOnButtonClick(event)
     
     def btnColorRedOnButtonClick(self, event):
+        self.__applyColorToSelectedText(BLEND_MAP["r"])
         return super().btnColorRedOnButtonClick(event)
     
     def btnColorWhiteOnButtonClick(self, event):
+        self.__applyColorToSelectedText(BLEND_MAP["w"])
         return super().btnColorWhiteOnButtonClick(event)
     
     def btnColorGreenOnButtonClick(self, event):
+        self.__applyColorToSelectedText(BLEND_MAP["g"])
         return super().btnColorGreenOnButtonClick(event)
 
     def __insertItemAndStoreReference(self, image : Image, command : Command) -> Optional[RichTextImage]:
@@ -168,7 +253,7 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
             for idx_line, line in enumerate(segment.lines):
                 for token in line:
                     if type(token) == str:
-                        self.rich_ts.AppendText(token)
+                        self.rich_ts.WriteText(token)
                     elif type(token) == CommandSwitchAnimation:
                         self.__insertItemAndStoreReference(self.__imageCommandAnimTrigger, token)
                     elif type(token) == CommandSetPitch:
@@ -182,7 +267,7 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
                     elif type(token) == CommandSwitchColor:
                         if token.isValid():
                             self.rich_ts.EndTextColour()
-                            self.rich_ts.BeginTextColour(BLEND_MAP[token.code])
+                            self.rich_ts.BeginTextColour(Colour(BLEND_MAP[token.code][0], BLEND_MAP[token.code][1], BLEND_MAP[token.code][2]))
 
                 # TODO - We need to fix this, not every single new line will need a space!
                 if idx_line != len(segment.lines) - 1:
@@ -192,8 +277,7 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
                 self.rich_ts.Newline()
             
             for command in segment.commandsAfterFinish:
-                # TODO - Logging!
-                print("Bad - command found in segment after section:", command)
+                logSevere("Command untracked in finishing queue:", command, name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
         
         self.__setupButtons()
 
@@ -218,14 +302,12 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
             location_para_start = self.rich_ts.GetInsertionPoint()
             self.rich_ts.MoveToParagraphEnd()
             location_para_end = self.rich_ts.GetInsertionPoint()
-            #print("Start %d, Current %d, End %d" % (location_current, location_para_start, location_para_end))
             for image in self.__mapImageToAttributes.keys():
                 if type(self.__mapImageToAttributes[image]) == CommandLineBreak:
                     internalRange : RichTextRange = image.GetRange().FromInternal()
                     if internalRange.Start >= location_para_start and internalRange.End <= location_para_end:
                         self.rich_ts.Replace(internalRange.Start, internalRange.End, " ")
                         keysToDelete.append(image)
-                    #print("\tLocation", image.GetRange().FromInternal())
             
             self.rich_ts.SetCaretPosition(location_current)
         else:
@@ -242,6 +324,7 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         return super().btnCullLineBreaksOnButtonClick(event)
 
     def btnWrapToBreaksOnButtonClick(self, event):
+        print(self.__toEncoded())
         self.__doWrapping()
         return super().btnWrapToBreaksOnButtonClick(event)
 
@@ -260,6 +343,7 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         outputSegments : List[Segment] = []
 
         for segment in segments:
+            print("Wrapping", segment)
             outputSegments.append(Segment([]))
             outputSegments[-1].commandsAfterFinish = segment.commandsAfterFinish
 
@@ -328,49 +412,58 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
 
     def __toEncoded(self) -> str:
 
-        def removeBadCharacters(token : str) -> str:
-            output : str = ""
-            for char in token:
-                if char in ENCODE_MAP:
-                    output += ENCODE_MAP[char]
+        def removeBadCharacter(char : str) -> str:
+            if char in ENCODE_MAP:
+                return "<" + ENCODE_MAP[char] + ">"
 
-                # Don't allow any unfiltered commands to escape.
-                elif char in ["#", "&"]:
-                    continue
-                elif char == "<":
-                    output += "‹"
-                elif char == ">":
-                    output += "›"
-                
-                else:
-                    output += char
-            return output
+            # Don't allow any unfiltered commands to escape.
+            elif char in ["#", "&"]:
+                return ""
+            elif char == "<":
+                return "<‹>"
+            elif char == ">":
+                return "<›>"
+            
+            return char
 
         # WHY IS THE API SO BAD?
         output = ""
         buffer : RichTextBuffer = self.rich_ts.GetBuffer()
-        objects = buffer.GetChildren()
+        objects : List[RichTextObject] = buffer.GetChildren()
+        lastColorRgba : Tuple[int,int,int,int] = (0,0,0,255)
         for paragraph in objects:
             if type(paragraph) != RichTextParagraph:
-                print("Unknown RichTextCtrl item :", paragraph)
+                logSevere("Misformatted RichTextCtrl item", paragraph, name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
                 continue
 
             paragraph : RichTextParagraph
             # Under what we have so far, hopefully it should just be RichTextPlainText and RichTextImage...
             for item in paragraph.GetChildren():
                 if type(item) != RichTextImage and type(item) != RichTextPlainText:
-                    print("Unknown RichTextCtrl paragraph item :", item)
+                    logSevere("Misformatted RichTextParagraph item", item, name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
                     continue
                     
                 if type(item) == RichTextPlainText:
                     item : RichTextPlainText
-                    output += removeBadCharacters(item.GetText())
+                    rangeParagraph : RichTextRange = item.GetRange().FromInternal()
+
+                    for char_code, start in zip(item.GetText(), range(rangeParagraph.Start, rangeParagraph.End)):
+                        attr = RichTextAttr()
+                        self.rich_ts.GetStyle(start, attr)
+                        if attr.TextColour != lastColorRgba:
+                            lastColorRgba = (attr.TextColour[0], attr.TextColour[1], attr.TextColour[2], attr.TextColour[3])
+                            colorRgb = (lastColorRgba[0], lastColorRgba[1], lastColorRgba[2])
+                            if colorRgb in COLOR_ENCODE_MAP:
+                                output += "#" + COLOR_ENCODE_MAP[colorRgb]
+                            else:
+                                logSevere("Unencodable color detected", colorRgb, "will be removed on output.", name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
+                        output += removeBadCharacter(char_code)
                 else:
                     item : RichTextImage
                     if item in self.__mapImageToAttributes:
                         output += self.__mapImageToAttributes[item].getEncoded()
                     else:
-                        print("Missing", item)
+                        logSevere("Untracked image", item, "may be destroyed during editing.", name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
             
             # At the end of every paragraph, pause and clear
             output += "@p@c"
@@ -379,11 +472,22 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         if len(output) >= 4:
             output = output[:-4]
 
+        print("Encoded: ", output)
         return output
 
     def GetValue(self) -> str:
         return self.__toEncoded()
 
-    def btnColorBlackOnButtonClick(self, event):
-        self.__toEncoded()
-        return super().btnColorBlackOnButtonClick(event)
+    def __doOnTagPressed(self, tag : RichTextImage):
+        if tag not in self.__mapImageToAttributes:
+            return
+        print("Pressed", self.__mapImageToAttributes[tag]) 
+
+    def rich_tsOnLeftDown(self, event):
+        hit_test, hit_char_idx = self.rich_ts.HitTest(event.GetPosition())
+        if hit_test == 0:
+            for image in self.__mapImageToAttributes:
+                if image.GetRange()[0] == hit_char_idx:
+                    self.__doOnTagPressed(image)
+                    break
+        return super().rich_tsOnLeftDown(event)

@@ -2,6 +2,8 @@ from re import search
 from typing import Dict, List, Union
 from widebrim.engine.anim.font.const import BLEND_MAP
 from widebrim.engine.string.const import DECODE_MAP
+from widebrim.engine.string.substituter import getSubstitutedString
+from widebrim.madhatter.common import logSevere
 
 # TODO - Switch to either fully scan-based or regex solution
 
@@ -226,6 +228,28 @@ def convertTalkStringToSegments(talkString : str) -> List[Segment]:
                 sections.append(segment)
             return sections
 
+        def extractColorChangeTokens(segment : str) -> List[Union[str, CommandSwitchColor]]:
+            sections = []
+            if segment == "":
+                return [segment]
+
+            matchString = "#(\S)"
+
+            # TODO - A while loop isn't needed
+            while (result := search(matchString, segment)) != None:
+                
+                start, end = result.span()
+                prefix = segment[:start]
+                if prefix != "":
+                    sections.append(prefix)
+                
+                sections.append(CommandSwitchColor(result.group(1)))
+                segment = segment[end:]
+                
+            if segment != "":
+                sections.append(segment)
+            return sections
+
         output = [line]
         hasChanged = True
         x = 0
@@ -240,7 +264,7 @@ def convertTalkStringToSegments(talkString : str) -> List[Segment]:
             if type(phrase) != str:
                 output.insert(x, phrase)
             else:
-                extractors = [extractPauseTokens, extractClearTokens, extractLineBreakTokens, extractSetAniTokens, extractSwitchPitchTokens]
+                extractors = [extractPauseTokens, extractClearTokens, extractLineBreakTokens, extractSetAniTokens, extractSwitchPitchTokens, extractColorChangeTokens]
                 for extractor in extractors:
                     
                     replacement = extractor(phrase)
@@ -308,7 +332,14 @@ def convertTalkStringToSegments(talkString : str) -> List[Segment]:
 
         return segments
 
-    segments = extractTokensFromLine(talkString)
+    try:
+        substring : str = getSubstitutedString(talkString)
+    except:
+        # Error occured, should be able to recover segments but unideal
+        logSevere("Error decoding TalkScript likely due to misformatted codes.", name="TalkStringDec")
+        substring : str = talkString
+
+    segments = extractTokensFromLine(getSubstitutedString(talkString))
     segments = applySubstitutionsToSection(segments)
     segments = generateSections(segments)
     return segments
