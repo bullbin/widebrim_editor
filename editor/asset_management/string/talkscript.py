@@ -84,7 +84,7 @@ class Segment():
     def __init__(self, lines : List[Union[str, Command]], hasSplit : bool = False):
         # TODO - Scope once used a bit
         self.commandsAfterFinish : List[Command]        = []
-        self.lines : List[List[Union[str, Command]]]    = [[]]
+        self.lines : List[List[Union[str, Command]]]    = []
 
         linesEncoded = lines
         if hasSplit:
@@ -99,6 +99,9 @@ class Segment():
                 if type(self.commandsAfterFinish[idxCommand]) == CommandLineBreak:
                     self.commandsAfterFinish.pop(idxCommand)
         
+        if len(linesEncoded) > 0:
+            self.lines = [[]]
+
         for item in linesEncoded:
             if type(item) == CommandLineBreak:
                 self.lines.append([])

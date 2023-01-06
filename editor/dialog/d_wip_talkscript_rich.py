@@ -2,7 +2,7 @@ from editor.nopush_editor import EditTalkscriptRich
 from widebrim.engine.state.manager import Layton2GameState
 from widebrim.engine.anim.font.const import BLEND_MAP
 from widebrim.engine.anim.font.static import generateImageFromString
-from typing import Optional, List, Dict, Tuple
+from typing import Optional, List, Dict, Tuple, Union
 from widebrim.madhatter.common import logSevere
 
 from wx import Window, Image, Bitmap, TEXT_ATTR_TEXT_COLOUR, Colour
@@ -221,14 +221,21 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
                 if type(command) == CommandPause or type(command) == CommandClear:
                     continue
                 append_command[idx_segment + 1].append(command)
-            
+
             for idx_line, line in enumerate(segment.lines):
+
                 for token in line:
-                    processed_segment.lines[0].append(token)
+                    if len(processed_segment.lines) == 0:
+                        processed_segment.lines = [[token]]
+                    else:
+                        processed_segment.lines[0].append(token)
                 
                 if idx_line < len(segment.lines) - 1:
-                    processed_segment.lines[0].append(CommandLineBreak()) # Collapse everything to a single line, but preserve line breaks in case
-                                                                        #     we care about the formatting.
+                    if len(processed_segment.lines) == 0:
+                        processed_segment.lines = [CommandLineBreak()]
+                    else:
+                        processed_segment.lines[0].append(CommandLineBreak()) # Collapse everything to a single line, but preserve line breaks in case
+                                                                            #     we care about the formatting.
             
             output.append(processed_segment)
 
@@ -238,6 +245,8 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
 
         for list_command, segment in zip(append_command[:len(output)], output):
             for command in list_command:    # TODO - Think I need to reverse this...
+                if len(segment.lines) == 0:
+                    segment.lines.append([])
                 segment.lines[0].insert(0, command)
 
         # Now everything is a single line and we have no commands to run after finishing each segment.
@@ -324,7 +333,6 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         return super().btnCullLineBreaksOnButtonClick(event)
 
     def btnWrapToBreaksOnButtonClick(self, event):
-        print(self.__toEncoded())
         self.__doWrapping()
         return super().btnWrapToBreaksOnButtonClick(event)
 
@@ -337,78 +345,87 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
 
         MAX_LINE_WIDTH = 240
 
-        segments = convertTalkStringToSegments(self.__toEncoded())
+        def doesTextGoBeyondBound(text : str) -> bool:
+            testSurface : Surface = generateImageFromString(self._state.fontEvent, text)
+            return testSurface.get_width() > MAX_LINE_WIDTH
+        
+        def doesLineContainStrings(line : List[Union[Command, str]]) -> bool:
+            for token in line:
+                if type(token) == str:
+                    return True
+            return False
 
-        lineText : str = ""
-        outputSegments : List[Segment] = []
+        segments = convertTalkStringToSegments(self.__toEncoded())
+        tokenizedSegments : List[Segment] = []
 
         for segment in segments:
-            print("Wrapping", segment)
-            outputSegments.append(Segment([]))
-            outputSegments[-1].commandsAfterFinish = segment.commandsAfterFinish
+            tokenizedSegments.append(Segment([]))
+            tokenizedSegments[-1].commandsAfterFinish = segment.commandsAfterFinish
+            
+            for tokenLine in segment.lines:
+                tokenizedSegments[-1].lines.append([])
 
-            for line in segment.lines:
-                lineText = ""
+                wordAndToken : List[Union[Command, str]] = []
+                
+                for token in tokenLine:
+                    if type(token) == str:
+                        # Tokenize into words, remove excess spaces for easier handling later
+                        words = token.split(" ")
+                        for word in words:
+                            if word != "":
+                                wordAndToken.append(word)
+                    else:
+                        wordAndToken.append(token)
 
-                # TODO - May not consider other languages!
+                currentLine : str = ""
+                for token in wordAndToken:
+                    if type(token) == str:
+                        nextLine : str = currentLine + token + " "
+                        nextLineStripped = nextLine.strip()
+
+                        # Adding this word to the wrapping line has caused it to go to next line
+                        if doesTextGoBeyondBound(nextLineStripped):
+                            # If the last line doesn't contain text, continue it with out token
+                            if not(doesLineContainStrings(tokenizedSegments[-1].lines[-1])):
+                                tokenizedSegments[-1].lines[-1].append(token)
+                            else:
+                                # If there is text on the line, it is a 'true' new line so must be created
+                                tokenizedSegments[-1].lines.append([token])
+                            currentLine = token
+                        else:
+                            # This token is okay to add to the current line
+                            currentLine = nextLine
+                            tokenizedSegments[-1].lines[-1].append(token)
+                    else:
+                        # If its a token, we just add it to the line
+                        tokenizedSegments[-1].lines[-1].append(token)
+
+        for segment in tokenizedSegments:
+            for idx_line, line in enumerate(segment.lines):
+                # We will now recover the spacing
+                newLine = []
+                idxLastString : Optional[int] = None
                 for token in line:
                     if type(token) == str:
-                        newToken : Optional[str] = ""
-
-                        for word in token.split(" "):
-                            if len(lineText) == 0:
-                                testLine : str = word
+                        if len(newLine) > 0:
+                            if type(newLine[-1]) == str:
+                                newLine[-1] = newLine[-1] + token + " "
                             else:
-                                testLine : str = lineText + " " + word
-
-                            testSurface : Surface = generateImageFromString(self._state.fontEvent, testLine)
-                            if testSurface.get_width() > MAX_LINE_WIDTH:
-                                # Token cannot be added to this line, break here
-                                if testLine == word:
-                                    # If the word itself doesn't fit on the line
-                                    newToken = word
-                                
-                                hasCurrentLineGotText = False
-                                for token in outputSegments[-1].lines[-1]:
-                                    if type(token) == str:
-                                        hasCurrentLineGotText = True
-                                        break
-                                
-                                if hasCurrentLineGotText:
-                                    outputSegments[-1].lines.append([newToken])
-                                else:
-                                    outputSegments[-1].lines[-1].append(newToken)
-
-                                if testLine == word:
-                                    newToken = ""
-                                    lineText = ""
-                                else:
-                                    newToken = word
-                                    lineText = word
-                            else:
-                                # Continue line (token)
-                                if len(newToken) == 0:
-                                    newToken = word
-                                else:
-                                    newToken += " " + word
-
-                                lineText = testLine
-                        
-                        if newToken != "":
-                            hasCurrentLineGotText = False
-                            for token in outputSegments[-1].lines[-1]:
-                                if type(token) == str:
-                                    hasCurrentLineGotText = True
-                                    break
-                            
-                            if hasCurrentLineGotText:
-                                outputSegments[-1].lines.append([newToken])
-                            else:
-                                outputSegments[-1].lines[-1].append(newToken)
+                                newLine.append(token + " ")
+                                idxLastString = len(newLine) - 1
+                        else:
+                            newLine.append(token + " ")
+                            idxLastString = len(newLine) - 1
                     else:
-                        outputSegments[-1].lines[-1].append(token)
+                        newLine.append(token)
 
-        return outputSegments
+                if idxLastString != None:
+                    # Remove last space
+                    newLine[idxLastString] = newLine[idxLastString][:-1]
+
+                segment.lines[idx_line] = newLine
+
+        return tokenizedSegments
 
     def __toEncoded(self) -> str:
 
@@ -472,7 +489,6 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         if len(output) >= 4:
             output = output[:-4]
 
-        print("Encoded: ", output)
         return output
 
     def GetValue(self) -> str:
