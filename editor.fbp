@@ -7318,6 +7318,7 @@
                                 <property name="window_style">wxVSCROLL|wxHSCROLL|wxNO_BORDER|wxWANTS_CHARS</property>
                                 <event name="OnLeftDown">rich_tsOnLeftDown</event>
                                 <event name="OnRichTextCharacter">rich_tsOnRichTextCharacter</event>
+                                <event name="OnRichTextDelete">rich_tsOnRichTextDelete</event>
                             </object>
                         </object>
                     </object>

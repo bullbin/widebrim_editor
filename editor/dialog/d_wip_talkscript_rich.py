@@ -3,7 +3,7 @@ from widebrim.engine.state.manager import Layton2GameState
 from widebrim.engine.anim.font.const import BLEND_MAP
 from widebrim.engine.anim.font.static import generateImageFromString
 from typing import Optional, List, Dict, Tuple, Union
-from widebrim.madhatter.common import logSevere
+from widebrim.madhatter.common import logSevere, logVerbose
 
 from wx import Window, Image, Bitmap, TEXT_ATTR_TEXT_COLOUR, Colour
 from wx.richtext import RichTextImage, RichTextBuffer, RichTextParagraph, RichTextObject, RichTextRange, RichTextPlainText, RichTextAttr
@@ -117,21 +117,23 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         self.btnColorRed.SetBitmap(self.__bitmapBtnRed)
         self.btnColorGreen.SetBitmap(self.__bitmapBtnGreen)
 
-        self.__mapImageToAttributes : Dict[RichTextImage, Command] = {}
+        self.__attributeImages  : List[RichTextImage]   = []
+        self.__attributeList    : List[Command]         = []
+
         self.btnCullLineBreaks.Disable()
 
         self.Layout()
         self.__formRichTextFromSegments()
 
-    def __remapStoredCommands(self):
-
+    def __getAllImages(self) -> List[RichTextImage]:
         newImages : List[RichTextImage] = []
-        remapBuffer : Dict[RichTextImage, Command] = {}
-
         buffer : RichTextBuffer = self.rich_ts.GetBuffer()
         objects : List[RichTextObject] = buffer.GetChildren()
         for paragraph in objects:
-            if type(paragraph) != RichTextParagraph:
+            if type(paragraph) == RichTextImage:
+                newImages.append(paragraph)
+                continue
+            elif type(paragraph) != RichTextParagraph:
                 logSevere("Misformatted RichTextCtrl item", paragraph, name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
                 continue
 
@@ -140,27 +142,47 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
             for item in paragraph.GetChildren():
                 if type(item) == RichTextImage:
                     newImages.append(item)
+        return newImages
 
-        if len(newImages) == len(self.__mapImageToAttributes):
-            for image, key in zip(newImages, self.__mapImageToAttributes):
-                if image.GetRange() == key.GetRange():
-                    remapBuffer[image] = self.__mapImageToAttributes[key]
-                else:
-                    logSevere("Tracking for element", image, "has been lost. This dialog must be reopened.", name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
+    def __remapStoredCommands(self):
+
+        newImages : List[RichTextImage] = self.__getAllImages()
+
+        if len(newImages) == len(self.__attributeImages):
+            # This might be dangerous, but it works better...
+            self.__attributeImages = newImages
         else:
             logSevere("Image tracking has been corrupted. This dialog must be reopened.", name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
+            for image in newImages:
+                logSevere(image, image.GetRange(), name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
         
-        self.__mapImageToAttributes = remapBuffer
-
     def __applyColorToSelectedText(self, color : Tuple[int,int,int]):
+
+        def getImageLocations(images : List[RichTextImage]) -> List[int]:
+            output = []
+            for image in images:
+                output.append(image.GetRange()[0])
+            output.sort()
+            return output
+
         if self.rich_ts.HasSelection():
             attr = RichTextAttr()
             attr.SetFlags(TEXT_ATTR_TEXT_COLOUR)
             attr.SetTextColour(Colour(color[0], color[1], color[2]))   
             selection = self.rich_ts.GetSelection()
+
+            imagesSorted = getImageLocations(self.__getAllImages())
             for sel_range in selection.GetRanges():
                 sel_range : RichTextRange
                 self.rich_ts.SetStyle(sel_range, attr)
+            
+            # There seems to be a VERY annoying bug in wx where changing the style of an image makes it disappear from the buffer
+            # The solution is to call the code again... it will appear eventually...
+            while getImageLocations(self.__getAllImages()) != imagesSorted:
+                logSevere("API RichTextImage leak detected, trying again...", name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
+                for sel_range in selection.GetRanges():
+                    sel_range : RichTextRange
+                    self.rich_ts.SetStyle(sel_range, attr)
             self.__remapStoredCommands()
 
     def btnColorBlackOnButtonClick(self, event):
@@ -187,17 +209,32 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         for child in buffer.GetChildren():
             image_pointer = child.FindObjectAtPosition(insertion_point)
             if image_pointer != None:
-                self.__mapImageToAttributes[image_pointer] = command
+                if len(self.__attributeImages) == 0:
+                    self.__attributeImages.append(image_pointer)
+                    self.__attributeList.append(command)
+                else:
+                    has_inserted = False
+                    for idx in range(1, len(self.__attributeImages)):
+                        if self.__attributeImages[idx].GetRange()[0] > image_pointer.GetRange()[0]:
+                            self.__attributeImages.insert(idx, image_pointer)
+                            self.__attributeList.insert(idx, command)
+                            has_inserted = True
+                            break
+                    if not(has_inserted):
+                        self.__attributeImages.append(image_pointer)
+                        self.__attributeList.append(command)
                 break
         
         return image_pointer
 
     def __doesRichTextStillExistInTree(self, node : RichTextImage) -> bool:
-        # TODO - On user modification, check to see if our items are still valid!
         for child in self.rich_ts.GetBuffer().GetChildren():
-            for another in child.GetChildren():
-                if another == node:
-                    return True
+            if child == node:
+                return True
+            else:
+                for another in child.GetChildren():
+                    if another == node:
+                        return True
         return False
 
     def __preprocessSegments(self, segments_raw : List[Segment]) -> List[Segment]:
@@ -255,7 +292,8 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
     def __formRichTextFromSegments(self):
         # Remove line wrapping, rely on autowrap to form segments!
         self.rich_ts.Clear()
-        self.__mapImageToAttributes = {}
+        self.__attributeImages = []
+        self.__attributeList = []
 
         self.rich_ts.BeginTextColour((0, 0, 0))
         for idx_segment, segment in enumerate(self.__segments):
@@ -292,8 +330,8 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
 
     def __setupButtons(self):
         anyLineBreaks : bool = False
-        for key in self.__mapImageToAttributes:
-            if type(self.__mapImageToAttributes[key]) == CommandLineBreak:
+        for command in self.__attributeList:
+            if type(command) == CommandLineBreak:
                 anyLineBreaks = True
                 break
         
@@ -301,6 +339,23 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
             self.btnCullLineBreaks.Enable()
         else:
             self.btnCullLineBreaks.Disable()
+
+    def __deleteTrackedImages(self, images : List[RichTextImage]) -> bool:
+        idx_to_delete = []
+        failure = False
+        for image in images:
+            try:
+                idx_to_delete.append(self.__attributeImages.index(image))
+            except ValueError:
+                failure = True
+        
+        idx_to_delete.sort()
+        idx_to_delete.reverse()
+        for idx in idx_to_delete:
+            self.__attributeImages.pop(idx)
+            self.__attributeList.pop(idx)
+        
+        return not(failure)
 
     def btnCullLineBreaksOnButtonClick(self, event):
         keysToDelete = []
@@ -311,8 +366,8 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
             location_para_start = self.rich_ts.GetInsertionPoint()
             self.rich_ts.MoveToParagraphEnd()
             location_para_end = self.rich_ts.GetInsertionPoint()
-            for image in self.__mapImageToAttributes.keys():
-                if type(self.__mapImageToAttributes[image]) == CommandLineBreak:
+            for image, command in zip(self.__attributeImages, self.__attributeList):
+                if type(command) == CommandLineBreak:
                     internalRange : RichTextRange = image.GetRange().FromInternal()
                     if internalRange.Start >= location_para_start and internalRange.End <= location_para_end:
                         self.rich_ts.Replace(internalRange.Start, internalRange.End, " ")
@@ -320,19 +375,18 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
             
             self.rich_ts.SetCaretPosition(location_current)
         else:
-            for image in self.__mapImageToAttributes.keys():
-                if type(self.__mapImageToAttributes[image]) == CommandLineBreak:
+            for image, command in zip(self.__attributeImages, self.__attributeList):
+                if type(command) == CommandLineBreak:
                     # TODO - Space replacement isn't foolproof, probably will lead to some duplications in future...
                     self.rich_ts.Replace(image.GetRange().FromInternal().Start, image.GetRange().FromInternal().End, " ")
                     keysToDelete.append(image)
         
-        for key in keysToDelete:
-            del self.__mapImageToAttributes[key]
-        
+        self.__deleteTrackedImages(keysToDelete)
         self.__setupButtons()
         return super().btnCullLineBreaksOnButtonClick(event)
 
     def btnWrapToBreaksOnButtonClick(self, event):
+        # TODO - Wrap only section
         self.__doWrapping()
         return super().btnWrapToBreaksOnButtonClick(event)
 
@@ -355,6 +409,18 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
                     return True
             return False
 
+        def doesTokenNeedSpace(remainingLine : List[Union[Command, str]]) -> bool:
+            # TODO - Cover case    "this" -> [ColorChange, "that"]
+            #        Works with cases like "th" -> [ColorChange, "is"]
+            encounteredNoneBreaking : bool = False
+            
+            for token in remainingLine:
+                if type(token) == str:
+                    return not(encounteredNoneBreaking)
+                else:
+                    encounteredNoneBreaking = True
+            return False
+
         segments = convertTalkStringToSegments(self.__toEncoded())
         tokenizedSegments : List[Segment] = []
 
@@ -372,13 +438,13 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
                         # Tokenize into words, remove excess spaces for easier handling later
                         words = token.split(" ")
                         for word in words:
-                            if word != "":
-                                wordAndToken.append(word)
+                            wordAndToken.append(word)
                     else:
                         wordAndToken.append(token)
 
                 currentLine : str = ""
                 for token in wordAndToken:
+                    # TODO - There are still some bugs with this, namely color changes in the middle of symbols
                     if type(token) == str:
                         nextLine : str = currentLine + token + " "
                         nextLineStripped = nextLine.strip()
@@ -389,10 +455,15 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
                             if not(doesLineContainStrings(tokenizedSegments[-1].lines[-1])):
                                 tokenizedSegments[-1].lines[-1].append(token)
                             else:
-                                # If there is text on the line, it is a 'true' new line so must be created
-                                tokenizedSegments[-1].lines.append([token])
+                                if token != "":
+                                    # If there is text on the line, it is a 'true' new line so must be created
+                                    tokenizedSegments[-1].lines.append([token])
                             currentLine = token
                         else:
+                            if token == "":
+                                if not(doesLineContainStrings(tokenizedSegments[-1].lines[-1])):
+                                    continue
+
                             # This token is okay to add to the current line
                             currentLine = nextLine
                             tokenizedSegments[-1].lines[-1].append(token)
@@ -404,31 +475,23 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
             for idx_line, line in enumerate(segment.lines):
                 # We will now recover the spacing
                 newLine = []
-                idxLastString : Optional[int] = None
-                for token in line:
+                for idx_token, token in enumerate(line):
                     if type(token) == str:
-                        if len(newLine) > 0:
-                            if type(newLine[-1]) == str:
-                                newLine[-1] = newLine[-1] + token + " "
-                            else:
-                                newLine.append(token + " ")
-                                idxLastString = len(newLine) - 1
+                        if doesTokenNeedSpace(line[idx_token + 1:]):
+                            token = token + " "
+                        if len(newLine) > 0 and type(newLine[-1]) == str:
+                            # Continue strings that are one block
+                            newLine[-1] = newLine[-1] + token
                         else:
-                            newLine.append(token + " ")
-                            idxLastString = len(newLine) - 1
+                            newLine.append(token) 
                     else:
                         newLine.append(token)
-
-                if idxLastString != None:
-                    # Remove last space
-                    newLine[idxLastString] = newLine[idxLastString][:-1]
 
                 segment.lines[idx_line] = newLine
 
         return tokenizedSegments
 
     def __toEncoded(self) -> str:
-
         def removeBadCharacter(char : str) -> str:
             if char in ENCODE_MAP:
                 return "<" + ENCODE_MAP[char] + ">"
@@ -449,7 +512,13 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         objects : List[RichTextObject] = buffer.GetChildren()
         lastColorRgba : Tuple[int,int,int,int] = (0,0,0,255)
         for paragraph in objects:
-            if type(paragraph) != RichTextParagraph:
+            if type(paragraph) == RichTextImage:
+                if paragraph in self.__attributeImages:
+                    output += self.__attributeList[self.__attributeImages.index(paragraph)].getEncoded()
+                else:
+                    logSevere("Untracked image", paragraph, "may be destroyed during editing.", name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
+            
+            elif type(paragraph) != RichTextParagraph:
                 logSevere("Misformatted RichTextCtrl item", paragraph, name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
                 continue
 
@@ -467,7 +536,7 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
                     for char_code, start in zip(item.GetText(), range(rangeParagraph.Start, rangeParagraph.End)):
                         attr = RichTextAttr()
                         self.rich_ts.GetStyle(start, attr)
-                        if attr.TextColour != lastColorRgba:
+                        if attr.TextColour != lastColorRgba and char_code != " ":
                             lastColorRgba = (attr.TextColour[0], attr.TextColour[1], attr.TextColour[2], attr.TextColour[3])
                             colorRgb = (lastColorRgba[0], lastColorRgba[1], lastColorRgba[2])
                             if colorRgb in COLOR_ENCODE_MAP:
@@ -477,8 +546,8 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
                         output += removeBadCharacter(char_code)
                 else:
                     item : RichTextImage
-                    if item in self.__mapImageToAttributes:
-                        output += self.__mapImageToAttributes[item].getEncoded()
+                    if item in self.__attributeImages:
+                        output += self.__attributeList[self.__attributeImages.index(item)].getEncoded()
                     else:
                         logSevere("Untracked image", item, "may be destroyed during editing.", name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
             
@@ -494,16 +563,23 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
     def GetValue(self) -> str:
         return self.__toEncoded()
 
-    def __doOnTagPressed(self, tag : RichTextImage):
-        if tag not in self.__mapImageToAttributes:
-            return
-        print("Pressed", self.__mapImageToAttributes[tag]) 
+    def _doOnTagPressed(self, tag : RichTextImage):
+        logVerbose("Pressed", self.__attributeList[self.__attributeImages.index(tag)], name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME) 
+
+    def rich_tsOnRichTextDelete(self, event):
+        # When the user does anything that could disrupt our images, we need to deregister them too
+        keysToDelete = []
+        for key in self.__attributeImages:
+            if not(self.__doesRichTextStillExistInTree(key)):
+                keysToDelete.append(key)
+        self.__deleteTrackedImages(keysToDelete)
+        return super().rich_tsOnRichTextDelete(event)
 
     def rich_tsOnLeftDown(self, event):
         hit_test, hit_char_idx = self.rich_ts.HitTest(event.GetPosition())
         if hit_test == 0:
-            for image in self.__mapImageToAttributes:
+            for image in self.__attributeImages:
                 if image.GetRange()[0] == hit_char_idx:
-                    self.__doOnTagPressed(image)
+                    self._doOnTagPressed(image)
                     break
         return super().rich_tsOnLeftDown(event)
