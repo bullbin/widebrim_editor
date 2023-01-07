@@ -1,5 +1,5 @@
 from typing import Any, Dict, Optional
-from editor.gui.command_annotator.bank import OperandCompatibility, OperandType
+from editor.bank.command_annotator.bank import OperandCompatibility, OperandType
 
 _DEFAULT_VALUES : Dict[OperandType, Any] = {OperandType.StandardS32         : 0,
                                             OperandType.StandardString      : "",

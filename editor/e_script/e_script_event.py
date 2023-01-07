@@ -6,7 +6,7 @@ from editor.dialog.d_remapAnim import DialogRemapAnimation
 from editor.dialog.d_wip_talkscript import DialogTalkScriptTextEditor
 from editor.e_room.utils import getShortenedString
 from editor.e_script.virtual.custom_instructions.dialogue import DialogueInstructionDescription, DialogueInstructionGenerator
-from editor.gui.command_annotator.bank import Context, OperandType, ScriptVerificationBank
+from editor.bank.command_annotator.bank import Context, OperandType, ScriptVerificationBank
 from widebrim.engine.anim.image_anim.image import AnimatedImageObject
 from widebrim.engine.const import PATH_EVENT_SCRIPT, PATH_EVENT_SCRIPT_A, PATH_EVENT_SCRIPT_B, PATH_EVENT_SCRIPT_C, PATH_EVENT_TALK, PATH_EVENT_TALK_A, PATH_EVENT_TALK_B, PATH_EVENT_TALK_C, PATH_PACK_EVENT_SCR, RESOLUTION_NINTENDO_DS, PATH_PACK_EVENT_DAT
 from widebrim.engine.state.enum_mode import GAMEMODES

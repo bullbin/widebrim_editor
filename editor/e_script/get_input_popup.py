@@ -2,7 +2,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from editor.d_operandMultichoice import DialogMultipleChoice
 from editor.d_pickerBgx import DialogPickerBgx
 from editor.d_pickerEvent import DialogEvent
-from editor.gui.command_annotator.bank import OperandCompatibility, OperandType
+from editor.bank.command_annotator.bank import OperandCompatibility, OperandType
 from wx import TextEntryDialog, ID_OK, MessageDialog, ICON_WARNING, OK, CENTER
 
 def strCheckFunction() -> Callable[[str], Tuple[bool, Any]]:

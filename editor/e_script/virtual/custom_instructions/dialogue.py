@@ -2,7 +2,7 @@ from typing import Any, List, Optional, Union
 from editor.e_script.virtual.custom import VirtualInstructionGenerator
 from widebrim.madhatter.common import log, logSevere
 from .const import OFFSET_VIRTUAL_INSTRUCTION
-from editor.gui.command_annotator.bank import Context, InstructionDescription, OperandDescription, OperandType
+from editor.bank.command_annotator.bank import Context, InstructionDescription, OperandDescription, OperandType
 from widebrim.engine.const import PATH_PACK_TALK
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
 from widebrim.madhatter.hat_io.asset import LaytonPack

@@ -1,16 +1,20 @@
 from editor.nopush_editor import EditTalkscriptRich
+from editor.asset_management.character import CharacterEntry
 from widebrim.engine.state.manager import Layton2GameState
 from widebrim.engine.anim.font.const import BLEND_MAP
 from widebrim.engine.anim.font.static import generateImageFromString
 from typing import Optional, List, Dict, Tuple, Union
 from widebrim.madhatter.common import logSevere, logVerbose
+from widebrim.engine.anim.image_anim.image import AnimatedImageObject
 
 from wx import Window, Image, Bitmap, TEXT_ATTR_TEXT_COLOUR, Colour
 from wx.richtext import RichTextImage, RichTextBuffer, RichTextParagraph, RichTextObject, RichTextRange, RichTextPlainText, RichTextAttr
 from pygame import Surface, BLEND_SUB, BLEND_ADD, Rect
 from pygame.image import tostring
+from pygame.transform import scale as scaleSurface
 from pygame.draw import rect
 from pygame.gfxdraw import aacircle, filled_circle
+from math import floor
 
 from editor.asset_management.string.talkscript import ENCODE_MAP, convertTalkStringToSegments, Segment, Command, CommandClear, CommandPause, CommandLineBreak, CommandSetPitch, CommandSwitchAnimation, CommandSwitchColor
 
@@ -90,7 +94,45 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
 
     LOG_MODULE_NAME = "TalkScriptEditorRich"
 
-    def __init__(self, parent : Optional[Window], state : Layton2GameState, stringTalkscript : str = "", characters : List[str] = []):
+    def __init__(self, parent : Optional[Window], state : Layton2GameState, stringTalkscript : str = "", characters : List[Tuple[CharacterEntry, Optional[str], Optional[AnimatedImageObject]]] = []):
+
+        def loadButtonImages(sizeImage : Tuple[int,int] = (16,16)):
+            # Prepare images for our colors
+            tempBtnSurface = Surface(sizeImage)
+            bitmapBtnBlack = convertPygameToBitmap(tempBtnSurface)
+            tempBtnSurface.fill((255,0,0))
+            bitmapBtnRed = convertPygameToBitmap(tempBtnSurface)
+            tempBtnSurface.fill((0,255,0))
+            bitmapBtnGreen = convertPygameToBitmap(tempBtnSurface)
+            tempBtnSurface.fill((255,255,255))
+            bitmapBtnWhite = convertPygameToBitmap(tempBtnSurface)
+
+            self.btnColorBlack.SetBitmap(bitmapBtnBlack)
+            self.btnColorWhite.SetBitmap(bitmapBtnWhite)
+            self.btnColorRed.SetBitmap(bitmapBtnRed)
+            self.btnColorGreen.SetBitmap(bitmapBtnGreen)
+
+            # Prepare images for our icons
+            def getCharBitmap(char : str, size : Tuple[int,int] = sizeImage) -> Optional[Bitmap]:
+                surf : Surface = generateImageFromString(state.font18, char)
+                if surf.get_width() != size[0] and surf.get_height() != size[1]:
+                    scale : float = min(size[0] / surf.get_width(), size[1] / surf.get_height())
+                    newSize : Tuple[int,int] = (floor(surf.get_width() * scale), floor(surf.get_height() * scale))                
+                    scaled = scaleSurface(surf, newSize)
+
+                    # Finally, we need to pad to new size
+                    padded = Surface(size)
+                    offset = ((size[0] - newSize[0]) // 2, (size[1] - newSize[1]) // 2)
+                    padded.blit(scaled, offset)
+                    return convertPygameToBitmap(padded, False)
+                return convertPygameToBitmap(surf, False)
+
+            self.btnCmdAnim.SetBitmap(getCharBitmap("s"))
+            self.btnCmdClear.SetBitmap(getCharBitmap("c"))
+            self.btnCmdPause.SetBitmap(getCharBitmap("p"))
+            self.btnCmdPitch.SetBitmap(getCharBitmap("v"))
+            self.btnCmdLineBreak.SetBitmap(getCharBitmap("n"))
+
         super().__init__(parent)
         self.__fontPointSize : int = self.rich_ts.GetBasicStyle().GetFont().GetPointSize()
         self._state : Layton2GameState = state
@@ -103,26 +145,25 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         self.__imageCommandClear       = createTagFromText(generateImageFromString(state.fontEvent, "Clear Textbox"),       fontHeight = self.__fontPointSize, color=(255,0,0))
         self.__imageCommandPause       = createTagFromText(generateImageFromString(state.fontEvent, "Wait for Tap"),        fontHeight = self.__fontPointSize, color=(255,0,255) )
 
-        tempBtnSurface = Surface((16,16))
-        self.__bitmapBtnBlack = convertPygameToBitmap(tempBtnSurface)
-        tempBtnSurface.fill((255,0,0))
-        self.__bitmapBtnRed = convertPygameToBitmap(tempBtnSurface)
-        tempBtnSurface.fill((0,255,0))
-        self.__bitmapBtnGreen = convertPygameToBitmap(tempBtnSurface)
-        tempBtnSurface.fill((255,255,255))
-        self.__bitmapBtnWhite = convertPygameToBitmap(tempBtnSurface)
-
-        self.btnColorBlack.SetBitmap(self.__bitmapBtnBlack)
-        self.btnColorWhite.SetBitmap(self.__bitmapBtnWhite)
-        self.btnColorRed.SetBitmap(self.__bitmapBtnRed)
-        self.btnColorGreen.SetBitmap(self.__bitmapBtnGreen)
-
         self.__attributeImages  : List[RichTextImage]   = []
         self.__attributeList    : List[Command]         = []
 
+        # Disable weird XML handling bug and remove cull line break button (done programmatically)
+        self.rich_ts.DropTarget = None
         self.btnCullLineBreaks.Disable()
+        loadButtonImages()
 
+        # Cleanup the state from wxFormBuilder - hide and disable all collapsible elements, hide spacing line, add padding
+        self.paneStartingParameters.Hide()
+        self.panelSwitchAnimOptions.Disable()
+        self.panelSwitchPitchOptions.Disable()
+        self.panelSwitchAnimOptions.Hide()
+        self.panelSwitchPitchOptions.Hide()
+        self.staticlinePaneDivider.Hide()
+        self.paneCommandParameters.Hide()
+        self.panelSpacing.Show()
         self.Layout()
+
         self.__formRichTextFromSegments()
 
     def __getAllImages(self) -> List[RichTextImage]:
@@ -200,6 +241,31 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
     def btnColorGreenOnButtonClick(self, event):
         self.__applyColorToSelectedText(BLEND_MAP["g"])
         return super().btnColorGreenOnButtonClick(event)
+
+    def btnCmdAnimOnButtonClick(self, event):
+        newCommand = CommandSwitchAnimation("NONE", 0)
+        self.__insertItemAndStoreReference(self.__imageCommandAnimTrigger, newCommand)
+        return super().btnCmdAnimOnButtonClick(event)
+    
+    def btnCmdClearOnButtonClick(self, event):
+        newCommand = CommandClear()
+        self.__insertItemAndStoreReference(self.__imageCommandClear, newCommand)
+        return super().btnCmdClearOnButtonClick(event)
+    
+    def btnCmdPauseOnButtonClick(self, event):
+        newCommand = CommandPause()
+        self.__insertItemAndStoreReference(self.__imageCommandPause, newCommand)
+        return super().btnCmdPauseOnButtonClick(event)
+    
+    def btnCmdPitchOnButtonClick(self, event):
+        newCommand = CommandSetPitch(1)
+        self.__insertItemAndStoreReference(self.__imageCommandPitch, newCommand)
+        return super().btnCmdPitchOnButtonClick(event)
+
+    def btnCmdLineBreakOnButtonClick(self, event):
+        newCommand = CommandLineBreak()
+        self.__insertItemAndStoreReference(self.__imageCommandLineBreak, newCommand)
+        return super().btnCmdLineBreakOnButtonClick(event)
 
     def __insertItemAndStoreReference(self, image : Image, command : Command) -> Optional[RichTextImage]:
         insertion_point = self.rich_ts.GetInsertionPoint()
@@ -349,6 +415,12 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
             except ValueError:
                 failure = True
         
+        # Pass through to future control if we delete a tag so they can stop displaying it
+        commandsDeleted = []
+        for idx in idx_to_delete:
+            commandsDeleted.append(self.__attributeList[idx])
+        self._doOnTagDeleted(commandsDeleted)
+
         idx_to_delete.sort()
         idx_to_delete.reverse()
         for idx in idx_to_delete:
@@ -358,6 +430,9 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         return not(failure)
 
     def btnCullLineBreaksOnButtonClick(self, event):
+        # TODO - We don't need to deselect the active tag, but just in case, forceably lose focus
+        self._doOnTagFocusLost()
+
         keysToDelete = []
 
         if self.checkRestrictOperation.IsChecked():
@@ -386,6 +461,9 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         return super().btnCullLineBreaksOnButtonClick(event)
 
     def btnWrapToBreaksOnButtonClick(self, event):
+        # TODO - We don't need to deselect the active tag, but just in case, forceably lose focus
+        self._doOnTagFocusLost()
+
         # TODO - Wrap only section
         self.__doWrapping()
         return super().btnWrapToBreaksOnButtonClick(event)
@@ -561,10 +639,21 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         return output
 
     def GetValue(self) -> str:
+        """Returns the encoded TalkScript for this dialog.
+
+        Returns:
+            str: Encoded TalkScript.
+        """
         return self.__toEncoded()
 
-    def _doOnTagPressed(self, tag : RichTextImage):
-        logVerbose("Pressed", self.__attributeList[self.__attributeImages.index(tag)], name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME) 
+    def _doOnTagDeleted(self, commands : List[Command]):
+        logVerbose("Deleted", commands, name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
+
+    def _doOnTagPressed(self, command : Command):
+        logVerbose("Pressed", command, name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME) 
+
+    def _doOnTagFocusLost(self):
+        logVerbose("Tag was not pressed.", name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
 
     def rich_tsOnRichTextDelete(self, event):
         # When the user does anything that could disrupt our images, we need to deregister them too
@@ -577,9 +666,14 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
 
     def rich_tsOnLeftDown(self, event):
         hit_test, hit_char_idx = self.rich_ts.HitTest(event.GetPosition())
+        wasTagHit : bool = False
         if hit_test == 0:
             for image in self.__attributeImages:
                 if image.GetRange()[0] == hit_char_idx:
-                    self._doOnTagPressed(image)
+                    self._doOnTagPressed(self.__attributeList[self.__attributeImages.index(image)])
+                    wasTagHit = True
                     break
+        if not(wasTagHit):
+            self._doOnTagFocusLost()
+
         return super().rich_tsOnLeftDown(event)

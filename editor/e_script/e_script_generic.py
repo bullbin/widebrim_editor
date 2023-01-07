@@ -1,6 +1,6 @@
 from typing import Optional, Tuple
 from editor.e_script.get_input_popup import getDialogForType
-from editor.gui.command_annotator.default_value import getDefaultValue
+from editor.bank.command_annotator.default_value import getDefaultValue
 from widebrim.engine.state.manager import Layton2GameState
 
 from widebrim.madhatter.common import logSevere, logVerbose
@@ -9,7 +9,7 @@ from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
 from ..nopush_editor import editorScript
 
 from widebrim.madhatter.hat_io.asset_script import GdScript, Instruction, Operand
-from editor.gui.command_annotator.bank import Context, OperandCompatibility, OperandType, ScriptVerificationBank
+from editor.bank.command_annotator.bank import Context, OperandCompatibility, OperandType, ScriptVerificationBank
 from wx import TreeEvent, TreeItemId, SingleChoiceDialog, ID_OK, Window, Colour
 
 # TODO - Bugfix, scrollbar not resizing on minimize

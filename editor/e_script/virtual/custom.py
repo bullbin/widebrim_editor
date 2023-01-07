@@ -1,5 +1,5 @@
 from typing import List, Optional
-from editor.gui.command_annotator.bank import InstructionDescription
+from editor.bank.command_annotator.bank import InstructionDescription
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
 from widebrim.madhatter.hat_io.asset import LaytonPack
 from widebrim.madhatter.hat_io.asset_script import GdScript

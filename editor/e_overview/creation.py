@@ -9,7 +9,7 @@ from editor.e_puzzle import FramePuzzleEditor
 from editor.e_room import FramePlaceConditionalEditor
 from editor.e_script.e_script_event import FrameEventEditor
 from editor.e_script.e_script_generic_unpacked import FrameScriptEditorUnpackedEvent
-from editor.gui.command_annotator.bank import ScriptVerificationBank
+from editor.bank.command_annotator.bank import ScriptVerificationBank
 from editor.asset_management.room import PlaceGroup, getPlaceGroups
 from editor.treeUtils import isItemOnPathToItem
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer

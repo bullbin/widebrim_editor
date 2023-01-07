@@ -1,6 +1,6 @@
 from editor.e_script.e_script_generic import FrameScriptEditor
 from wx import Window
-from editor.gui.command_annotator.bank import ScriptVerificationBank
+from editor.bank.command_annotator.bank import ScriptVerificationBank
 
 from widebrim.engine.state.manager.state import Layton2GameState
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer

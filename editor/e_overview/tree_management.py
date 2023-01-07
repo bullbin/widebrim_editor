@@ -7,7 +7,7 @@ from editor.d_operandMultichoice import DialogMultipleChoice
 from editor.d_pickerEvent import DialogEvent
 from editor.d_pickerPuzzle import DialogSelectPuzzle
 from editor.e_script.get_input_popup import VerifiedDialog, rangeIntCheckFunction
-from editor.gui.command_annotator.bank import ScriptVerificationBank
+from editor.bank.command_annotator.bank import ScriptVerificationBank
 from widebrim.engine.state.manager.state import Layton2GameState
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
 from widebrim.madhatter.common import logSevere

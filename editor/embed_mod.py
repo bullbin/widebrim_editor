@@ -53,8 +53,8 @@ from widebrim.filesystem.compatibility import WriteableFusedFileInterface
 from editor.e_puzzle import FramePuzzleEditor
 from editor.e_script import FrameEventEditor
 from editor.e_overview import FrameOverview
-from editor.gui.command_annotator.baselineAnnotationGenerator import BaselineVerificationBank
-from editor.gui.command_annotator.bank import ScriptVerificationBank
+from editor.bank.command_annotator.baselineAnnotationGenerator import BaselineVerificationBank
+from editor.bank.command_annotator.bank import ScriptVerificationBank
 from editor.asset_management.event import correctEvFixFromEvInf
 from widebrim.engine_ext.rom.banner import getBannerImageFromRom, getNameStringFromRom
 from threading import Thread, Lock
