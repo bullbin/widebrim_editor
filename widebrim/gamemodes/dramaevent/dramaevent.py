@@ -366,8 +366,10 @@ class EventPlayer(ScriptPlayer):
         if introBehaviour == 0 or introBehaviour == 3:
             self.screenController.modifyPaletteMain(120)
         
-        if introBehaviour != 1:
+        if introBehaviour != 1 and introBehaviour != 2:
             self.screenController.fadeIn()
+        if introBehaviour == 2:
+            self.screenController.fadeInMain()
 
         # TODO - MaybeLoadCharactersFromData - language specific and boundary checks
         for charIndex, character in enumerate(data.characters):
