@@ -16,12 +16,26 @@ from pygame.draw import rect
 from pygame.gfxdraw import aacircle, filled_circle
 from math import floor
 
-from editor.asset_management.string.talkscript import ENCODE_MAP, convertTalkStringToSegments, Segment, Command, CommandClear, CommandPause, CommandLineBreak, CommandSetPitch, CommandSwitchAnimation, CommandSwitchColor
+from editor.asset_management.string.talkscript import ENCODE_MAP, convertTalkStringToSegments, Segment, Command, CommandClear, CommandPause, CommandLineBreak, CommandDelayPlayback, CommandSwitchAnimation, CommandSwitchColor
 
 COLOR_ENCODE_MAP : Dict[str, str] = {}
 for k, v in BLEND_MAP.items():
     if v not in COLOR_ENCODE_MAP:
         COLOR_ENCODE_MAP[v] = k
+
+def removeBadCharacter(char : str) -> str:
+    if char in ENCODE_MAP:
+        return "<" + ENCODE_MAP[char] + ">"
+
+    # Don't allow any unfiltered commands to escape.
+    elif char in ["#", "&"]:
+        return ""
+    elif char == "<":
+        return "<‹>"
+    elif char == ">":
+        return "<›>"
+    
+    return char
 
 def createSquircle(width_visible : int, height : int, color : Tuple[int,int,int], outline_px : int = 2, outline_color : Tuple[int,int,int] = (0,0,0)) -> Surface:
     
@@ -130,7 +144,7 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
             self.btnCmdAnim.SetBitmap(getCharBitmap("s"))
             self.btnCmdClear.SetBitmap(getCharBitmap("c"))
             self.btnCmdPause.SetBitmap(getCharBitmap("p"))
-            self.btnCmdPitch.SetBitmap(getCharBitmap("v"))
+            self.btnCmdDelay.SetBitmap(getCharBitmap("v"))
             self.btnCmdLineBreak.SetBitmap(getCharBitmap("n"))
 
         super().__init__(parent)
@@ -140,7 +154,7 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         
         # TODO - Ensure these are NOT the same size! This would be a BIG problem...
         self.__imageCommandAnimTrigger = createTagFromText(generateImageFromString(state.fontEvent, "Animation Switch"),    fontHeight = self.__fontPointSize, color=(255,255,0))
-        self.__imageCommandPitch       = createTagFromText(generateImageFromString(state.fontEvent, "Change Pitch"),        fontHeight = self.__fontPointSize, color=(0,255,0))
+        self.__imageCommandDelay       = createTagFromText(generateImageFromString(state.fontEvent, "Delay"),               fontHeight = self.__fontPointSize, color=(0,255,0))
         self.__imageCommandLineBreak   = createTagFromText(generateImageFromString(state.fontEvent, "Line Break"),          fontHeight = self.__fontPointSize, color=(0,0,0))
         self.__imageCommandClear       = createTagFromText(generateImageFromString(state.fontEvent, "Clear Textbox"),       fontHeight = self.__fontPointSize, color=(255,0,0))
         self.__imageCommandPause       = createTagFromText(generateImageFromString(state.fontEvent, "Wait for Tap"),        fontHeight = self.__fontPointSize, color=(255,0,255) )
@@ -153,12 +167,14 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         self.btnCullLineBreaks.Disable()
         loadButtonImages()
 
+        self._isSafeToRead : bool = True
+
         # Cleanup the state from wxFormBuilder - hide and disable all collapsible elements, hide spacing line, add padding
         self.paneStartingParameters.Hide()
         self.panelSwitchAnimOptions.Disable()
-        self.panelSwitchPitchOptions.Disable()
+        self.panelSwitchDelayOptions.Disable()
         self.panelSwitchAnimOptions.Hide()
-        self.panelSwitchPitchOptions.Hide()
+        self.panelSwitchDelayOptions.Hide()
         self.staticlinePaneDivider.Hide()
         self.paneCommandParameters.Hide()
         self.panelSpacing.Show()
@@ -207,6 +223,7 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
             return output
 
         if self.rich_ts.HasSelection():
+            self._isSafeToRead = False
             attr = RichTextAttr()
             attr.SetFlags(TEXT_ATTR_TEXT_COLOUR)
             attr.SetTextColour(Colour(color[0], color[1], color[2]))   
@@ -225,6 +242,11 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
                     sel_range : RichTextRange
                     self.rich_ts.SetStyle(sel_range, attr)
             self.__remapStoredCommands()
+            self._isSafeToRead = True
+            self._updatePreview()
+
+    def _updatePreview():
+        pass
 
     def btnColorBlackOnButtonClick(self, event):
         self.__applyColorToSelectedText(BLEND_MAP["x"])
@@ -257,10 +279,10 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         self.__insertItemAndStoreReference(self.__imageCommandPause, newCommand)
         return super().btnCmdPauseOnButtonClick(event)
     
-    def btnCmdPitchOnButtonClick(self, event):
-        newCommand = CommandSetPitch(1)
-        self.__insertItemAndStoreReference(self.__imageCommandPitch, newCommand)
-        return super().btnCmdPitchOnButtonClick(event)
+    def btnCmdDelayOnButtonClick(self, event):
+        newCommand = CommandDelayPlayback(0)
+        self.__insertItemAndStoreReference(self.__imageCommandDelay, newCommand)
+        return super().btnCmdDelayOnButtonClick(event)
 
     def btnCmdLineBreakOnButtonClick(self, event):
         newCommand = CommandLineBreak()
@@ -268,6 +290,7 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         return super().btnCmdLineBreakOnButtonClick(event)
 
     def __insertItemAndStoreReference(self, image : Image, command : Command) -> Optional[RichTextImage]:
+        self._isSafeToRead = False
         insertion_point = self.rich_ts.GetInsertionPoint()
         self.rich_ts.WriteImage(image)
         buffer : RichTextBuffer = self.rich_ts.GetBuffer()
@@ -290,7 +313,7 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
                         self.__attributeImages.append(image_pointer)
                         self.__attributeList.append(command)
                 break
-        
+        self._isSafeToRead = True
         return image_pointer
 
     def __doesRichTextStillExistInTree(self, node : RichTextImage) -> bool:
@@ -357,7 +380,9 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
 
     def __formRichTextFromSegments(self):
         # Remove line wrapping, rely on autowrap to form segments!
+        self._isSafeToRead = False
         self.rich_ts.Clear()
+        self.rich_ts.BeginParagraphSpacing(0, 40)
         self.__attributeImages = []
         self.__attributeList = []
 
@@ -369,8 +394,8 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
                         self.rich_ts.WriteText(token)
                     elif type(token) == CommandSwitchAnimation:
                         self.__insertItemAndStoreReference(self.__imageCommandAnimTrigger, token)
-                    elif type(token) == CommandSetPitch:
-                        self.__insertItemAndStoreReference(self.__imageCommandPitch, token)
+                    elif type(token) == CommandDelayPlayback:
+                        self.__insertItemAndStoreReference(self.__imageCommandDelay, token)
                     elif type(token) == CommandLineBreak:
                         self.__insertItemAndStoreReference(self.__imageCommandLineBreak, token)
                     elif type(token) == CommandPause:
@@ -393,6 +418,8 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
                 logSevere("Command untracked in finishing queue:", command, name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
         
         self.__setupButtons()
+        self._isSafeToRead = True
+        self._updatePreview()
 
     def __setupButtons(self):
         anyLineBreaks : bool = False
@@ -429,9 +456,71 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         
         return not(failure)
 
+    def _getEncodedSelectedSegment(self) -> str:
+        if not(self._isSafeToRead):
+            return ""
+
+        location_current = self.rich_ts.GetInsertionPoint()
+        self.rich_ts.MoveToParagraphStart()
+        location_para_start = self.rich_ts.GetInsertionPoint()
+        self.rich_ts.MoveToParagraphEnd()
+        location_para_end = self.rich_ts.GetInsertionPoint()
+        
+        output : str = ""
+        buffer : RichTextBuffer = self.rich_ts.GetBuffer()
+        objects : List[RichTextObject] = buffer.GetChildren()
+        lastColorRgba : Tuple[int,int,int,int] = (0,0,0,255)
+        for paragraph in objects:
+            if type(paragraph) == RichTextImage:
+                if paragraph in self.__attributeImages:
+                    paragraphRange : RichTextRange = paragraph.GetRange().FromInternal()
+                    if paragraphRange.Start >= location_para_start and paragraphRange.End <= location_para_end:
+                        output += self.__attributeList[self.__attributeImages.index(paragraph)].getEncoded()
+                else:
+                    logSevere("Untracked image", paragraph, "may be destroyed during editing.", name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
+            
+            elif type(paragraph) != RichTextParagraph:
+                logSevere("Misformatted RichTextCtrl item", paragraph, name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
+                continue
+
+            paragraph : RichTextParagraph
+            # Under what we have so far, hopefully it should just be RichTextPlainText and RichTextImage...
+            for item in paragraph.GetChildren():
+                if type(item) != RichTextImage and type(item) != RichTextPlainText:
+                    logSevere("Misformatted RichTextParagraph item", item, name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
+                    continue
+                    
+                if type(item) == RichTextPlainText:
+                    item : RichTextPlainText
+                    rangeParagraph : RichTextRange = item.GetRange().FromInternal()
+
+                    for char_code, start in zip(item.GetText(), range(max(rangeParagraph.Start, location_para_start), min(rangeParagraph.End, location_para_end))):
+                        attr = RichTextAttr()
+                        self.rich_ts.GetStyle(start, attr)
+                        if attr.TextColour != lastColorRgba and char_code != " ":
+                            lastColorRgba = (attr.TextColour[0], attr.TextColour[1], attr.TextColour[2], attr.TextColour[3])
+                            colorRgb = (lastColorRgba[0], lastColorRgba[1], lastColorRgba[2])
+                            if colorRgb in COLOR_ENCODE_MAP:
+                                output += "#" + COLOR_ENCODE_MAP[colorRgb]
+                            else:
+                                logSevere("Unencodable color detected", colorRgb, "will be removed on output.", name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
+                        output += removeBadCharacter(char_code)
+                else:
+                    item : RichTextImage
+                    if item in self.__attributeImages:
+                        paragraphRange : RichTextRange = item.GetRange().FromInternal()
+                        if paragraphRange.Start >= location_para_start and paragraphRange.End <= location_para_end:
+                            output += self.__attributeList[self.__attributeImages.index(item)].getEncoded()
+                    else:
+                        logSevere("Untracked image", item, "may be destroyed during editing.", name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
+
+        self.rich_ts.SetInsertionPoint(location_current)
+        return output
+
     def btnCullLineBreaksOnButtonClick(self, event):
         # TODO - We don't need to deselect the active tag, but just in case, forceably lose focus
         self._doOnTagFocusLost()
+        self._isSafeToRead = False
 
         keysToDelete = []
 
@@ -447,8 +536,8 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
                     if internalRange.Start >= location_para_start and internalRange.End <= location_para_end:
                         self.rich_ts.Replace(internalRange.Start, internalRange.End, " ")
                         keysToDelete.append(image)
-            
-            self.rich_ts.SetCaretPosition(location_current)
+
+            self.rich_ts.SetInsertionPoint(location_current)
         else:
             for image, command in zip(self.__attributeImages, self.__attributeList):
                 if type(command) == CommandLineBreak:
@@ -458,6 +547,8 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         
         self.__deleteTrackedImages(keysToDelete)
         self.__setupButtons()
+        self._isSafeToRead = True
+        self._updatePreview()
         return super().btnCullLineBreaksOnButtonClick(event)
 
     def btnWrapToBreaksOnButtonClick(self, event):
@@ -570,20 +661,6 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         return tokenizedSegments
 
     def __toEncoded(self) -> str:
-        def removeBadCharacter(char : str) -> str:
-            if char in ENCODE_MAP:
-                return "<" + ENCODE_MAP[char] + ">"
-
-            # Don't allow any unfiltered commands to escape.
-            elif char in ["#", "&"]:
-                return ""
-            elif char == "<":
-                return "<‹>"
-            elif char == ">":
-                return "<›>"
-            
-            return char
-
         # WHY IS THE API SO BAD?
         output = ""
         buffer : RichTextBuffer = self.rich_ts.GetBuffer()

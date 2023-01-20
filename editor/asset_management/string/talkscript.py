@@ -68,17 +68,22 @@ class CommandClear(Command):
     def getEncoded(self) -> str:
         return "@c"
 
-class CommandSetPitch(Command):
-    def __init__(self, pitch : int) -> None:
-        self.pitch : int = pitch
+class CommandDelayPlayback(Command):
+    def __init__(self, frames : int) -> None:
+        self.frames : int = frames
+    
+    def __getEncodedFrame(self) -> str:
+        # We round to closest 10 frames that will fit in a byte
+        # For now, restrict to ASCII to ensure compatibility (stop at closest to 127)
+        framesOutput : int = round(self.frames / 10)
+        framesOutput = max(0, min(framesOutput, 79))
+        return chr(ord("0") + framesOutput)
     
     def getEncoded(self) -> str:
-        if len(str(self.pitch)) == 1:
-            return "@v" + str(self.pitch)
-        return ""
+        return "@v" + self.__getEncodedFrame()
     
     def isValid(self) -> bool:
-        return self.getEncoded() != ""
+        return True
 
 class Segment():
     def __init__(self, lines : List[Union[str, Command]], hasSplit : bool = False):
@@ -207,7 +212,7 @@ def convertTalkStringToSegments(talkString : str) -> List[Segment]:
                 sections.append(segment)
             return sections
 
-        def extractSwitchPitchTokens(segment : str) -> List[Union[str, CommandSetPitch]]:
+        def extractSwitchPitchTokens(segment : str) -> List[Union[str, CommandDelayPlayback]]:
             sections = []
             if segment == "":
                 return [segment]
@@ -223,7 +228,7 @@ def convertTalkStringToSegments(talkString : str) -> List[Segment]:
                     sections.append(prefix)
                 
                 if result.group(1).isdigit():
-                    sections.append(CommandSetPitch(int(result.group(1))))
+                    sections.append(CommandDelayPlayback((ord(result.group(1)) - ord("0")) * 10))
 
                 segment = segment[end:]
                 
