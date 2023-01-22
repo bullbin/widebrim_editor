@@ -1,15 +1,15 @@
 from widebrim.engine.anim.font.scrolling import ScrollingFontHelper
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
 from widebrim.madhatter.common import logSevere, logVerbose
-from .d_wip_talkscript_rich import DialogTalkScriptTextEditorRich, CharacterEntry, AnimatedImageObject, Layton2GameState, Command, CommandDelayPlayback, CommandSwitchAnimation
+from .d_wip_talkscript_rich import DialogTalkScriptTextEditorRich, AnimatedImageObject, Layton2GameState, Command, CommandDelayPlayback, CommandSwitchAnimation
 from typing import Dict, Optional, Tuple, List, Any
 from editor.gui_helpers.anim_bitmap import AnimationUpdater
-from wx import CollapsiblePane, CollapsiblePaneEvent, Window, Timer, EVT_TIMER, EVT_CLOSE, StaticBitmap, Choice, CallAfter, Bitmap
+from wx import CollapsiblePane, CollapsiblePaneEvent, Window, Timer, EVT_TIMER, EVT_CLOSE, StaticBitmap, Choice, Bitmap, ID_CANCEL, ID_OK
 from pygame import Surface
 from pygame.image import tostring
 
 class AnimationManager():
-    def __init__(self, anim : Optional[AnimatedImageObject], entry : CharacterEntry, name : Optional[str] = None):
+    def __init__(self, anim : Optional[AnimatedImageObject], entryId : int, name : Optional[str] = None):
         # TODO - Not fully representative. Comes from e_script_event
         def isNameGood(name) -> bool:
             if len(name) > 0:
@@ -20,9 +20,8 @@ class AnimationManager():
         self.__anim : Optional[AnimatedImageObject] = anim
         self.__animBridge : AnimationUpdater = AnimationUpdater(self.__anim, None)
 
-        self.__entry : CharacterEntry = entry
         if name == None:
-            self.__name = "No name - ID %d" % self.__entry.getIndex()
+            self.__name = "No name - ID %d" % entryId
         else:
             self.__name = name
 
@@ -79,7 +78,7 @@ class AnimationManager():
         self.__animBridge.update()
 
 class DialogTalkScriptEditorRichWithTags(DialogTalkScriptTextEditorRich):
-    def __init__(self, parent: Optional[Window], state: Layton2GameState, stringTalkscript: str = "", characters : List[Tuple[CharacterEntry, Optional[str], Optional[AnimatedImageObject]]] = []):
+    def __init__(self, parent: Optional[Window], state: Layton2GameState, stringTalkscript: str = "", characters : List[Tuple[int, Optional[str], Optional[AnimatedImageObject]]] = []):
         self.__textRenderer = ScrollingFontHelper(state.fontEvent)
         self.__surfPreview = Surface(RESOLUTION_NINTENDO_DS)
         
@@ -95,10 +94,10 @@ class DialogTalkScriptEditorRichWithTags(DialogTalkScriptTextEditorRich):
         
         names = []
 
-        for entry, name, anim in characters:
-            self.__animManagers.append(AnimationManager(anim, entry, name))
+        for entryId, name, anim in characters:
+            self.__animManagers.append(AnimationManager(anim, entryId, name))
             names.append(self.__animManagers[-1].getName())
-            self.__animCharIds.append(entry.getIndex())
+            self.__animCharIds.append(entryId)
         
         for delay in range(80):
             self.choiceFrames.AppendItems("%d frames" % (delay * 10))
@@ -116,6 +115,14 @@ class DialogTalkScriptEditorRichWithTags(DialogTalkScriptTextEditorRich):
         self.paneStartingParameters.Show()
         self.__onScrollSizeChange(None, True)
     
+    def btnCancelOnButtonClick(self, event):
+        self.__animTimer.Stop()
+        return super().btnCancelOnButtonClick(event)
+    
+    def btnConfirmOnButtonClick(self, event):
+        self.__animTimer.Stop()
+        return super().btnConfirmOnButtonClick(event)
+
     def __updateActiveAnimation(self, event : Any):
         if self.__animManagerCharPreview != None:
             self.__animManagerCharPreview.update()
@@ -241,8 +248,6 @@ class DialogTalkScriptEditorRichWithTags(DialogTalkScriptTextEditorRich):
         if len(self.__animCharIds) == 0:
             return
 
-        print("Edit anim", command)
-
         # If the character is out of range, force it to be in range
         if command.idChar not in self.__animCharIds:
             command.idChar = self.__animCharIds[0]
@@ -255,7 +260,6 @@ class DialogTalkScriptEditorRichWithTags(DialogTalkScriptTextEditorRich):
 
     def __setupDelayEditing(self, command : CommandDelayPlayback):
         self.__workaroundSizerBug()
-        print("Edit delay", command)
 
         # Correct for bad amount of frames
         if command.frames < 0 or command.frames > 790:
@@ -324,8 +328,6 @@ class DialogTalkScriptEditorRichWithTags(DialogTalkScriptTextEditorRich):
         return super()._doOnTagDeleted(commands)
 
     def _doOnTagFocusLost(self):
-        if self.__activeCommand != None:
-            print("Tag removed from history!")
         self.__applyPaneLayoutForCommand(None)
         self.__ensureCommandPaneDisabled()
         return super()._doOnTagFocusLost()
@@ -350,13 +352,13 @@ class DialogTalkScriptEditorRichWithTags(DialogTalkScriptTextEditorRich):
                 if self.__textRenderer.isWaiting():
                     self.__textRenderer.setTap()
         except IndexError:
-            logSevere("TextScroller hit bad dialogue! Check for unclosed commands.", name="DlgRichText")
+            logSevere("TextScroller hit bad dialogue! Check for unclosed commands.", name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
 
         self.__textRenderer.draw(self.__surfPreview)
         self.bitmapPreview.SetBitmap(Bitmap.FromBuffer(RESOLUTION_NINTENDO_DS[0], RESOLUTION_NINTENDO_DS[1], tostring(self.__surfPreview, "RGB")))
 
         # TODO - Enforce wrapping!
-        logVerbose("Preview:", self._getEncodedSelectedSegment(), name="DlgRichText")
+        logVerbose("Preview:", self._getEncodedSelectedSegment(), name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
 
     def rich_tsOnLeftDown(self, event):
         # TODO - This is otherwise broken, it is called before the position changes...

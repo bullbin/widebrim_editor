@@ -1,9 +1,10 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from editor.asset_management.character import CharacterEntry
 from editor.d_operandMultichoice import DialogMultipleChoice
 from editor.d_pickerCharacter import DialogPickerCharacter
 from editor.dialog.d_remapAnim import DialogRemapAnimation
 from editor.dialog.d_wip_talkscript import DialogTalkScriptTextEditor
+from editor.dialog.d_rich_talkscript import DialogTalkScriptEditorRichWithTags
 from editor.e_room.utils import getShortenedString
 from editor.e_script.virtual.custom_instructions.dialogue import DialogueInstructionDescription, DialogueInstructionGenerator
 from editor.bank.command_annotator.bank import Context, OperandType, ScriptVerificationBank
@@ -328,7 +329,6 @@ class FrameEventEditor(FrameScriptEditor):
         
         self.bitmapRenderCharacterPreview.SetBitmap(Bitmap.FromBufferRGBA(RESOLUTION_NINTENDO_DS[0], RESOLUTION_NINTENDO_DS[1], tostring(self.__backgroundWidebrim, "RGBA")))
 
-
     def _onEditOperand(self, instruction: Instruction, idxOperand: int, treeItem: TreeItemId):
 
         def getNewCharacterId(allowNone : bool = False, originalCharId : Optional[int] = None) -> Optional[int]:
@@ -369,7 +369,16 @@ class FrameEventEditor(FrameScriptEditor):
             return choicesToIdMap[dlg.GetSelection()]
 
         def getTalkscriptEdit(value : str) -> Optional[str]:
-            dlg = DialogTalkScriptTextEditor(self, self._state, value)
+            characterInformation : List[Tuple[int, Optional[str], Optional[AnimatedImageObject]]] = []
+            listNames : List[Tuple[int, Optional[str]]] = []
+            for charId in self.__eventData.characters[:len(self.__eventCharacters)]:
+                listNames.append((charId, self.__idToCharacter[charId]))
+            
+            for tupleName, anim in zip(listNames, self.__eventCharacters):
+                charId, name = tupleName
+                characterInformation.append((charId, name, anim))
+
+            dlg = DialogTalkScriptEditorRichWithTags(self, self._state, stringTalkscript = value, characters=characterInformation)
             if dlg.ShowModal() != ID_OK:
                 return None
             return dlg.GetValue()

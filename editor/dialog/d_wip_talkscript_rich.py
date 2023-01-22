@@ -7,7 +7,7 @@ from typing import Optional, List, Dict, Tuple, Union
 from widebrim.madhatter.common import logSevere, logVerbose
 from widebrim.engine.anim.image_anim.image import AnimatedImageObject
 
-from wx import Window, Image, Bitmap, TEXT_ATTR_TEXT_COLOUR, Colour
+from wx import Window, Image, Bitmap, TEXT_ATTR_TEXT_COLOUR, Colour, ID_CANCEL, ID_OK
 from wx.richtext import RichTextImage, RichTextBuffer, RichTextParagraph, RichTextObject, RichTextRange, RichTextPlainText, RichTextAttr
 from pygame import Surface, BLEND_SUB, BLEND_ADD, Rect
 from pygame.image import tostring
@@ -24,6 +24,14 @@ for k, v in BLEND_MAP.items():
         COLOR_ENCODE_MAP[v] = k
 
 def removeBadCharacter(char : str) -> str:
+    """Cleans input string to that which can be encoded. Characters relating to Talkscript commands will be removed. Characters relating to substitutions will be encoded or swapped if invalid.
+
+    Args:
+        char (str): Dirty string.
+
+    Returns:
+        str: Cleaned string.
+    """
     if char in ENCODE_MAP:
         return "<" + ENCODE_MAP[char] + ">"
 
@@ -38,6 +46,18 @@ def removeBadCharacter(char : str) -> str:
     return char
 
 def createSquircle(width_visible : int, height : int, color : Tuple[int,int,int], outline_px : int = 2, outline_color : Tuple[int,int,int] = (0,0,0)) -> Surface:
+    """Creates a squircle (square with semicircle ends).
+
+    Args:
+        width_visible (int): Width of inner rectangle. The squircle will have width of this plus the height.
+        height (int): Height of rectangle (and diameter of circular caps)
+        color (Tuple[int,int,int]): Fill color for the squircle.
+        outline_px (int, optional): Width of outline. Defaults to 2.
+        outline_color (Tuple[int,int,int], optional): Color of outline. Defaults to (0,0,0).
+
+    Returns:
+        Surface: pygame Surface with squircle. Contains alpha channel.
+    """
     
     def squircle_main(width_visible : int, height : int, color : Tuple[int,int,int]) -> Surface:
 
@@ -76,6 +96,15 @@ def createSquircle(width_visible : int, height : int, color : Tuple[int,int,int]
     return outline_backing
 
 def convertPygameToBitmap(surface : Surface, hasTransparency : bool = False) -> Bitmap:
+    """Converts a pygame Surface to a wx Bitmap.
+
+    Args:
+        surface (Surface): pygame Surface.
+        hasTransparency (bool, optional): True if alpha should be preserved. Defaults to False.
+
+    Returns:
+        Bitmap: wx Bitmap.
+    """
     if hasTransparency:
         bitmap : Bitmap = Bitmap.FromBufferRGBA(surface.get_width(), surface.get_height(), tostring(surface, "RGBA"))
     else:
@@ -83,6 +112,18 @@ def convertPygameToBitmap(surface : Surface, hasTransparency : bool = False) -> 
     return bitmap
 
 def createTagFromText(surface : Surface, fontHeight : int = 9, paddingXSym : int = 4, squircleHeight : int = 16, color : Tuple[int,int,int] = (255,0,0)) -> Image:
+    """Creates wx image containing a named tag in form of a pygame Surface. Preparation step for RichTextCtrl.
+
+    Args:
+        surface (Surface): Surface containing text for tag to contain.
+        fontHeight (int, optional): Height of the font for restricting image from distorting line spacing. Defaults to 9.
+        paddingXSym (int, optional): Horizontal padding at each end of the tag. Defaults to 4.
+        squircleHeight (int, optional): Height of the squircle containing the tag. If this is too big, the images may bleed onto more lines. Defaults to 16.
+        color (Tuple[int,int,int], optional): Color of the tag background. Defaults to (255,0,0).
+
+    Returns:
+        Image: wx Image representing the tag.
+    """
     # TODO - Figure out line spacing - this really isn't obvious enough...
     line_height = 19
     
@@ -167,6 +208,7 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         self.btnCullLineBreaks.Disable()
         loadButtonImages()
 
+        # Interacting with the wxRichTextCtrl changes styling, object references, etc. Even though it makes the whole thing messier this prevents state being lost when previewing
         self._isSafeToRead : bool = True
 
         # Cleanup the state from wxFormBuilder - hide and disable all collapsible elements, hide spacing line, add padding
@@ -183,6 +225,11 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         self.__formRichTextFromSegments()
 
     def __getAllImages(self) -> List[RichTextImage]:
+        """Returns a list of all images active in the RichTextCtrl.
+
+        Returns:
+            List[RichTextImage]: List of images relating to commands in the buffer.
+        """
         newImages : List[RichTextImage] = []
         buffer : RichTextBuffer = self.rich_ts.GetBuffer()
         objects : List[RichTextObject] = buffer.GetChildren()
@@ -202,6 +249,9 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         return newImages
 
     def __remapStoredCommands(self):
+        """Updates the attribute dictionary tracking to fit current images in the RichTextCtrl. This must be called any time that a state change may be suspected (or possible).
+        As long as the dictionary is used as reference, this is non-destructive and non-breaking.
+        """
 
         newImages : List[RichTextImage] = self.__getAllImages()
 
@@ -214,6 +264,11 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
                 logSevere(image, image.GetRange(), name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
         
     def __applyColorToSelectedText(self, color : Tuple[int,int,int]):
+        """Modifies the color of selected text.
+
+        Args:
+            color (Tuple[int,int,int]): New color as an RGB tuple.
+        """
 
         def getImageLocations(images : List[RichTextImage]) -> List[int]:
             output = []
@@ -246,7 +301,17 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
             self._updatePreview()
 
     def _updatePreview():
+        """Redraws the text preview screen. Call this when the preview may change.
+        """
         pass
+
+    def btnCancelOnButtonClick(self, event):
+        self.EndModal(ID_CANCEL)
+        return super().btnCancelOnButtonClick(event)
+    
+    def btnConfirmOnButtonClick(self, event):
+        self.EndModal(ID_OK)
+        return super().btnConfirmOnButtonClick(event)
 
     def btnColorBlackOnButtonClick(self, event):
         self.__applyColorToSelectedText(BLEND_MAP["x"])
@@ -290,6 +355,16 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         return super().btnCmdLineBreakOnButtonClick(event)
 
     def __insertItemAndStoreReference(self, image : Image, command : Command) -> Optional[RichTextImage]:
+        """Inserts an image at the insertion point and stores it with reference to a command in the buffer.
+        This process may be destructive to references in the RichTextCtrl buffer.
+
+        Args:
+            image (Image): Image relating to command.
+            command (Command): Talkscript command.
+
+        Returns:
+            Optional[RichTextImage]: Buffered image, or if not possible, None.
+        """
         self._isSafeToRead = False
         insertion_point = self.rich_ts.GetInsertionPoint()
         self.rich_ts.WriteImage(image)
@@ -317,6 +392,14 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         return image_pointer
 
     def __doesRichTextStillExistInTree(self, node : RichTextImage) -> bool:
+        """Returns True if the provided image is still discoverable in the RichTextCtrl.
+
+        Args:
+            node (RichTextImage): Buffered image.
+
+        Returns:
+            bool: True if image can be found.
+        """
         for child in self.rich_ts.GetBuffer().GetChildren():
             if child == node:
                 return True
@@ -327,7 +410,15 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         return False
 
     def __preprocessSegments(self, segments_raw : List[Segment]) -> List[Segment]:
+        """Applies a pre-processing step to the Talkscript segmentation algorithm to improve its readability in a non-destructive way.
+        Where segments can store a list of commands that will be applied on the completion of a section, this step converts them to move them into the next section where possible or pushes them onto the last section. This allows editing of segments from the token list alone.
 
+        Args:
+            segments_raw (List[Segment]): Output from the segmentation algorithm.
+
+        Returns:
+            List[Segment]: Pre-processed list of segments.
+        """
         # We're going to lean completely into our segment implementation which means permission to be DESTRUCTIVE
         output : List[Segment] = []
 
@@ -349,12 +440,14 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
                 append_command[idx_segment + 1].append(command)
 
             for idx_line, line in enumerate(segment.lines):
-
-                for token in line:
-                    if len(processed_segment.lines) == 0:
-                        processed_segment.lines = [[token]]
-                    else:
-                        processed_segment.lines[0].append(token)
+                if len(line) > 0:
+                    for token in line:
+                        if len(processed_segment.lines) == 0:
+                            processed_segment.lines = [[token]]
+                        else:
+                            processed_segment.lines[0].append(token)
+                else:
+                    processed_segment.lines.append([])
                 
                 if idx_line < len(segment.lines) - 1:
                     if len(processed_segment.lines) == 0:
@@ -379,6 +472,9 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         return output
 
     def __formRichTextFromSegments(self):
+        """Converts stored Talkscript segment representation into an interactive text variant. This needs to be called when the stored segment list changes.
+        This action is destructive and wipes the RichTextCtrl alongside any element tracking.
+        """
         # Remove line wrapping, rely on autowrap to form segments!
         self._isSafeToRead = False
         self.rich_ts.Clear()
@@ -411,8 +507,10 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
                 if idx_line != len(segment.lines) - 1:
                     self.rich_ts.AppendText(" ")
             
-            if idx_segment != len(self.__segments)  - 1:
+            if idx_segment < len(self.__segments) - 1:
+                self.rich_ts.EndParagraphSpacing()
                 self.rich_ts.Newline()
+                self.rich_ts.BeginParagraphSpacing(0, 40)
             
             for command in segment.commandsAfterFinish:
                 logSevere("Command untracked in finishing queue:", command, name=DialogTalkScriptTextEditorRich.LOG_MODULE_NAME)
@@ -422,6 +520,8 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         self._updatePreview()
 
     def __setupButtons(self):
+        """Updates the line wrapping commands to fit whether there are any breaks in the text.
+        """
         anyLineBreaks : bool = False
         for command in self.__attributeList:
             if type(command) == CommandLineBreak:
@@ -434,6 +534,14 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
             self.btnCullLineBreaks.Disable()
 
     def __deleteTrackedImages(self, images : List[RichTextImage]) -> bool:
+        """Removes buffered images from the command tracking buffer. This method WILL NOT remove images from the RichTextCtrl. Call this before deleting any images from the RichTextCtrl.
+
+        Args:
+            images (List[RichTextImage]): List of tracked images.
+
+        Returns:
+            bool: True if all images had tracking deleted. False if any image failed, e.g., was not tracked to begin with.
+        """
         idx_to_delete = []
         failure = False
         for image in images:
@@ -457,6 +565,13 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         return not(failure)
 
     def _getEncodedSelectedSegment(self) -> str:
+        """Returns the encoded text for the segment where the insertion point (caret) lies.
+
+        Due to difficulties with wx, this method may cause tracking to be lost across the text. As a result, safeguards are put in place such that should that situation arise, this method will return an empty string instead of breaking the RichTextCtrl.
+
+        Returns:
+            str: Encoded Talkscript if safe, else empty string.
+        """
         if not(self._isSafeToRead):
             return ""
 
@@ -560,10 +675,17 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         return super().btnWrapToBreaksOnButtonClick(event)
 
     def __doWrapping(self):
+        """Performs wrapping on the whole text and resets the tracking and RichTextCtrl to match the wrapped text.
+        """
         self.__segments = self.__preprocessSegments(self.__toWrapped())
         self.__formRichTextFromSegments()
         
     def __toWrapped(self) -> List[Segment]:
+        """Performs text wrapping on the internal Talkscript representation. This method is non-destructive and will not modify the active representation.
+
+        Returns:
+            List[Segment]: List of wrapped segments.
+        """
         # Remove control characters from input
 
         MAX_LINE_WIDTH = 240
@@ -661,6 +783,12 @@ class DialogTalkScriptTextEditorRich(EditTalkscriptRich):
         return tokenizedSegments
 
     def __toEncoded(self) -> str:
+        """Converts the internal Talkscript representation back to the encoded string representation.
+        This method may break tracking in rare circumstances - call this when done with the dialog or are about to flush the buffer.
+
+        Returns:
+            str: Encoded Talkscript representation.
+        """
         # WHY IS THE API SO BAD?
         output = ""
         buffer : RichTextBuffer = self.rich_ts.GetBuffer()
