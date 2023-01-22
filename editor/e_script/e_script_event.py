@@ -383,6 +383,26 @@ class FrameEventEditor(FrameScriptEditor):
                 return None
             return dlg.GetValue()
 
+        def getRichTalkscriptEdit(script : str, animStart : Optional[str], animEnd : Optional[str], pitch : Optional[int], targetCharId : Optional[int]) -> Optional[DialogTalkScriptEditorRichWithTags]:
+            characterInformation : List[Tuple[int, Optional[str], Optional[AnimatedImageObject]]] = []
+            listNames : List[Tuple[int, Optional[str]]] = []
+            for charId in self.__eventData.characters[:len(self.__eventCharacters)]:
+                listNames.append((charId, self.__idToCharacter[charId]))
+            
+            for tupleName, anim in zip(listNames, self.__eventCharacters):
+                charId, name = tupleName
+                characterInformation.append((charId, name, anim))
+            
+            if pitch == None:
+                pitch = 0
+            if targetCharId == None:
+                targetCharId = 0
+
+            dlg = DialogTalkScriptEditorRichWithTags(self, self._state, stringTalkscript = script, characters=characterInformation, targetId=targetCharId, targetPitch=pitch, targetStartAnimation=animStart, targetEndAnimation=animEnd)
+            if dlg.ShowModal() != ID_OK:
+                return None
+            return dlg
+
         if (description := self._bankInstructions.getInstructionByOpcode(int.from_bytes(instruction.opcode, byteorder='little'))) != None:
             if (operandDesc := description.getOperand(idxOperand)) != None:
                 operand : Operand = instruction.getFilteredOperands()[idxOperand]
@@ -404,10 +424,59 @@ class FrameEventEditor(FrameScriptEditor):
                 
                 # Modify talkscript
                 elif operandDesc.operandType == OperandType.StringTalkScript:
-                    newValue = getTalkscriptEdit(operand.value)
-                    if newValue != None:
-                        operand.value = newValue
-                        self.treeScript.SetItemText(treeItem, self.getOperandTreeValue(instruction, idxOperand))
+                    if description.opcode == DialogueInstructionDescription.TARGET_OPERAND:
+                        # TODO - Make this safer
+                        animStart   : Optional[str] = None
+                        animEnd     : Optional[str] = None
+                        pitch       : Optional[int] = None
+                        target      : Optional[int] = None
+
+                        filteredOperands : List[Operand] = instruction.getFilteredOperands()
+                        targetCharacter : Optional[Operand] = None
+                        targetAnimStart : Optional[Operand] = None
+                        targetAnimEnd   : Optional[Operand] = None
+                        targetPitch     : Optional[Operand] = None
+
+                        targetCharacter = filteredOperands[0]
+                        target = targetCharacter.value
+                            
+                        targetAnimStart = filteredOperands[2]
+                        if targetAnimStart.value != "NONE":
+                            animStart = targetAnimStart.value
+
+                        targetAnimEnd = filteredOperands[3]
+                        if targetAnimEnd.value != "NONE":
+                            animEnd = targetAnimEnd.value
+
+                        targetPitch = filteredOperands[5]
+                        pitch = targetPitch.value
+                        
+                        dlg = getRichTalkscriptEdit(operand.value, animStart, animEnd, pitch, target)
+
+                        if dlg != None:
+                            # TODO - This isn't safe against breakpoints
+                            # Update values
+                            operand.value           = dlg.GetValue()
+                            targetAnimStart.value   = dlg.GetAnimationStart()
+                            targetAnimEnd.value     = dlg.GetAnimationEnd()
+                            targetPitch.value       = dlg.GetPitch()
+                            targetCharacter.value   = dlg.GetCharacterId()
+
+                            # Get parent value
+                            instructionRoot = self.treeScript.GetItemParent(treeItem)
+                            child, cookie = self.treeScript.GetFirstChild(instructionRoot)
+                            child : TreeItemId
+                            indexReplaceOperand : int = 0
+                            while child.IsOk():
+                                self.treeScript.SetItemText(child, self.getOperandTreeValue(instruction, indexReplaceOperand))
+                                child, cookie = self.treeScript.GetNextChild(instructionRoot, cookie)
+                                indexReplaceOperand += 1
+                    else:
+                        newValue = getTalkscriptEdit(operand.value)
+
+                        if newValue != None:
+                            operand.value = newValue
+                            self.treeScript.SetItemText(treeItem, self.getOperandTreeValue(instruction, idxOperand))
                     return
     
         # Fallback to generic editor

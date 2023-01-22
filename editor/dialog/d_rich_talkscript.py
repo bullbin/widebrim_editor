@@ -4,7 +4,7 @@ from widebrim.madhatter.common import logSevere, logVerbose
 from .d_wip_talkscript_rich import DialogTalkScriptTextEditorRich, AnimatedImageObject, Layton2GameState, Command, CommandDelayPlayback, CommandSwitchAnimation
 from typing import Dict, Optional, Tuple, List, Any
 from editor.gui_helpers.anim_bitmap import AnimationUpdater
-from wx import CollapsiblePane, CollapsiblePaneEvent, Window, Timer, EVT_TIMER, EVT_CLOSE, StaticBitmap, Choice, Bitmap, ID_CANCEL, ID_OK
+from wx import CollapsiblePane, CollapsiblePaneEvent, Window, Timer, EVT_TIMER, EVT_CLOSE, StaticBitmap, Choice, Bitmap, NOT_FOUND, NullBitmap
 from pygame import Surface
 from pygame.image import tostring
 
@@ -78,11 +78,13 @@ class AnimationManager():
         self.__animBridge.update()
 
 class DialogTalkScriptEditorRichWithTags(DialogTalkScriptTextEditorRich):
-    def __init__(self, parent: Optional[Window], state: Layton2GameState, stringTalkscript: str = "", characters : List[Tuple[int, Optional[str], Optional[AnimatedImageObject]]] = []):
+    def __init__(self, parent: Optional[Window], state: Layton2GameState, stringTalkscript: str = "", characters : List[Tuple[int, Optional[str], Optional[AnimatedImageObject]]] = [], targetId : int = 0, targetPitch : int = 0, targetStartAnimation : Optional[str] = None, targetEndAnimation : Optional[str] = None):
         self.__textRenderer = ScrollingFontHelper(state.fontEvent)
         self.__surfPreview = Surface(RESOLUTION_NINTENDO_DS)
         
         super().__init__(parent, state, stringTalkscript, characters)
+
+        self.__targetAnimPreviewIsStart : bool = True
 
         self.__animTimer = Timer(self)
         self.__animTimer.Start(1000//60, False)
@@ -91,6 +93,7 @@ class DialogTalkScriptEditorRichWithTags(DialogTalkScriptTextEditorRich):
         self.__animManagers : List[AnimationManager] = []
         self.__animCharIds : List[int] = []
         self.__animManagerCharPreview : Optional[AnimationManager] = None
+        self.__animManagerTargetPreview : Optional[AnimationManager] = None
         
         names = []
 
@@ -103,7 +106,32 @@ class DialogTalkScriptEditorRichWithTags(DialogTalkScriptTextEditorRich):
             self.choiceFrames.AppendItems("%d frames" % (delay * 10))
         
         self.choiceChangeAnimCharName.SetItems(names)
-        self.choiceTargetCharacter.SetItems(names)
+        self.choiceTargetCharacter.SetItems(["None"] + names)
+
+        try:
+            indexTarget : int = self.__animCharIds.index(targetId) + 1
+        except ValueError:
+            indexTarget : int = 0
+        self.choiceTargetCharacter.Select(indexTarget)
+        self.__updateAnimationToggles()
+
+        # TODO - If we have active last animations, apply here then call updateCharacterPreview again
+        availableAnimations : List[str] = list(self.choiceAnimOnStart.GetItems())[1:]
+        # TODO - This isn't exactly accurate, we aren't using lt2comparestring here
+        if targetStartAnimation != None:
+            if targetStartAnimation in availableAnimations:
+                self.choiceAnimOnStart.Select(availableAnimations.index(targetStartAnimation) + 1)
+        if targetEndAnimation != None:
+            if targetEndAnimation in availableAnimations:
+                self.choiceAnimOnEnd.Select(availableAnimations.index(targetEndAnimation) + 1)
+        if targetStartAnimation != None or targetEndAnimation != None:
+            self.__updateCharacterPreview()
+
+        if targetPitch <= 0 or targetPitch > 6:
+            # Game defaults to low pitch - 2_SetTextSound
+            self.choiceMainPitch.Select(0)
+        else:
+            self.choiceMainPitch.Select(targetPitch - 1)
 
         self.Bind(EVT_TIMER, self.__updateActiveAnimation, self.__animTimer)
         self.Bind(EVT_CLOSE, self.__onClose)
@@ -114,7 +142,137 @@ class DialogTalkScriptEditorRichWithTags(DialogTalkScriptTextEditorRich):
         self.panelSpacing.Hide()
         self.paneStartingParameters.Show()
         self.__onScrollSizeChange(None, True)
+
+
+
+
+    # Additional methods for GetValue-like behaviour (pitch, anim start, anim end, target char index)
+    def GetPitch(self) -> int:
+        selection = self.choiceMainPitch.GetSelection()
+        if selection == NOT_FOUND:
+            return 0
+        return selection + 1
     
+    def __convertInternalToExternalAnimation(self, manager : AnimationManager, nameInternal : str) -> Optional[str]:
+        if nameInternal in manager.getListAnimations():
+            return manager.getRawAnimationName(manager.getListAnimations().index(nameInternal), False)
+        return None
+
+    def GetAnimationStart(self) -> str:
+        activeId = self.__getActiveCharId()
+        selection = self.choiceAnimOnStart.GetSelection()
+        if activeId == None or selection == NOT_FOUND or selection == 0:
+            return "NONE"
+        
+        nameAnimation : Optional[str] = self.__convertInternalToExternalAnimation(self.__animManagers[self.__animCharIds.index(activeId)], self.choiceAnimOnStart.GetStringSelection())
+        if nameAnimation == None:
+            return "NONE"
+        return nameAnimation
+
+    def GetAnimationEnd(self) -> str:
+        activeId = self.__getActiveCharId()
+        selection = self.choiceAnimOnEnd.GetSelection()
+        if activeId == None or selection == NOT_FOUND or selection == 0:
+            return "NONE"
+        
+        nameAnimation : Optional[str] = self.__convertInternalToExternalAnimation(self.__animManagers[self.__animCharIds.index(activeId)], self.choiceAnimOnEnd.GetStringSelection())
+        if nameAnimation == None:
+            return "NONE"
+        return nameAnimation
+
+    def GetCharacterId(self) -> int:
+        activeId = self.__getActiveCharId()
+        if activeId == None:
+            return 0
+        return activeId
+
+
+
+    def choiceTargetCharacterOnChoice(self, event):
+        self.__updateAnimationToggles()
+        return super().choiceTargetCharacterOnChoice(event)
+
+    def choiceAnimOnEndOnChoice(self, event):
+        self.__updateCharacterPreview()
+        return super().choiceAnimOnEndOnChoice(event)
+    
+    def choiceAnimOnStartOnChoice(self, event):
+        self.__updateCharacterPreview()
+        return super().choiceAnimOnStartOnChoice(event)
+
+    def __getActiveCharId(self) -> Optional[int]:
+        selected = self.choiceTargetCharacter.GetSelection()
+        if selected == NOT_FOUND or selected == 0:
+            return None
+        
+        return self.__animCharIds[selected - 1]
+    
+    def btnTogglePreviewOnButtonClick(self, event):
+        self.__targetAnimPreviewIsStart = not(self.__targetAnimPreviewIsStart)
+        self.__updateCharacterPreview()
+        return super().btnTogglePreviewOnButtonClick(event)
+
+    def __updateCharacterPreview(self):
+        targetChoice : Choice = None
+
+        if self.__targetAnimPreviewIsStart:
+            self.bitmapCharPreview.GetParent().SetLabel("Character Preview - Start")
+            targetChoice = self.choiceAnimOnStart
+        else:
+            self.bitmapCharPreview.GetParent().SetLabel("Character Preview - End")
+            targetChoice = self.choiceAnimOnEnd
+        
+        if self.__animManagerTargetPreview == None or targetChoice.GetSelection() == NOT_FOUND or targetChoice.GetSelection() == 0:
+            # Clear the bitmap
+            self.bitmapCharPreview.SetBitmap(NullBitmap)
+            if self.__animManagerTargetPreview != None:
+                self.__animManagerTargetPreview.setAnimationByIndex(-1)
+        else:
+            self.__animManagerTargetPreview.setAnimationByIndex(targetChoice.GetSelection() - 1)
+            self.__animManagerTargetPreview.setDestinationBitmap(self.bitmapCharPreview)
+
+    def __updateAnimationToggles(self):
+        """Updates selectable animations from TalkScript parameter box.
+        """
+        activeId = self.__getActiveCharId()
+
+        # Fetch last animation names if selected
+        lastSelectedStartName : Optional[str] = None
+        lastSelectedEndName : Optional[str] = None
+
+        if self.choiceAnimOnStart.GetSelection() != NOT_FOUND:
+            lastSelectedStartName = self.choiceAnimOnStart.GetStringSelection()
+        if self.choiceAnimOnEnd.GetSelection() != NOT_FOUND:
+            lastSelectedEndName = self.choiceAnimOnEnd.GetStringSelection()
+
+        # Clear active ctrl
+        self.choiceAnimOnEnd.Clear()
+        self.choiceAnimOnStart.Clear()
+
+        choices = ["(Continue last)"]
+        if activeId != None:
+            manager = self.__animManagers[self.__animCharIds.index(activeId)]
+            self.__animManagerTargetPreview = manager
+            choices += manager.getListAnimations()
+        else:
+            self.__animManagerTargetPreview = None
+        
+        
+        self.choiceAnimOnStart.SetItems(list(choices))
+        self.choiceAnimOnEnd.SetItems(list(choices))
+        
+        if lastSelectedStartName in choices:
+            self.choiceAnimOnStart.Select(choices.index(lastSelectedStartName))
+        else:
+            self.choiceAnimOnStart.Select(0)
+        
+        if lastSelectedEndName in choices:
+            self.choiceAnimOnEnd.Select(choices.index(lastSelectedEndName))
+        else:
+            self.choiceAnimOnEnd.Select(0)
+
+        self.__updateCharacterPreview()
+
     def btnCancelOnButtonClick(self, event):
         self.__animTimer.Stop()
         return super().btnCancelOnButtonClick(event)
@@ -126,6 +284,8 @@ class DialogTalkScriptEditorRichWithTags(DialogTalkScriptTextEditorRich):
     def __updateActiveAnimation(self, event : Any):
         if self.__animManagerCharPreview != None:
             self.__animManagerCharPreview.update()
+        if self.__animManagerTargetPreview != None:
+            self.__animManagerTargetPreview.update()
         if self.__forceUpdate and self._isSafeToRead:
             self._updatePreview()
 
@@ -314,9 +474,11 @@ class DialogTalkScriptEditorRichWithTags(DialogTalkScriptTextEditorRich):
         if targetPane == self.paneCommandParameters and not(wasPaneCollapsed):
             # Command pane has been opened, we'll close the talkscript one
             self.paneStartingParameters.Collapse()
+            self.__animManagerTargetPreview = None
         elif targetPane == self.paneStartingParameters and not(wasPaneCollapsed):
             # Talkscript pane has been opened, we'll collapse the command one
             self.paneCommandParameters.Collapse()
+            self.__animManagerCharPreview = None
 
         self.Layout()
         self.Refresh()
@@ -372,8 +534,21 @@ class DialogTalkScriptEditorRichWithTags(DialogTalkScriptTextEditorRich):
 
     def paneCommandParametersOnCollapsiblePaneChanged(self, event : CollapsiblePaneEvent):
         self.__onScrollSizeChange(self.paneCommandParameters, event.GetCollapsed())
+
+        # Clear the previewer when collapsed
+        if self.paneCommandParameters.IsCollapsed():
+            self.__animManagerCharPreview = None
+
         return super().paneCommandParametersOnCollapsiblePaneChanged(event)
 
     def paneStartingParametersOnCollapsiblePaneChanged(self, event : CollapsiblePaneEvent):
         self.__onScrollSizeChange(self.paneStartingParameters, event.GetCollapsed())
+
+        # Clear the previewer when collapsed
+        if self.paneStartingParameters.IsCollapsed():
+            self.__animManagerTargetPreview = None
+        else:
+            # If we're opening the starting parameter preview, we need to setup the animations
+            self.__updateAnimationToggles()
+
         return super().paneStartingParametersOnCollapsiblePaneChanged(event)
