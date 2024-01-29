@@ -1,0 +1,808 @@
+from typing import Dict, List, Optional, Tuple
+from ..asset_management.event import giveEventViewedFlag
+from editor.asset_management.room import PlaceGroup, getPackPathForPlaceIndex, loadAutoEvent, loadPlaceFlag, saveAutoEvent, savePlaceFlag
+from editor.branch_management.branch_event.utils import getNameForEvent
+from editor.d_pickerChapter import DialogSelectChapter
+from editor.d_pickerEvent import DialogEvent
+from editor.e_room.main import FramePlaceEditor
+from editor.treeUtils import isItemOnPathToItem
+from widebrim.engine.const import PATH_DB_AUTOEVENT, PATH_DB_PLACEFLAG, PATH_PROGRESSION_DB
+from widebrim.engine.state.manager.state import Layton2GameState
+from filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
+from widebrim.madhatter.common import log, logSevere
+from widebrim.madhatter.hat_io.asset import File
+from widebrim.madhatter.hat_io.asset_autoevent import AutoEvent
+from widebrim.madhatter.hat_io.asset_dat.place import PlaceData, PlaceDataNds
+from widebrim.gamemodes.room.const import PATH_PACK_PLACE
+from widebrim.madhatter.hat_io.asset_placeflag import PlaceFlag
+from wx import TreeItemId, StaticBox, ID_OK
+from re import match
+
+# TODO - Remove extra button checks (some cases aren't covered anyways, like deleting wrong item outside of state mode...)
+# TODO - When changing events for autoevent, ensure that the event has an EventViewed flag
+# TODO - Add SubMap infos
+
+class FramePlaceConditionalEditor(FramePlaceEditor):
+
+    LOG_MODULE_NAME : str           = "PlaceDbEdit"
+
+    TEXT_BTN_CONDITION_EXISTS       = "Remove condition..."
+    TEXT_BTN_CONDITION_MISSING      = "New condition..."
+    
+    TEXT_BTN_ADD_STATE_TOO_MANY     = "No more states!"
+    TEXT_BTN_ADD_EVENT_TOO_MANY     = "No more events!"
+    TEXT_BTN_ADD_STATE_REMAINING    = "Add below..."
+    TEXT_BTN_ADD_EVENT_REMAINING    = "Add below..."
+    TEXT_BTN_ADD_PLACEHOLDER        = "Add below..."
+
+    TEXT_BTN_DUP_STATE_TOO_MANY     = "No more states!"
+    TEXT_BTN_DUP_EVENT_TOO_MANY     = "No more events!"
+    TEXT_BTN_DUP_STATE_REMAINING    = "Duplicate below..."
+    TEXT_BTN_DUP_EVENT_REMAINING    = "Duplicate below..."
+    TEXT_BTN_DUP_PLACEHOLDER        = "Duplicate below..."
+
+    NAME_TREE_ITEM_AUTOEVENT        = "Automatic Events"
+    NAME_TREE_ITEM_AUTOEVENT_BAD    = "(Automatic events only available for first 8 states)"
+
+    NAME_ROOM_PROPERTIES_INFILL     = "Room Parameters: %s"
+
+    EVENTCOUNTER_STRING_MODE_0      = "Variable %i equals %i"
+    EVENTCOUNTER_STRING_MODE_1      = "Variable %i doesn't equal %i"
+    EVENTCOUNTER_STRING_MODE_2      = "Variable %i greater than or equal to %i"
+    EVENTCOUNTER_UNRECOGNISED       = "Misconfigured variable action"
+
+    def __init__(self, parent, filesystem: WriteableFilesystemCompatibilityLayer, state: Layton2GameState, groupPlace: PlaceGroup):
+        super().__init__(parent, filesystem, state, groupPlace)
+        self.__rootTreeStates       : Optional[TreeItemId] = None
+        self.__rootTreeAutoEvent    : Optional[TreeItemId] = None
+        self.__activeItemHasCondition : bool = False
+        self.updateInterfaceButtons()
+    
+    def __isSelectedItemTypeState(self) -> bool:
+        if self.treeStateProgression: 
+            selection = self.treeStateProgression.GetSelection()
+            if self.__rootTreeStates != None and isItemOnPathToItem(self.treeStateProgression, selection, self.__rootTreeStates):
+                return selection != self.__rootTreeStates
+        return False
+
+    def __isSelectedItemTypeAutoEvent(self) -> bool:
+        if self.treeStateProgression:            
+            selection = self.treeStateProgression.GetSelection()
+            if self.__rootTreeAutoEvent != None and isItemOnPathToItem(self.treeStateProgression, selection, self.__rootTreeAutoEvent):
+                return selection != self.__rootTreeAutoEvent
+        return False
+
+    def updateInterfaceButtons(self):
+
+        def disableAllButtons():
+            self.btnAddCondition.Disable()
+            self.btnAddState.Disable()
+            self.btnMoveUp.Disable()
+            self.btnMoveDown.Disable()
+            self.btnDelete.Disable()
+            self.btnDuplicate.Disable()
+            self.btnEditChapter.Disable()
+            self.btnAddState.SetLabel(FramePlaceConditionalEditor.TEXT_BTN_ADD_PLACEHOLDER)
+            self.btnDuplicate.SetLabel(FramePlaceConditionalEditor.TEXT_BTN_DUP_PLACEHOLDER)
+
+        def updateInterfaceInsideState():
+            if self._getActiveState() != None:
+                
+                indexItem = self._getListPlaceData()[1].index(self._getActiveState())
+
+                if indexItem != 0:
+                    self.btnAddCondition.Enable()
+                    self.btnEditChapter.Enable()
+                else:
+                    self.btnAddCondition.Disable()
+                    self.btnEditChapter.Disable()
+
+                if self.__activeItemHasCondition:
+                    self.btnAddCondition.SetLabel(FramePlaceConditionalEditor.TEXT_BTN_CONDITION_EXISTS)
+                else:
+                    self.btnAddCondition.SetLabel(FramePlaceConditionalEditor.TEXT_BTN_CONDITION_MISSING)
+                
+                if 1 < indexItem:
+                    self.btnMoveUp.Enable()
+                else:
+                    self.btnMoveUp.Disable()
+
+                if 1 <= indexItem < len(self._getListPlaceData()[1]) - 1:
+                    self.btnMoveDown.Enable()
+                else:
+                    self.btnMoveDown.Disable()
+
+                if indexItem != 0:
+                    self.btnDelete.Enable()
+                else:
+                    self.btnDelete.Disable()
+
+                if len(self._getListPlaceData()[1]) < 16:
+                    self.btnAddState.SetLabel(FramePlaceConditionalEditor.TEXT_BTN_ADD_STATE_REMAINING)
+                    self.btnDuplicate.SetLabel(FramePlaceConditionalEditor.TEXT_BTN_DUP_STATE_REMAINING)
+                    self.btnDuplicate.Enable()
+                    self.btnAddState.Enable()
+                else:
+                    self.btnAddState.SetLabel(FramePlaceConditionalEditor.TEXT_BTN_ADD_STATE_TOO_MANY)
+                    self.btnDuplicate.SetLabel(FramePlaceConditionalEditor.TEXT_BTN_DUP_STATE_TOO_MANY)
+                    self.btnDuplicate.Disable()
+                    self.btnAddState.Disable()
+            else:
+                disableAllButtons()
+
+        def updateInterfaceNoAutoEvent():
+            autoEventChildren = self.__getAutoEventChildren()
+            countAutoEvent = len(autoEventChildren)
+            if countAutoEvent == 0:
+                self.btnAddState.Enable()
+
+                self.btnAddCondition.Disable()
+                self.btnMoveUp.Disable()
+                self.btnMoveDown.Disable()
+                self.btnDelete.Disable()
+                self.btnDuplicate.Disable()
+                self.btnEditChapter.Disable()
+                self.btnAddState.SetLabel(FramePlaceConditionalEditor.TEXT_BTN_ADD_EVENT_REMAINING)
+                self.btnDuplicate.SetLabel(FramePlaceConditionalEditor.TEXT_BTN_DUP_PLACEHOLDER)
+            else:
+                disableAllButtons()
+
+        def updateInterfaceInsideAutoEvent():
+            selection = self.treeStateProgression.GetSelection()
+            while self.treeStateProgression.GetItemParent(selection) != self.__rootTreeAutoEvent:
+                selection = self.treeStateProgression.GetItemParent(selection)
+            autoEventChildren = self.__getAutoEventChildren()
+            countAutoEvent = len(autoEventChildren)
+            indexAutoEvent = autoEventChildren.index(selection)
+
+            if countAutoEvent < 8:
+                self.btnAddState.Enable()
+                self.btnDuplicate.Enable()
+                self.btnAddState.SetLabel(FramePlaceConditionalEditor.TEXT_BTN_ADD_EVENT_REMAINING)
+                self.btnDuplicate.SetLabel(FramePlaceConditionalEditor.TEXT_BTN_DUP_EVENT_REMAINING)
+            else:
+                self.btnAddState.Disable()
+                self.btnDuplicate.Disable()
+                self.btnAddState.SetLabel(FramePlaceConditionalEditor.TEXT_BTN_ADD_EVENT_TOO_MANY)
+                self.btnDuplicate.SetLabel(FramePlaceConditionalEditor.TEXT_BTN_DUP_EVENT_TOO_MANY)
+            
+            if indexAutoEvent < (countAutoEvent - 1):
+                self.btnMoveDown.Enable()
+            else:
+                self.btnMoveDown.Disable()
+            
+            if indexAutoEvent > 0:
+                self.btnMoveUp.Enable()
+            else:
+                self.btnMoveUp.Disable()
+            
+            self.btnDelete.Enable()
+            self.btnAddCondition.Disable()
+            self.btnEditChapter.Enable()
+
+        if self.__isSelectedItemTypeState():
+            updateInterfaceInsideState()
+        elif self.__isSelectedItemTypeAutoEvent():
+            updateInterfaceInsideAutoEvent()
+        elif self.treeStateProgression and (selection := self.treeStateProgression.GetSelection()) == self.__rootTreeAutoEvent:
+            updateInterfaceNoAutoEvent()
+        else:
+            disableAllButtons()
+
+    def ensureLoaded(self):
+        if self._loaded:
+            return
+
+        self.Freeze()
+        self.__generateList()
+        self.reloadActivePlaceData()
+        self.refreshExitImages()
+        self._loaded = True
+        self.Thaw()
+    
+    def treeStateProgressionOnTreeSelChanged(self, event):
+        if self._lastValidSuggestion != self._getActiveState():
+            self.btnRoomCreateNew.Disable()
+            self.btnRoomDelete.Disable()
+            self.checkRoomApplyToAll.Disable()
+            self.reloadActivePlaceData()
+            self.__reloadTitle()
+        self.updateInterfaceButtons()
+        return super().treeStateProgressionOnTreeSelChanged(event)
+    
+    def treeStateProgressionOnTreeItemActivated(self, event):
+        if not(self.treeStateProgression):
+            return super().treeStateProgressionOnTreeItemActivated(event)
+
+        item = self.treeStateProgression.GetSelection()
+        if self.treeStateProgression.GetItemParent(item) == self.__rootTreeAutoEvent:
+            dlg = DialogEvent(self, self._state, self.treeStateProgression.GetItemData(item))
+            if dlg.ShowModal() == ID_OK:
+                chapterMin, chapterMax = (0,0)
+                if (chapters := self.__getChaptersFromItem(item)) != None:
+                    chapterMin, chapterMax = chapters
+
+                newFlag = giveEventViewedFlag(self._state, dlg.GetSelection())
+                if newFlag == None:
+                    logSevere("AddAutoEvent: Failed to get EventViewed flag, glitches are likely!", name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
+                self.treeStateProgression.SetItemData(item, dlg.GetSelection())
+                self.treeStateProgression.SetItemText(item, ("Chapter %i to %i: " % (chapterMin, chapterMax)) + getNameForEvent(self._state, dlg.GetSelection()))
+        return super().treeStateProgressionOnTreeItemActivated(event)
+
+    def __reloadTitle(self):
+        item = self.__getItemCorrespondingToState(self._lastValidSuggestion)
+        if item != None:
+            staticBox : StaticBox = self.treeParam.GetParent()
+            staticBox.SetLabel(FramePlaceConditionalEditor.NAME_ROOM_PROPERTIES_INFILL % self.treeStateProgression.GetItemText(item))
+
+    def __getAutoEventChildren(self) -> List[TreeItemId]:
+        output = []
+        if self.__rootTreeAutoEvent != None:
+            child, _cookie = self.treeStateProgression.GetFirstChild(self.__rootTreeAutoEvent)
+            while child.IsOk():
+                output.append(child)
+                child = self.treeStateProgression.GetNextSibling(child)
+        return output
+
+    def _getListPlaceData(self) -> Tuple[List[TreeItemId], List[PlaceData]]:
+        outputTree = []
+        outputPlace = []
+        if self.__rootTreeStates != None:
+            child, _cookie = self.treeStateProgression.GetFirstChild(self.__rootTreeStates)
+            while child.IsOk():
+                outputTree.append(child)
+                outputPlace.append(self.treeStateProgression.GetItemData(child))
+                child = self.treeStateProgression.GetNextSibling(child)
+        return (outputTree, outputPlace)
+
+    def __correctTreeItemIndices(self):
+        treeItems, treeData = self._getListPlaceData()
+        for indexItem, item in enumerate(treeItems):
+            chapters = self.__getChaptersFromItem(item)
+            if chapters == None:
+                self.treeStateProgression.SetItemText(item, "Default State")
+            else:
+                chapterMin, chapterMax = chapters
+                self.treeStateProgression.SetItemText(item, "State %i: Chapter %i to %i" % (indexItem, chapterMin, chapterMax))
+
+    def __getChaptersFromItem(self, item : TreeItemId) -> Optional[Tuple[int,int]]:
+        if item.IsOk():
+            nameItem = self.treeStateProgression.GetItemText(item)
+            matching = match("State [0-9]+: Chapter ([0-9]+) to ([0-9]+)", nameItem)
+            if matching != None and matching.lastindex >= 2:
+                return (int(matching[1]), int(matching[2]))
+            matching = match("Chapter ([0-9]+) to ([0-9]+): ", nameItem)
+            if matching != None and matching.lastindex >= 2:
+                return (int(matching[1]), int(matching[2]))
+        return None
+
+    def __getItemCorrespondingToState(self, placeData : PlaceDataNds) -> Optional[TreeItemId]:
+        if self.__rootTreeStates != None:
+            treeItems, treeData = self._getListPlaceData()
+            if placeData in treeData:
+                return treeItems[treeData.index(placeData)]
+        return None
+
+    def __getBranchRootFromItem(self, item : TreeItemId) -> Optional[TreeItemId]:
+        if item.IsOk():
+            treeItems, _treeData = self._getListPlaceData()
+            while item != self.treeStateProgression.GetRootItem():
+                if item in treeItems:
+                    return item
+                item = self.treeStateProgression.GetItemParent(item)
+        return None
+
+    def __generateList(self):
+            
+        pathPack = getPackPathForPlaceIndex(self._groupPlace.indexPlace)
+        pack = self._filesystem.getPack(pathPack)
+        placeData : List[PlaceData] = []
+
+        listStateIndices = self._groupPlace.indicesStates
+        if listStateIndices != list(range(self._groupPlace.indicesStates[-1] + 1)):
+            # TODO - Read off databases as well to detect "true maximum"
+            logSevere("Detected gaps in place details, extra place data will be generated!", name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
+            listStateIndices = list(range(self._groupPlace.indicesStates[-1] + 1))
+
+        for index in listStateIndices:
+            loadedPlace = PlaceDataNds()
+            if (data := pack.getFile(PATH_PACK_PLACE % (self._groupPlace.indexPlace, index))) != None:
+                loadedPlace.load(data)
+            placeData.append(loadedPlace)
+
+        self.__activeItemHasCondition = False
+
+        placeFlag = PlaceFlag()
+        if (data := self._filesystem.getPackedData(PATH_PROGRESSION_DB, PATH_DB_PLACEFLAG)) != None:
+            placeFlag.load(data)
+
+        autoEvent = AutoEvent()
+        if (data := self._filesystem.getPackedData(PATH_PROGRESSION_DB, PATH_DB_AUTOEVENT)) != None:
+            autoEvent.load(data)
+
+        def generateAutoEventBranch():
+            self.__rootTreeAutoEvent = self.treeStateProgression.AppendItem(self.treeStateProgression.GetRootItem(), FramePlaceConditionalEditor.NAME_TREE_ITEM_AUTOEVENT)
+            groupAutoEvent = autoEvent.getEntry(self._groupPlace.indexPlace)
+            if groupAutoEvent != None:
+                for indexAutoEvent in range(8):
+                    if (entry := groupAutoEvent.getSubPlaceEntry(indexAutoEvent)) != None:
+                        if not(entry.chapterEnd == 0 and entry.chapterStart == 0):
+                            self.treeStateProgression.AppendItem(self.__rootTreeAutoEvent,
+                                                                ("Chapter %i to %i: " % (entry.chapterStart, entry.chapterEnd)) + getNameForEvent(self._state, entry.idEvent),
+                                                                data=entry.idEvent)
+                            self.treeStateProgression.Expand(self.__rootTreeAutoEvent)
+
+        self.treeStateProgression.DeleteAllItems()
+        rootTreeProgression = self.treeStateProgression.AddRoot("You shouldn't be able to see this!")
+        self.__rootTreeStates = self.treeStateProgression.AppendItem(rootTreeProgression, "States")
+        
+        generateAutoEventBranch()
+
+        selection = None
+        for index, placeDataEntry in enumerate(placeData):
+            indexData = self._groupPlace.indicesStates[index]
+            if index == 0:
+                selection = self.treeStateProgression.AppendItem(self.__rootTreeStates, "Default State", data=placeDataEntry)
+            else:
+                entry = placeFlag.getEntry(self._groupPlace.indexPlace)
+                chapterEntry = entry.getChapterEntry(index)
+                chapterMin = chapterEntry.chapterStart
+                chapterMax = chapterEntry.chapterEnd
+
+                subroomRoot = self.treeStateProgression.AppendItem(self.__rootTreeStates, "State " + str(index) + (": Chapter %i to %i" % (chapterMin, chapterMax)),
+                                                                   data=placeDataEntry)
+
+                if chapterMin == 0 or chapterMax == 0:
+                    # TODO - How to show this without breaking tree readoff?
+                    # self.treeStateProgression.AppendItem(subroomRoot, "Terminate subroom discovery on encounter")
+                    continue
+                
+                counterEntry = entry.getCounterEntry(indexData)
+                if counterEntry.indexEventCounter != 0:
+                    if counterEntry.decodeMode == 0:
+                        # Value same as val at index
+                        self.treeStateProgression.AppendItem(subroomRoot, FramePlaceConditionalEditor.EVENTCOUNTER_STRING_MODE_0 % (counterEntry.indexEventCounter, counterEntry.unk1))
+                    elif counterEntry.decodeMode == 1:
+                        # Value different than val at index
+                        self.treeStateProgression.AppendItem(subroomRoot, FramePlaceConditionalEditor.EVENTCOUNTER_STRING_MODE_1 % (counterEntry.indexEventCounter, counterEntry.unk1))
+                    elif counterEntry.decodeMode == 2:
+                        # Value less than val at index
+                        self.treeStateProgression.AppendItem(subroomRoot, FramePlaceConditionalEditor.EVENTCOUNTER_STRING_MODE_2 % (counterEntry.indexEventCounter, counterEntry.unk1))
+                    else:
+                        self.treeStateProgression.AppendItem(subroomRoot, FramePlaceConditionalEditor.EVENTCOUNTER_UNRECOGNISED)
+
+        if selection != None:
+            self.treeStateProgression.SelectItem(selection)
+    
+    def _getSelectedWithStateParent(self) -> Optional[Tuple[TreeItemId, TreeItemId]]:
+        """Returns key state parent alongside original selection.
+
+        Returns:
+            Optional[Tuple(TreeItemId, TreeItemId)]: (KeyItem, SelectedItem) or None if no state was selected.
+        """
+        # HACK - Method called when tree is broken. Workaround, see https://github.com/wxWidgets/Phoenix/issues/1500
+        if self.treeStateProgression:
+            selection : TreeItemId = self.treeStateProgression.GetSelection()
+            if selection.IsOk():
+                treeItems, _treeData = self._getListPlaceData()
+                rootItem = self.treeStateProgression.GetRootItem()
+                while selection != rootItem:
+                    if selection in treeItems:
+                        return (selection, self.treeStateProgression.GetSelection())
+                    selection = self.treeStateProgression.GetItemParent(selection)
+        return None
+
+    def _getActiveState(self) -> Optional[PlaceDataNds]:
+        keyItemAndParent = self._getSelectedWithStateParent()
+        if keyItemAndParent != None:
+            selection, _selected = keyItemAndParent
+            treeItems, treeData = self._getListPlaceData()
+            suggestion = treeData[treeItems.index(selection)]
+            if suggestion != self._lastValidSuggestion:
+                if self.treeStateProgression.GetChildrenCount(selection) > 0:
+                    self.__activeItemHasCondition = True
+                else:
+                    self.__activeItemHasCondition = False
+                self._lastValidSuggestion = suggestion
+        return self._lastValidSuggestion
+
+    def syncChanges(self):
+
+        def nonDestructiveWritePackChanges(dataOutput : List[PlaceData]):
+            """Writes room data without modifying other rooms."""
+
+            # Preserve all other files (potentially changed) while changing ours
+            # Get pack to overwrite
+            pathPack = getPackPathForPlaceIndex(self._groupPlace.indexPlace)
+            pack = self._filesystem.getPack(pathPack)
+
+            datPlace = PATH_PACK_PLACE.replace("%i", "([0-9]*)")
+
+            contents : Dict[int, Dict[int, File]] = {}
+            for file in pack.files:
+                # Remove files to be overwritten from data
+                if (result := match(datPlace, file.name)) != None:
+                    indexPlace = int(result.group(1))
+                    indexSubPlace = int(result.group(2))
+                    
+                    if indexPlace != self._groupPlace.indexPlace:
+                        if indexPlace not in contents:
+                            contents[indexPlace] = {}
+                        
+                        contents[indexPlace][indexSubPlace] = file
+
+            contents[self._groupPlace.indexPlace] = {}
+            for indexSubPlace, fileData in enumerate(dataOutput):
+                fileData.save()
+                contents[self._groupPlace.indexPlace][indexSubPlace] = File(name=PATH_PACK_PLACE % (self._groupPlace.indexPlace, indexSubPlace), data=fileData.data)
+
+            pack.files = []
+            indicesPlaces = list(contents.keys())
+            indicesPlaces.sort()
+            for indexPlace in indicesPlaces:
+                indicesSubPlaces = list(contents[indexPlace].keys())
+                indicesSubPlaces.sort()
+                for indexSubPlace in indicesSubPlaces:
+                    pack.files.append(contents[indexPlace][indexSubPlace])
+
+            pack.save()
+            pack.compress()
+            self._filesystem.writeableFs.replaceFile(pathPack, pack.data)
+            log("Updated room information -", pathPack)
+
+        def nonDestructiveWriteAutoEvent():
+            autoEvent = loadAutoEvent(self._state)
+            entry = autoEvent.getEntry(self._groupPlace.indexPlace)
+            entry.clear()
+
+            rootChild, _cookie = self.treeStateProgression.GetFirstChild(self.__rootTreeAutoEvent)
+            indexAutoEvent = 0
+            while rootChild.IsOk():
+                idEvent = self.treeStateProgression.GetItemData(rootChild)
+                chapterMin, chapterMax = (0,0)
+                if (chapters := self.__getChaptersFromItem(rootChild)) != None:
+                    chapterMin, chapterMax = chapters
+
+                autoEventEntry = entry.getSubPlaceEntry(indexAutoEvent)
+                autoEventEntry.chapterEnd = chapterMax
+                autoEventEntry.chapterStart = chapterMin
+
+                if type(idEvent) == int:
+                    autoEventEntry.idEvent = idEvent
+                else:
+                    logSevere("AutoEvent: Wrong data type for exporting under room", self._groupPlace.indexPlace, name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
+
+                rootChild = self.treeStateProgression.GetNextSibling(rootChild)
+                indexAutoEvent += 1
+            
+            saveAutoEvent(self._state, autoEvent)
+
+        def nonDestructiveWritePlaceFlag():
+            placeFlag = loadPlaceFlag(self._state)
+            entry = placeFlag.getEntry(self._groupPlace.indexPlace)
+            entry.clear()
+
+            rootChild, cookie = self.treeStateProgression.GetFirstChild(self.__rootTreeStates)
+            indexSubState = 0
+            while rootChild.IsOk():
+                nameItem = self.treeStateProgression.GetItemText(rootChild)
+                chapterMin, chapterMax = (0,0)
+                if not("Default" in nameItem):
+                    # Other states
+                    chapters = self.__getChaptersFromItem(rootChild)
+                    if chapters == None:
+                        logSevere("Failed to decode", nameItem, name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
+                    else:
+                        chapterMin, chapterMax = chapters
+                
+                chapterEntry = entry.getChapterEntry(indexSubState)
+                chapterEntry.chapterStart = chapterMin
+                chapterEntry.chapterEnd = chapterMax
+
+                if self.treeStateProgression.GetChildrenCount(rootChild, False) > 0:
+                    conditionalChild, _dumpCookie = self.treeStateProgression.GetFirstChild(rootChild)
+                    # Has an event counter entry
+                    stringMode0 = FramePlaceConditionalEditor.EVENTCOUNTER_STRING_MODE_0.replace("%i", "([0-9]+)")
+                    stringMode1 = FramePlaceConditionalEditor.EVENTCOUNTER_STRING_MODE_1.replace("%i", "([0-9]+)")
+                    stringMode2 = FramePlaceConditionalEditor.EVENTCOUNTER_STRING_MODE_2.replace("%i", "([0-9]+)")
+                    if (result := match(stringMode0, self.treeStateProgression.GetItemText(conditionalChild))) != None:
+                        idxVariable = int(result.group(0))
+                        value = int(result.group(1))
+                        print("Recognised 0!", idxVariable, value)
+                        counter = entry.getCounterEntry(indexSubState)
+                        counter.decodeMode = 0
+                        counter.indexEventCounter = idxVariable
+                        counter.unk1 = value
+                    elif (result := match(stringMode1, self.treeStateProgression.GetItemText(conditionalChild))) != None:
+                        idxVariable = int(result.group(0))
+                        value = int(result.group(1))
+                        print("Recognised 1!", idxVariable, value)
+                        counter = entry.getCounterEntry(indexSubState)
+                        counter.decodeMode = 1
+                        counter.indexEventCounter = idxVariable
+                        counter.unk1 = value
+                    elif (result := match(stringMode2, self.treeStateProgression.GetItemText(conditionalChild))) != None:
+                        idxVariable = int(result.group(0))
+                        value = int(result.group(1))
+                        print("Recognised 2!", idxVariable, value)
+                        counter = entry.getCounterEntry(indexSubState)
+                        counter.decodeMode = 2
+                        counter.indexEventCounter = idxVariable
+                        counter.unk1 = value
+                    else:
+                        print("Unrecognised condition:", self.treeStateProgression.GetItemText(conditionalChild))
+
+                    pass
+
+                rootChild = self.treeStateProgression.GetNextSibling(rootChild)
+                indexSubState += 1
+            
+            savePlaceFlag(self._state, placeFlag)
+        
+        if self.__rootTreeStates == None:
+            return
+
+        rootChild, cookie = self.treeStateProgression.GetFirstChild(self.__rootTreeStates)
+        dataOutput : List[PlaceData] = []
+        chapterOutput = []
+        # TODO - Read state index from items - is it possible that an item will be missing a state? How can we recover from this situation?
+        while rootChild.IsOk():
+            dataOutput.append(self.treeStateProgression.GetItemData(rootChild))
+            nameItem = self.treeStateProgression.GetItemText(rootChild)
+            if "Default" in nameItem:
+                # Default state - TODO What should this be by default?
+                chapterOutput.append((0,0))
+            else:
+                # Other states
+                chapters = self.__getChaptersFromItem(rootChild)
+                if chapters == None:
+                    logSevere("Failed to decode", nameItem, name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
+                    chapterMin = 0
+                    chapterMax = 0
+                else:
+                    chapterMin, chapterMax = chapters
+                chapterOutput.append((chapterMin, chapterMax))
+            rootChild = self.treeStateProgression.GetNextSibling(rootChild)
+        
+        nonDestructiveWritePackChanges(dataOutput)
+        nonDestructiveWritePlaceFlag()
+        nonDestructiveWriteAutoEvent()
+
+    def __addBelow(self, above : TreeItemId, duplicateAbove : bool = False):
+        treeItems, treeData = self._getListPlaceData()
+        if len(treeItems) < 16 and self.__rootTreeStates != None:
+            if above not in treeItems:
+                logSevere("Failed to find correct sibling state!", name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
+                return
+
+            chapterMin = 999
+            chapterMax = 999
+            if duplicateAbove:
+                chapters = self.__getChaptersFromItem(above)
+                if chapters != None:
+                    chapterMin, chapterMax = chapters
+                else:
+                    logSevere("GetChapters called on incorrect item", self.treeStateProgression.GetItemText(above), name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
+
+            newItem = self.treeStateProgression.InsertItem(self.__rootTreeStates, above, "State 255: Chapter %i to %i" % (chapterMin, chapterMax))
+            newPlaceDataEntry = PlaceDataNds()
+
+            if duplicateAbove:
+                placeData : PlaceDataNds = treeData[treeItems.index(above)]
+                if type(placeData) == PlaceDataNds:
+                    placeData.save()
+                    newPlaceDataEntry.load(placeData.data)
+                    if self.treeStateProgression.GetChildrenCount(above) == 1:
+                        child, cookie = self.treeStateProgression.GetFirstChild(above)
+                        self.treeStateProgression.AppendItem(newItem, self.treeStateProgression.GetItemText(child))
+                else:
+                    logSevere("Failed to copy", self.treeStateProgression.GetItemText(above), name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
+            
+            self.treeStateProgression.SetItemData(newItem, newPlaceDataEntry)
+            self.__correctTreeItemIndices()
+            
+            # TODO - Optimize calls to this
+            self.__reloadTitle()
+        else:
+            logSevere("Cannot add another place data database entry!", name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
+
+    # Calling updateInterfaceButtons will ensure these are correct in context, but it doesn't hurt to check
+    def btnAddConditionOnButtonClick(self, event):
+        return super().btnAddConditionOnButtonClick(event)
+
+    # Below buttons can be called at any point
+    def btnAddStateOnButtonClick(self, event):
+        if self.__isSelectedItemTypeState():
+            if len(self._getListPlaceData()[1]) < 16 and (state := self._getActiveState()) != None and self.__rootTreeStates != None:
+                target = self.__getItemCorrespondingToState(state)
+                if target != None:
+                    self.__addBelow(target, False)
+                    self.updateInterfaceButtons()
+                else:
+                    logSevere("Failed to find AddState target!", name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
+
+        elif self.__isSelectedItemTypeAutoEvent() and len(self.__getAutoEventChildren()) < 8:
+            textDup = ("Chapter %i to %i: " % (999, 999)) + "Configure event..."
+            self.treeStateProgression.InsertItem(self.__rootTreeAutoEvent, self.treeStateProgression.GetSelection(), textDup, data=0)
+            self.updateInterfaceButtons()
+
+        elif self.treeStateProgression and (self.treeStateProgression.GetSelection() == self.__rootTreeAutoEvent) and len(self.__getAutoEventChildren()) == 0:
+            textDup = ("Chapter %i to %i: " % (999, 999)) + "Configure event..."
+            self.treeStateProgression.AppendItem(self.__rootTreeAutoEvent, textDup, data=0)
+            self.updateInterfaceButtons()
+
+        return super().btnAddStateOnButtonClick(event)
+    
+    def btnDeleteOnButtonClick(self, event):
+        if self.__isSelectedItemTypeState():
+            if (state := self._getActiveState()) != None and (indexState := self._getListPlaceData()[1].index(state)) > 0 and self.__rootTreeStates != None:
+                item = self.__getItemCorrespondingToState(state)
+                if item == None:
+                    logSevere("Delete called on bad item!", name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
+                else:
+                    self.treeStateProgression.DeleteChildren(item)
+                    self.treeStateProgression.Delete(item)
+                    self.__correctTreeItemIndices()  
+
+                    # TODO - Optimize calls to this
+                    self.__reloadTitle()   
+
+        elif self.__isSelectedItemTypeAutoEvent() and len(self.__getAutoEventChildren()) > 0:
+            self.treeStateProgression.Delete(self.treeStateProgression.GetSelection())
+            self.updateInterfaceButtons()
+
+        return super().btnDeleteOnButtonClick(event)
+    
+    def btnDuplicateOnButtonClick(self, event):
+        if self.__isSelectedItemTypeState():
+            if len(self._getListPlaceData()[1]) < 16 and (state := self._getActiveState()) != None and self.__rootTreeStates:
+                target = self.__getItemCorrespondingToState(state)
+                if target != None:
+                    self.__addBelow(target, True)
+                    self.updateInterfaceButtons()
+                else:
+                    logSevere("Failed to find AddState target!", name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
+
+        elif self.__isSelectedItemTypeAutoEvent() and len(self.__getAutoEventChildren()) < 8:
+            idEvent = self.treeStateProgression.GetItemData(self.treeStateProgression.GetSelection())
+            textDup = self.treeStateProgression.GetItemText(self.treeStateProgression.GetSelection())
+            self.treeStateProgression.InsertItem(self.__rootTreeAutoEvent, self.treeStateProgression.GetSelection(), textDup, data=idEvent)
+            self.updateInterfaceButtons()
+
+        return super().btnDuplicateOnButtonClick(event)
+    
+    def btnEditChapterOnButtonClick(self, event):
+        # TODO - Handle chp_inf here
+
+        def getMinMaxChapter(chapters : Tuple[int,int]) -> Tuple[int,int]:
+            chapterMin, chapterMax = chapters
+            dlg = DialogSelectChapter(self, self._state, defaultChapter=chapterMin, title="Set Minimum Chapter")
+            if dlg.ShowModal() == ID_OK:
+                if dlg.GetSelection() != None:
+                    chapterMin = dlg.GetSelection()
+            else:
+                return chapters
+
+            dlg = DialogSelectChapter(self, self._state, defaultChapter=chapterMax, title="Set Maximum Chapter")
+            if dlg.ShowModal() == ID_OK:
+                if dlg.GetSelection() != None:
+                    chapterMax = dlg.GetSelection()
+            else:
+                return chapters
+            
+            if chapterMin < chapterMax:
+                return (chapterMin, chapterMax)
+            else:
+                return (chapterMax, chapterMin)
+
+        if not(self.treeStateProgression):
+            return super().btnEditChapterOnButtonClick(event)
+        
+        item = self.treeStateProgression.GetSelection()
+
+        if self.__isSelectedItemTypeAutoEvent():
+            chapters = self.__getChaptersFromItem(self.treeStateProgression.GetSelection())
+            if chapters != None:
+                chapterMin, chapterMax = getMinMaxChapter(chapters)
+                # TODO - Replace with regex
+                originalString = self.treeStateProgression.GetItemText(item)
+                originalString = ("Chapter %i to %i: " % (chapterMin, chapterMax)) + ": ".join(originalString.split(": ")[1:])
+                self.treeStateProgression.SetItemText(item, originalString)
+            else:
+                logSevere("Couldn't modify autoevent chapters!", name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
+        elif self.__isSelectedItemTypeState():
+            # TODO - Add precautions to prevent modifying default state (but we're already not doing great with chapter 999...)
+            chapters = self.__getChaptersFromItem(self.__getItemCorrespondingToState(self._getActiveState()))
+            if chapters != None:
+                chapterMin, chapterMax = getMinMaxChapter(chapters)
+                self.treeStateProgression.SetItemText(item, "State %i: Chapter %i to %i" % (255, chapterMin, chapterMax))
+                self.__correctTreeItemIndices()
+            else:
+                logSevere("Couldn't modify state chapters!", name=FramePlaceConditionalEditor.LOG_MODULE_NAME)
+
+        return super().btnEditChapterOnButtonClick(event)
+
+    def btnMoveDownOnButtonClick(self, event):
+        if self.__isSelectedItemTypeAutoEvent():
+            children = self.__getAutoEventChildren()
+            selection = self.treeStateProgression.GetSelection()
+            above = children[children.index(selection) + 1]
+
+            idEvent = self.treeStateProgression.GetItemData(selection)
+            text = self.treeStateProgression.GetItemText(selection)
+            self.treeStateProgression.Delete(selection)
+
+            selection = self.treeStateProgression.InsertItem(self.__rootTreeAutoEvent, above, text, data=idEvent)
+            self.treeStateProgression.SelectItem(selection)
+        
+        elif self.__isSelectedItemTypeState():
+            treeItems, treeData = self._getListPlaceData()
+            indexSelection = treeData.index(self._getActiveState())
+            selection = treeItems[indexSelection]
+            indexNewAbove = indexSelection + 1
+            
+            data = self.treeStateProgression.GetItemData(selection)
+            text = self.treeStateProgression.GetItemText(selection)
+
+            if indexNewAbove >= 0:
+                newItem = self.treeStateProgression.InsertItem(self.__rootTreeStates, treeItems[indexNewAbove], text, data=data)
+            else:
+                newItem = self.treeStateProgression.PrependItem(self.__rootTreeStates, text, data=data)
+            
+            if self.treeStateProgression.GetChildrenCount(selection, False) > 0:
+                child, _cookie = self.treeStateProgression.GetFirstChild(selection)
+                childText = self.treeStateProgression.GetItemText(child)
+                self.treeStateProgression.AppendItem(newItem, childText)
+
+            self.Freeze()
+            self.treeStateProgression.DeleteChildren(selection)
+            self.treeStateProgression.Delete(selection)
+            self.__correctTreeItemIndices()
+            self.treeStateProgression.SelectItem(newItem)
+            self.Thaw()
+
+        return super().btnMoveDownOnButtonClick(event)
+    
+    def btnMoveUpOnButtonClick(self, event):
+        if self.__isSelectedItemTypeAutoEvent():
+            children = self.__getAutoEventChildren()
+            selection = self.treeStateProgression.GetSelection()
+            indexNewAbove = children.index(selection) - 2
+
+            idEvent = self.treeStateProgression.GetItemData(selection)
+            text = self.treeStateProgression.GetItemText(selection)
+            self.treeStateProgression.Delete(selection)
+
+            if indexNewAbove >= 0:
+                selection = self.treeStateProgression.InsertItem(self.__rootTreeAutoEvent, children[indexNewAbove], text, data=idEvent)
+            else:
+                selection = self.treeStateProgression.PrependItem(self.__rootTreeAutoEvent, text, data=idEvent)
+            self.treeStateProgression.SelectItem(selection)
+
+        elif self.__isSelectedItemTypeState():
+            treeItems, treeData = self._getListPlaceData()
+            indexSelection = treeData.index(self._getActiveState())
+            selection = treeItems[indexSelection]
+            indexNewAbove = indexSelection - 2
+            
+            data = self.treeStateProgression.GetItemData(selection)
+            text = self.treeStateProgression.GetItemText(selection)
+
+            if indexNewAbove >= 0:
+                newItem = self.treeStateProgression.InsertItem(self.__rootTreeStates, treeItems[indexNewAbove], text, data=data)
+            else:
+                newItem = self.treeStateProgression.PrependItem(self.__rootTreeStates, text, data=data)
+            
+            if self.treeStateProgression.GetChildrenCount(selection, False) > 0:
+                child, _cookie = self.treeStateProgression.GetFirstChild(selection)
+                childText = self.treeStateProgression.GetItemText(child)
+                self.treeStateProgression.AppendItem(newItem, childText)
+
+            self.Freeze()
+            self.treeStateProgression.DeleteChildren(selection)
+            self.treeStateProgression.Delete(selection)
+            self.__correctTreeItemIndices()
+            self.treeStateProgression.SelectItem(newItem)
+            self.Thaw()
+
+        return super().btnMoveUpOnButtonClick(event)

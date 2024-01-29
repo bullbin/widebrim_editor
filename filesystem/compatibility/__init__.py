@@ -1,0 +1,2 @@
+from .compatibilityFused import WriteableFusedFileInterface
+from .compatibilityRom import WriteableRomFileInterface
