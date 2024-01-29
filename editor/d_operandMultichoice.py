@@ -1,5 +1,5 @@
 from typing import Dict, Optional
-from .nopush_editor import PickerMultipleChoice
+from .gen_editor import PickerMultipleChoice
 from wx import ID_CANCEL, ID_OK
 
 class DialogMultipleChoice(PickerMultipleChoice):

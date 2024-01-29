@@ -1,7 +1,7 @@
 from time import perf_counter
 from typing import Dict, List, Optional, Any
 from editor.asset_management.character import CharacterEntry, computeCharacterNames, getCharacters
-from editor.nopush_editor import PickerBgx
+from editor.gen_editor import PickerBgx
 from wx import Window, TreeItemId, Timer, EVT_TIMER, NullBitmap, Bitmap, EVT_CLOSE, Sizer, ID_OK, ID_CANCEL
 from widebrim.engine.anim.image_anim.image import AnimatedImageObject, AnimatedImageObjectWithSubAnimation
 from widebrim.engine.const import PATH_FACE_ROOT

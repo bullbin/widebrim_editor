@@ -2,7 +2,7 @@ from typing import Dict, Optional, Union
 
 from filesystem.compatibility import WriteableFusedFileInterface
 from filesystem.compatibility.compatibilityRom import WriteableRomFileInterface
-from .nopush_editor import StartupConfiguration
+from .gen_editor import StartupConfiguration
 from wx import FileDialog, FD_OPEN, FD_FILE_MUST_EXIST, DirDialog, ID_CANCEL, ID_OK, MessageDialog, ICON_ERROR, OK
 from ndspy import rom
 from widebrim.engine_ext.rom.banner import getNameStringFromRom

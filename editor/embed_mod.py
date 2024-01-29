@@ -40,7 +40,7 @@ convenience.initDisplay = initDisplayEmbed
 from typing import Callable, Optional
 from pygame import Surface
 import pygame
-from editor.nopush_editor import Editor
+from editor.gen_editor import Editor
 from widebrim.engine.state.enum_mode import GAMEMODES
 from widebrim.engine_ext.state_game import ScreenCollectionGameModeSpawner
 

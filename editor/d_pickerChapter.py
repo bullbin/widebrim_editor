@@ -1,7 +1,7 @@
 from typing import Optional
 from editor.branch_management.branch_chapter.branch_chapter import ChapterBranchManager
 from widebrim.engine.state.manager.state import Layton2GameState
-from .nopush_editor import PickerNode
+from .gen_editor import PickerNode
 from wx import Window, ID_OK, ID_CANCEL
 
 class DialogSelectChapter(PickerNode):

@@ -11,7 +11,7 @@ from widebrim.engine.anim.font.static import generateImageFromString
 from widebrim.madhatter.common import log, logSevere
 from widebrim.madhatter.hat_io.asset import File
 from .treeGroups import TreeGroupBackgroundAnimation, TreeGroupEventSpawner, TreeGroupExit, TreeGroupHintCoin, TreeGroupTObj, TreeObjectPlaceData
-from editor.nopush_editor import editorRoom
+from editor.gen_editor import editorRoom
 from widebrim.engine.const import PATH_ANI, PATH_EXT_EVENT, PATH_EXT_EXIT, PATH_PACK_PLACE_NAME, PATH_PLACE_BG, PATH_PLACE_MAP, PATH_TEXT_PLACE_NAME, RESOLUTION_NINTENDO_DS
 from widebrim.engine.state.manager.state import Layton2GameState
 from widebrim.engine_ext.utils import getBottomScreenAnimFromPath, getImageFromPath, getTopScreenAnimFromPath, getTxt2String, substituteLanguageString

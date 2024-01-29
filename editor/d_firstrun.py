@@ -1,4 +1,4 @@
-from .nopush_editor import FirstRunWarning
+from .gen_editor import FirstRunWarning
 from wx import ID_OK, ID_ABORT
 
 # TODO - Only allow input once fully scrolled

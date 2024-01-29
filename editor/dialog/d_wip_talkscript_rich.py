@@ -1,4 +1,4 @@
-from editor.nopush_editor import EditTalkscriptRich
+from editor.gen_editor import EditTalkscriptRich
 from editor.asset_management.character import CharacterEntry
 from widebrim.engine.state.manager import Layton2GameState
 from widebrim.engine.anim.font.const import BLEND_MAP

@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional
 from widebrim.engine.anim.image_anim.image import AnimatedImageObject
 from editor.gui_helpers.anim_bitmap import AnimationUpdater
-from ..nopush_editor import PickerRemapAnim
+from ..gen_editor import PickerRemapAnim
 from wx import Window, Timer, EVT_TIMER, EVT_CLOSE, NOT_FOUND, ID_CANCEL, ID_OK, Colour
 
 class DialogRemapAnimation(PickerRemapAnim):

@@ -5,7 +5,7 @@ from widebrim.engine.anim.font.static import generateImageFromString
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
 from widebrim.engine.state.manager.state import Layton2GameState
 from widebrim.madhatter.common import logSevere
-from ..nopush_editor import EditTalkscript
+from ..gen_editor import EditTalkscript
 from wx import Window, Bitmap, Timer, EVT_TIMER, EVT_CLOSE, ID_OK, ID_CANCEL
 
 from pygame import Surface
