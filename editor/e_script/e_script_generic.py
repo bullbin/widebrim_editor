@@ -6,7 +6,7 @@ from widebrim.engine.state.manager import Layton2GameState
 from widebrim.madhatter.common import logSevere, logVerbose
 from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
 
-from ..nopush_editor import editorScript
+from ..gen_editor import editorScript
 
 from widebrim.madhatter.hat_io.asset_script import GdScript, Instruction, Operand
 from editor.bank.command_annotator.bank import Context, OperandCompatibility, OperandType, ScriptVerificationBank

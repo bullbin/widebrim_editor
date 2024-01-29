@@ -7,7 +7,7 @@ from editor.e_script.e_script_generic_packed import FrameScriptEditorPackedEvent
 from editor.puzzle.drawInput import DrawInputEditor
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
 from widebrim.madhatter.hat_io.asset_script import GdScript
-from .nopush_editor import editorPuzzle
+from .gen_editor import editorPuzzle
 from widebrim.engine.anim.font.scrolling import ScrollingFontHelper
 from widebrim.engine.const import PATH_NAZO_A, PATH_NAZO_B, PATH_NAZO_C, PATH_PACK_NAZO, PATH_PACK_PLACE_NAME, PATH_PACK_PUZZLE, PATH_PUZZLE_BG, PATH_PUZZLE_BG_LANGUAGE, PATH_PUZZLE_BG_NAZO_TEXT, PATH_PUZZLE_SCRIPT, PATH_TEXT_PLACE_NAME, RESOLUTION_NINTENDO_DS
 from widebrim.engine.state.enum_mode import GAMEMODES

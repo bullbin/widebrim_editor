@@ -14,7 +14,7 @@ from editor.asset_management.room import PlaceGroup, getPlaceGroups
 from editor.treeUtils import isItemOnPathToItem
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
 from widebrim.madhatter.common import logSevere
-from ..nopush_editor import pageOverview
+from ..gen_editor import pageOverview
 from widebrim.engine.state.manager import Layton2GameState
 from editor.asset_management import getCharacters, getEvents
 from wx import ImageList, TreeItemId

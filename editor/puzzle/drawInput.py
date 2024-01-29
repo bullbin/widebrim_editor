@@ -1,5 +1,5 @@
 from pygame import Surface
-from editor.nopush_editor import editorDrawInput
+from editor.gen_editor import editorDrawInput
 
 import wx
 from wx import Bitmap

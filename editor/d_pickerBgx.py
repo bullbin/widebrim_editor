@@ -3,7 +3,7 @@ from editor.generateFsTree import FolderTreeNode, generateFolderStructureFromRel
 from widebrim.engine.state.manager.state import Layton2GameState
 from widebrim.filesystem.compatibility.compatibilityBase import WriteableFilesystemCompatibilityLayer
 from widebrim.madhatter.hat_io.asset import File
-from .nopush_editor import PickerBgx
+from .gen_editor import PickerBgx
 from widebrim.madhatter.hat_io.asset_image import StaticImage
 from wx import TextEntryDialog, MessageDialog, ID_OK, FileDialog, FD_OPEN, FD_FILE_MUST_EXIST, ID_OK, ID_CANCEL, Bitmap
 from PIL import Image as PilImage

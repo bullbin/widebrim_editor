@@ -1,6 +1,6 @@
 from typing import List, Optional
 from editor.asset_management.puzzle import PuzzleEntry, getPuzzles
-from editor.nopush_editor import PickerEvent
+from editor.gen_editor import PickerEvent
 from wx import Window, ID_OK, ID_CANCEL, TreeItemId
 from widebrim.engine.state.manager.state import Layton2GameState
 

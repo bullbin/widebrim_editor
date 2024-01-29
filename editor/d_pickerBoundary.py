@@ -1,5 +1,5 @@
 from typing import Optional, Tuple
-from .nopush_editor import PickerChangeBoundary
+from .gen_editor import PickerChangeBoundary
 from pygame import Surface
 from pygame.image import tostring
 from wx import Bitmap, Pen, Brush, PENSTYLE_SOLID, BRUSHSTYLE_TRANSPARENT, BRUSHSTYLE_BDIAGONAL_HATCH ,IMAGE_QUALITY_NEAREST, BufferedPaintDC, Point, Rect, Image, Colour, ID_CANCEL, ID_OK, CallLater
