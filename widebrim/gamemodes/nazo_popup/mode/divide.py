@@ -1,6 +1,6 @@
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
 from .base import BaseQuestionObject
-from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from ....madhatter.typewriter.strings_lt2 import OPCODES_LT2
 
 from math import sqrt, atan2, degrees
 from pygame import MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION, Rect

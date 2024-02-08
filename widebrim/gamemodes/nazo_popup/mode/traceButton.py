@@ -2,7 +2,7 @@ from widebrim.engine.string.cmp import strCmp
 from .base import BaseQuestionObject
 from ....engine.const import RESOLUTION_NINTENDO_DS
 from ....engine_ext.utils import getBottomScreenAnimFromPath, getButtonFromPath
-from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from ....madhatter.typewriter.strings_lt2 import OPCODES_LT2
 from pygame import MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION, draw, Surface
 from random import randint
 from math import sqrt

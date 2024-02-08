@@ -26,7 +26,7 @@ from ...engine.const import PATH_PACK_EVENT_DAT, PATH_PACK_EVENT_SCR, PATH_PACK_
 
 from ...madhatter.hat_io.asset_script import GdScript
 from ...madhatter.hat_io.asset_sav import FlagsAsArray
-from ...madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from ...madhatter.typewriter.strings_lt2 import OPCODES_LT2
 
 from .storage import EventStorage
 from .popup import *

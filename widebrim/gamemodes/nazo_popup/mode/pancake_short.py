@@ -3,7 +3,7 @@ from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
 from .const import PATH_ANI_PANCAKE, PATH_ANI_SLIDE2_NUMBERS
 from pygame import MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION, Rect
 from .base import BaseQuestionObject
-from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from widebrim.madhatter.typewriter.strings_lt2 import OPCODES_LT2
 
 # Ported from shortbrim
 # TODO - Rewrite this altogether - so many problems, not accurate, missing end graphics showing all lines, etc...

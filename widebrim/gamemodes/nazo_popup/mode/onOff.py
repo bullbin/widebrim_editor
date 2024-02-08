@@ -4,7 +4,7 @@ from .const import PATH_ANI_ONOFF
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
 from widebrim.engine.anim.button import StaticButton
 from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
-from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from widebrim.madhatter.typewriter.strings_lt2 import OPCODES_LT2
 
 class OnOffButton(StaticButton):
     def __init__(self, pos, surfaceButton, callback):

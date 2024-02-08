@@ -27,7 +27,7 @@ from widebrim.madhatter.common import log
 from ....engine_ext.utils import getButtonFromPath
 from .base import BaseQuestionObject
 from .const import PATH_BG_DRAWINPUT
-from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from ....madhatter.typewriter.strings_lt2 import OPCODES_LT2
 from pygame import Surface, MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION
 from pygame.image import tostring
 from pygame.draw import line

@@ -4,7 +4,7 @@ from pygame import Rect
 from pygame.draw import rect
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
 from .base import BaseQuestionObject
-from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from widebrim.madhatter.typewriter.strings_lt2 import OPCODES_LT2
 
 class Jar():
     def __init__(self, surfaceOff, surfaceOn, jarType, x, y):

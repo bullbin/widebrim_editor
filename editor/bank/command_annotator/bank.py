@@ -4,7 +4,7 @@ from json import JSONEncoder, dumps, loads
 from enum import Enum
 from traceback import print_exc
 from typing import Any, Dict, List, Optional
-from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from widebrim.madhatter.typewriter.strings_lt2 import OPCODES_LT2
 
 class BadEncoder(JSONEncoder):
     def default(self, o):

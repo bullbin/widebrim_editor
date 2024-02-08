@@ -1,4 +1,4 @@
-from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from widebrim.madhatter.typewriter.strings_lt2 import OPCODES_LT2
 from editor.e_script.virtual.custom_instructions.dialogue import DialogueInstructionDescription
 from typing import Dict
 

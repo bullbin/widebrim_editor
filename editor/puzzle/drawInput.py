@@ -11,7 +11,7 @@ from widebrim.gamemodes.nazo_popup.mode.const import PATH_BG_DRAWINPUT
 from widebrim.madhatter.hat_io.asset_dat.nazo import NazoData
 
 from widebrim.madhatter.hat_io.asset_script import GdScript
-from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from widebrim.madhatter.typewriter.strings_lt2 import OPCODES_LT2
 
 HANDLER_TO_INDEX = {35:4,
                     32:3,

@@ -4,7 +4,7 @@ from editor.bank.command_annotator.default_value import getDefaultValue
 from widebrim.engine.state.manager import Layton2GameState
 
 from widebrim.madhatter.common import logSevere, logVerbose
-from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from widebrim.madhatter.typewriter.strings_lt2 import OPCODES_LT2
 
 from ..gen_editor import editorScript
 

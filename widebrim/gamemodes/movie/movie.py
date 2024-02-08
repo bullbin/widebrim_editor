@@ -15,7 +15,7 @@ from widebrim.engine.const import PATH_PACK_TXT, RESOLUTION_NINTENDO_DS
 from widebrim.engine_ext.utils import ensureTempFolder, substituteLanguageString, decodeStringFromPack
 from widebrim.gamemodes.core_popup.script import ScriptPlayer
 
-from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from widebrim.madhatter.typewriter.strings_lt2 import OPCODES_LT2
 
 from subprocess import Popen, PIPE
 from pygame import Surface

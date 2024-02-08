@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Tuple
 from widebrim.engine.file import ReadOnlyFileInterface
 from widebrim.madhatter.hat_io.asset import File, LaytonPack
 from widebrim.madhatter.hat_io.asset_script import GdScript, Instruction
-from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from widebrim.madhatter.typewriter.strings_lt2 import OPCODES_LT2
 from widebrim.madhatter.common import logVerbose
 
 from .bank import InstructionDescription, OperandType, Context, ScriptVerificationBank

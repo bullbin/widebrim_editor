@@ -1,6 +1,6 @@
 from .base import BaseQuestionObject
 from ....engine.const import RESOLUTION_NINTENDO_DS
-from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from ....madhatter.typewriter.strings_lt2 import OPCODES_LT2
 from pygame import MOUSEBUTTONDOWN, Surface
 
 class HandlerOnOff2(BaseQuestionObject):

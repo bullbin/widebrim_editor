@@ -2,7 +2,7 @@ from pygame.constants import MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION
 from .base import BaseQuestionObject
 from ....engine_ext.utils import getBottomScreenAnimFromPath
 from ....engine.const import RESOLUTION_NINTENDO_DS
-from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from ....madhatter.typewriter.strings_lt2 import OPCODES_LT2
 from .const import PATH_ANI_TILE2, PATH_ANI_TILE
 
 from pygame import Rect, draw

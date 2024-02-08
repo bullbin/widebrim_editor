@@ -14,7 +14,7 @@ from widebrim.engine.state.enum_mode import STRING_TO_GAMEMODE_VALUE, GAMEMODES
 from widebrim.engine.anim.fader import Fader
 from widebrim.engine.const import TIME_FRAMECOUNT_TO_MILLISECONDS, RESOLUTION_NINTENDO_DS, PATH_CHAP_ROOT
 
-from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from widebrim.madhatter.typewriter.strings_lt2 import OPCODES_LT2
 from widebrim.madhatter.hat_io.asset_sav import FlagsAsArray
 from widebrim.madhatter.hat_io.asset_script import Instruction
 

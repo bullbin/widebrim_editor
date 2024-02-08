@@ -1,5 +1,5 @@
 from typing import Dict, Optional
-from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from widebrim.madhatter.typewriter.strings_lt2 import OPCODES_LT2
 
 MAP_OPCODE_TO_FRIENDLY : Dict[OPCODES_LT2, Optional[str]]= {OPCODES_LT2.ExitScript : "Stop script execution",
                                                             OPCODES_LT2.TextWindow : "Dialogue",

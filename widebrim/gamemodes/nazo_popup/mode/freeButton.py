@@ -1,7 +1,7 @@
 from .base import BaseQuestionObject
 from .const import PATH_ANI_FREEBUTTON
 from ....engine_ext.utils import getButtonFromPath
-from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from ....madhatter.typewriter.strings_lt2 import OPCODES_LT2
 
 class  HandlerFreeButton(BaseQuestionObject):
     def __init__(self, laytonState, screenController, callbackOnTerminate):

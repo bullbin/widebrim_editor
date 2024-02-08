@@ -1,6 +1,6 @@
 from widebrim.madhatter.common import logSevere
 from ....engine.const import RESOLUTION_NINTENDO_DS
-from ....madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from ....madhatter.typewriter.strings_lt2 import OPCODES_LT2
 
 from .base import BaseQuestionObject
 from pygame import Surface, MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION

@@ -3,7 +3,7 @@ from widebrim.engine.anim.fader import Fader
 from widebrim.engine.anim.button import StaticButton
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
 from widebrim.madhatter.common import logSevere
-from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from widebrim.madhatter.typewriter.strings_lt2 import OPCODES_LT2
 
 from .rose_short import RoseWall
 

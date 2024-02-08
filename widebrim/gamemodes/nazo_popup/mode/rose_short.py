@@ -1,7 +1,7 @@
 from widebrim.engine_ext.utils import getBottomScreenAnimFromPath
 from widebrim.engine.const import RESOLUTION_NINTENDO_DS
 from widebrim.madhatter.common import logSevere
-from widebrim.madhatter.typewriter.stringsLt2 import OPCODES_LT2
+from widebrim.madhatter.typewriter.strings_lt2 import OPCODES_LT2
 
 from .base import BaseQuestionObject
 from .const import PATH_ANI_ROSE
